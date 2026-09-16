@@ -135,7 +135,7 @@ catalog:
   qs: ^6.15.3
   reka-ui: ^2.7.0
   rimraf: ^6.1.2
-  rollup-plugin-visualizer: ^5.14.0
+  rollup-plugin-visualizer: ^7.1.1
   sass: ^1.97.3
   sortablejs: ^1.15.6
   stylelint: ^16.26.1
