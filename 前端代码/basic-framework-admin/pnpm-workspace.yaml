@@ -42,7 +42,7 @@ catalog:
   '@commitlint/config-conventional': ^19.8.1
   '@ctrl/tinycolor': ^4.2.0
   '@eslint/js': ^9.39.2
-  '@iconify/json': ^2.2.432
+  '@iconify/json': ^2.2.528
   '@iconify/tailwind': ^1.2.0
   '@iconify/vue': ^5.0.0
   '@intlify/core-base': ^11.2.8
