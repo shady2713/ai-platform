@@ -32,6 +32,7 @@
 | Harness dependencies / integration | 未通过：本机Docker daemon未运行，停止于环境检查 |
 | 文档校验 | 32项检查通过，102张任务卡及协议样例完整 |
 | GitHub权限 | 个人仓库shady2713/ai-platform，Private，仅账户本人为协作者，无待处理邀请 |
+| Git离线迁移 | bundle完整性验证通过；Windows深层目录首次签出触发长路径限制，启用仓库级core.longpaths后克隆、基线标签及32项文档校验通过 |
 
 首次冻结安装在非交互终端要求`CI=true`，设置后成功；锁文件与业务源码不因环境安装而更新。构建生成的日志和产物不进入提交。
 

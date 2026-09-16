@@ -96,7 +96,7 @@ python docs/ai-platform/scripts/verify-documents.py
 联网迁移：登录有权限的GitHub账户，克隆私有仓库并获取标签。随后按根README准备环境。
 
 ```sh
-git clone https://github.com/shady2713/ai-platform.git
+git clone -c core.longpaths=true https://github.com/shady2713/ai-platform.git
 cd ai-platform
 git fetch --tags
 git show --stat framework-baseline-23a7edb37593
@@ -108,13 +108,15 @@ git show --stat framework-baseline-23a7edb37593
 git bundle create ../ai-platform-2026-09-16.bundle --all
 git bundle verify ../ai-platform-2026-09-16.bundle
 # 新电脑
-git clone -b main /path/to/ai-platform-2026-09-16.bundle ai-platform
+git clone -c core.longpaths=true -b main /path/to/ai-platform-2026-09-16.bundle ai-platform
 cd ai-platform
 git fetch origin 'refs/tags/*:refs/tags/*'
 git remote set-url origin https://github.com/shady2713/ai-platform.git
 ```
 
 `bundle`保存已提交的分支与标签，不包含未提交文件、本机.env、外部数据库和运行数据。需要纯源码ZIP时使用`git archive --format=zip --output=../ai-platform-source.zip HEAD`；源码ZIP没有Git历史，不能代替bundle。
+
+Windows克隆时保留上述`-c core.longpaths=true`：Java包名形成较长路径，深层目录可能导致默认Git签出失败。它只设置新仓库，不改变全局Git配置；开发目录优先使用较短路径，例如`C:/work/ai-platform`。
 
 初始化专用`package-project.py`及测试已随历史材料移出源码仓库，避免后续误用。文档ZIP仍由`python docs/ai-platform/scripts/package-documents.py --output <项目外目标ZIP>`生成。
 

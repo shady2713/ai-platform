@@ -3,8 +3,8 @@
   "files": [
     {
       "path": "00-project-bootstrap.md",
-      "bytes": 6264,
-      "sha256": "c2ad046e8ae6525e88a84cbee71330050e5e909f11d4b3df21fc58f6f0b4868d"
+      "bytes": 6566,
+      "sha256": "2f85a38124e43ddc7ed1562cfcf34d4d3e7d36b4876ec2989ced06339464c7a2"
     },
     {
       "path": "01-framework-baseline.md",
@@ -664,12 +664,12 @@
     {
       "path": "verification/report.md",
       "bytes": 2855,
-      "sha256": "9e42654c63b760314b6d2bcd0c732153b9466468df31a626c0c9cf79db403d0b"
+      "sha256": "79435656ddeb199f1719abf3004528960e520a4a460e6f0e1c0c0f24fbdb0b9c"
     },
     {
       "path": "verification/repository-review.md",
-      "bytes": 3538,
-      "sha256": "11837fa217d48f4abc51a2de94353f7a2fcab699d53ba79e1e69348f29ff8b09"
+      "bytes": 3725,
+      "sha256": "4995068800ed44582eb41a33308410f1fb95abe1ecf95be6c23cfe66c3e6cd41"
     },
     {
       "path": "verification/requirements.txt",
@@ -679,7 +679,7 @@
     {
       "path": "verification/results.json",
       "bytes": 6050,
-      "sha256": "4e94ea52e4ae3304dbacef67c87795e2b7b113936d2e006fed24323b06ff95cc"
+      "sha256": "f7258c7b33ac435edceb021febaf03b5d85337a42fe211d20703465705f98272"
     }
   ]
 }
