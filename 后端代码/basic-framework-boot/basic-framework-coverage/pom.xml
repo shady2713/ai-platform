@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <groupId>com.basicframework</groupId>
+        <artifactId>basic-framework</artifactId>
+        <version>${revision}</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>basic-framework-coverage</artifactId>
+    <packaging>jar</packaging>
+
+    <name>${project.artifactId}</name>
+    <description>
+        覆盖率聚合模块：无生产源码，只声明全部生产模块依赖，使 jacoco:report-aggregate
+        能把各模块的 jacoco.exec 合并成唯一权威报告（ADR 0045）。
+        jacoco:report-aggregate 只聚合当前项目的直接依赖，因此这里必须逐个显式声明；
+        不要把本模块声明为其他模块的依赖，否则会污染其运行时类路径。
+    </description>
+
+    <dependencies>
+        <!-- 基础能力接缝（core starters） -->
+        <dependency>
+            <groupId>com.basicframework</groupId>
+            <artifactId>basic-framework-common</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.basicframework</groupId>
+            <artifactId>basic-framework-biz-ip</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.basicframework</groupId>
+            <artifactId>basic-framework-spring-boot-starter-mybatis</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.basicframework</groupId>
+            <artifactId>basic-framework-spring-boot-starter-redis</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.basicframework</groupId>
+            <artifactId>basic-framework-spring-boot-starter-web</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.basicframework</groupId>
+            <artifactId>basic-framework-spring-boot-starter-security</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.basicframework</groupId>
+            <artifactId>basic-framework-spring-boot-starter-protection</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.basicframework</groupId>
+            <artifactId>basic-framework-spring-boot-starter-job</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.basicframework</groupId>
+            <artifactId>basic-framework-spring-boot-starter-excel</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.basicframework</groupId>
+            <artifactId>basic-framework-spring-boot-starter-biz-data-permission</artifactId>
+            <version>${revision}</version>
+        </dependency>
+
+        <!-- 业务模块与其对外契约薄模块 -->
+        <dependency>
+            <groupId>com.basicframework</groupId>
+            <artifactId>basic-framework-module-system-api</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.basicframework</groupId>
+            <artifactId>basic-framework-module-system</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.basicframework</groupId>
+            <artifactId>basic-framework-module-infra-api</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.basicframework</groupId>
+            <artifactId>basic-framework-module-infra</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.basicframework</groupId>
+            <artifactId>basic-framework-server</artifactId>
+            <version>${revision}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- 唯一权威覆盖率报告：合并全部生产模块的执行数据 -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>report-aggregate</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report-aggregate</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/site/jacoco-aggregate</outputDirectory>
+                            <title>basic-framework aggregate coverage</title>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

@@ -1,0 +1,50 @@
+# 安全信号告警规则（威胁模型 T1/T2/T3 的运行期闭环）。
+# 指标语义、阈值依据与处置步骤见 docs/security/security-signals.md；
+# 指标名称由 scripts/check-security-signals.mjs 与代码、文档三方比对。
+groups:
+  - name: basic-framework-security-signals
+    rules:
+      - alert: RefreshTokenReplayDetected
+        # 零容忍：正常用户不会触发重放检测，出现即视为凭据可能已被窃取。
+        expr: increase(basic_framework_auth_refresh_replays_total[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: 检测到刷新令牌重放（威胁模型 T2）
+          description: >-
+            旧代刷新令牌被重复使用，可能意味着凭据泄露。会话应已按 ADR 0039 自动吊销。
+          runbook: docs/security/security-signals.md
+
+      - alert: LoginBruteForceSuspected
+        expr: increase(basic_framework_auth_login_failures_total[5m]) > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 登录失败速率异常（威胁模型 T1）
+          description: >-
+            5 分钟内登录失败超过 50 次，可能是定向爆破或撞库。先确认可信代理已配置，
+            否则按 IP 聚合会取到代理地址。
+          runbook: docs/security/security-signals.md
+
+      - alert: AccountLockSpike
+        expr: increase(basic_framework_auth_account_locks_total[5m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 账号锁定次数异常（威胁模型 T1）
+          description: 短时间内多个账号被锁定，可能是广撒网撞库。
+          runbook: docs/security/security-signals.md
+
+      - alert: UnexpectedSessionRevocationSpike
+        expr: sum by (reason) (increase(basic_framework_auth_session_revocations_total[15m])) > 100
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 会话撤销速率异常（威胁模型 T3）
+          description: >-
+            按 reason 聚合的撤销速率超出常规业务量，排查是否为批量改密或权限脚本误操作。
+          runbook: docs/security/security-signals.md

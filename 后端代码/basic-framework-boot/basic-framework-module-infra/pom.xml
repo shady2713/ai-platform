@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <groupId>com.basicframework</groupId>
+        <artifactId>basic-framework</artifactId>
+        <version>${revision}</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>basic-framework-module-infra</artifactId>
+    <packaging>jar</packaging>
+
+    <name>${project.artifactId}</name>
+    <description>infra 模块，提供定时任务、文件、配置和基础设施日志等运维管理能力。</description>
+
+    <dependencies>
+        <!-- 对外契约薄模块：本模块 api 包的 CommonApi 接口与 DTO -->
+        <dependency>
+            <groupId>com.basicframework</groupId>
+            <artifactId>basic-framework-module-infra-api</artifactId>
+        </dependency>
+        <!-- Web 相关 -->
+        <dependency>
+            <groupId>com.basicframework</groupId>
+            <artifactId>basic-framework-spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <!-- DB 相关 -->
+        <dependency>
+            <groupId>com.basicframework</groupId>
+            <artifactId>basic-framework-spring-boot-starter-mybatis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.basicframework</groupId>
+            <artifactId>basic-framework-spring-boot-starter-redis</artifactId>
+        </dependency>
+
+        <!-- Config 配置中心相关 -->
+
+        <!-- Job 定时任务相关 -->
+        <dependency>
+            <groupId>com.basicframework</groupId>
+            <artifactId>basic-framework-spring-boot-starter-job</artifactId>
+        </dependency>
+
+        <!-- 服务保障相关：启动注册器通过 @Lock4j 分布式锁防止多节点并发注册 -->
+        <dependency>
+            <groupId>com.basicframework</groupId>
+            <artifactId>basic-framework-spring-boot-starter-protection</artifactId>
+        </dependency>
+        <dependency>
+            <!-- starter-protection 中为 optional，按需显式引入；Redisson 复用 starter-redis -->
+            <groupId>com.baomidou</groupId>
+            <artifactId>lock4j-redisson-spring-boot-starter</artifactId>
+        </dependency>
+
+        <!-- Test 测试相关 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId> <!-- 提供 JUnit、AssertJ 等测试基础能力 -->
+            <scope>test</scope>
+        </dependency>
+        <!-- 工具类相关 -->
+        <dependency>
+            <groupId>com.basicframework</groupId>
+            <artifactId>basic-framework-spring-boot-starter-excel</artifactId>
+        </dependency>
+
+        <!-- 三方云服务相关 -->
+        <!-- 文件客户端：解决阿里云、腾讯云、minio 等 S3 连接 -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.tika</groupId>
+            <artifactId>tika-core</artifactId> <!-- 文件客户端：文件类型的识别 -->
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- 覆盖率棘轮门禁：补齐两端文件所有权、读权限、数据库文件客户端契约后行覆盖率 74.25%，取 74.0%，只升不降 -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>check</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.740</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

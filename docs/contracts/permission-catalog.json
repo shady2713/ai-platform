@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "description": "权限目录台账：登记无法由 Flyway 文本层推导、或刻意为不可授予/保留的权限码。由 scripts/check-permission-catalog.mjs 门禁守卫；登记过期会被阻断。",
+  "catalogCodesRemovedByMigration": [
+    {
+      "code": "crm:customer:query",
+      "migration": "V31__remove_example_and_unused_metadata.sql",
+      "reason": "V31 按 id 删除菜单 3000-3004 并 DROP TABLE crm_customer；按 id 的删除无法在文本层重放，故在此登记。"
+    },
+    {
+      "code": "crm:customer:create",
+      "migration": "V31__remove_example_and_unused_metadata.sql",
+      "reason": "同 crm:customer:query：CRM 模块已移除，菜单与权限码随 V31 一并删除。"
+    },
+    {
+      "code": "crm:customer:update",
+      "migration": "V31__remove_example_and_unused_metadata.sql",
+      "reason": "同 crm:customer:query：CRM 模块已移除，菜单与权限码随 V31 一并删除。"
+    },
+    {
+      "code": "crm:customer:delete",
+      "migration": "V31__remove_example_and_unused_metadata.sql",
+      "reason": "同 crm:customer:query：CRM 模块已移除，菜单与权限码随 V31 一并删除。"
+    }
+  ],
+  "notGrantable": [
+    {
+      "code": "system:menu:query",
+      "reason": "菜单管理属控制面接管能力（威胁模型 T3）。权限码未进入权限目录，且 PermissionServiceImpl.hasAnyPermissions 采用严格模式：权限码找不到对应菜单即判无权限，因此任何非超管角色都无法获得该权限。",
+      "control": "仅持有启用中 super_admin 的角色可调用（PermissionServiceImpl.hasAnyPermissions 情况二的超管旁路）；菜单授予关系的变更另由 PermissionServiceImpl 的 ROLE_SUPER_ADMIN_OPERATION_FORBIDDEN 校验保护（ADR 0024）。"
+    },
+    {
+      "code": "system:menu:create",
+      "reason": "同 system:menu:query：菜单写操作只允许超管，权限码刻意不进入权限目录。",
+      "control": "同 system:menu:query。"
+    },
+    {
+      "code": "system:menu:update",
+      "reason": "同 system:menu:query：菜单写操作只允许超管，权限码刻意不进入权限目录。",
+      "control": "同 system:menu:query。"
+    },
+    {
+      "code": "system:menu:delete",
+      "reason": "同 system:menu:query：菜单写操作只允许超管，权限码刻意不进入权限目录。",
+      "control": "同 system:menu:query。"
+    }
+  ],
+  "unusedCatalog": [
+    {
+      "code": "system:user:list",
+      "reason": "菜单级权限：它是「用户管理」目录菜单（type=2）自身的 permission，用于前端菜单可见性判断，不作为接口鉴权码；接口鉴权使用 system:user:query。属正常保留项。"
+    },
+    {
+      "code": "infra:file-config:export",
+      "reason": "已知死权限：权限目录与菜单中保留了「文件配置导出」按钮，但当前没有任何导出接口引用该权限码，管理员授予它不会产生任何效果。待移除菜单项（新增迁移）或补齐导出接口后，本条登记应随之删除。"
+    }
+  ]
+}

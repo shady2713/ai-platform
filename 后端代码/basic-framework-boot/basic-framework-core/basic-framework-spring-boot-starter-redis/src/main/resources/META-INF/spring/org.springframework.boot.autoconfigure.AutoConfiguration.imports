@@ -1,0 +1,2 @@
+com.basicframework.framework.redis.config.BasicFrameworkRedisAutoConfiguration
+com.basicframework.framework.redis.config.BasicFrameworkCacheAutoConfiguration

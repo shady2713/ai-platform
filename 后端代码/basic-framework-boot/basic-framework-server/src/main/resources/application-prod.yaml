@@ -1,0 +1,125 @@
+server:
+  port: 48080
+
+--- #################### 数据库相关配置 ####################
+spring:
+  flyway:
+    url: ${FLYWAY_URL:${spring.datasource.dynamic.datasource.master.url}}
+    user: ${FLYWAY_USERNAME}
+    password: ${FLYWAY_PASSWORD}
+  # 数据源配置项
+  datasource:
+    druid: # Druid 【监控】相关的全局配置
+      web-stat-filter:
+        enabled: false # 生产环境关闭 Druid Web 统计，降低性能开销
+      stat-view-servlet:
+        enabled: false # 生产环境关闭 Druid 控制台
+      filter:
+        stat:
+          enabled: false # 生产环境关闭 SQL 统计
+        wall:
+          config:
+            multi-statement-allow: false # 生产环境禁止多语句执行
+    dynamic: # 多数据源配置
+      druid: # Druid 【连接池】相关的全局配置
+        initial-size: 5 # 初始连接数
+        min-idle: 5 # 最小连接池数量
+        max-active: 50 # 最大连接池数量
+        max-wait: 60000 # 配置获取连接等待超时的时间，单位：毫秒
+        time-between-eviction-runs-millis: 60000
+        min-evictable-idle-time-millis: 600000
+        max-evictable-idle-time-millis: 1800000
+        validation-query: SELECT 1 FROM DUAL
+        test-while-idle: true
+        test-on-borrow: false
+        test-on-return: false
+        pool-prepared-statements: true
+        max-pool-prepared-statement-per-connection-size: 20
+      primary: master
+      datasource:
+        master:
+          url: jdbc:mysql://${DB_HOST}:${DB_PORT:3306}/${DB_NAME:basic_framework}?useSSL=true&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=false&nullCatalogMeansCurrent=true&rewriteBatchedStatements=true
+          username: ${DB_USERNAME}
+          password: ${DB_PASSWORD}
+  # Redis 配置
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      database: ${REDIS_DATABASE:0}
+      password: ${REDIS_PASSWORD}
+
+--- #################### 定时任务相关配置 ####################
+
+spring:
+  quartz:
+    auto-startup: true
+    scheduler-name: schedulerName
+    job-store-type: jdbc
+    wait-for-jobs-to-complete-on-shutdown: true
+    properties:
+      org:
+        quartz:
+          scheduler:
+            instanceName: schedulerName
+            instanceId: AUTO
+          jobStore:
+            class: org.springframework.scheduling.quartz.LocalDataSourceJobStore
+            isClustered: true
+            clusterCheckinInterval: 15000
+            misfireThreshold: 60000
+          threadPool:
+            threadCount: 25
+            threadPriority: 5
+            class: org.quartz.simpl.SimpleThreadPool
+    jdbc:
+      initialize-schema: NEVER
+
+--- #################### 服务保障相关配置 ####################
+
+lock4j:
+  acquire-timeout: 3000
+  expire: 30000
+
+--- #################### 监控相关配置 ####################
+
+management:
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: health,prometheus # 抓取端点默认拒绝访问，启用后由独立令牌保护
+
+logging:
+  file:
+    name: ${user.home}/logs/${spring.application.name}.log
+  level:
+    com.basicframework.module: INFO # 生产环境使用 INFO 级别
+    org.springframework.context.support.PostProcessorRegistrationDelegate: ERROR
+
+debug: false
+
+--- #################### basic-framework相关配置 ####################
+
+basic-framework:
+  captcha:
+    enable: true # 生产环境开启验证码
+  security:
+    refresh-cookie:
+      secure: true
+  access-log:
+    enable: true # 生产环境开启访问日志
+  web:
+    cors-allowed-origins: # 生产环境必须配置精确 HTTPS Origin，不允许通配符、路径或本机地址
+      - ${CORS_ALLOWED_ORIGIN:https://admin.example.com}
+
+--- #################### API 文档相关配置 ####################
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+knife4j:
+  enable: false

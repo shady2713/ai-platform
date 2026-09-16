@@ -1,0 +1,20 @@
+title = "basic-framework secret scanning"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Public RFC vectors and deterministic values in dedicated tests"
+condition = "AND"
+regexTarget = "secret"
+regexes = [
+  '''^1234567890abcdef$''',
+  '''^ABCD-2345-EFGH-67YZ$''',
+  '''^GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ$''',
+]
+paths = [
+  '''前端代码/basic-framework-admin/packages/@core/base/shared/src/utils/__tests__/encrypt\.test\.ts$''',
+  '''后端代码/basic-framework-boot/basic-framework-module-system/src/test/java/com/basicframework/module/system/service/auth/MfaFactorManagementServiceImplTest\.java$''',
+  '''后端代码/basic-framework-boot/basic-framework-module-system/src/test/java/com/basicframework/module/system/service/auth/MfaServiceImplTest\.java$''',
+  '''后端代码/basic-framework-boot/basic-framework-module-system/src/test/java/com/basicframework/module/system/service/auth/TotpAuthenticatorTest\.java$''',
+]

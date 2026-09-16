@@ -1,0 +1,55 @@
+version: 2
+
+# 依赖更新：workflow action 固定到 commit SHA，必须由本机制推进版本，
+# 否则固定版本会静默腐化（ADR 0044 的边界：只放行可核验的更新）。
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(ci)"
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: maven
+    directory: /后端代码/basic-framework-boot
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    ignore:
+      # 版本由 BOM（basic-framework-dependencies）统一管理，禁止在子模块单独升级
+      - dependency-name: "com.basicframework:*"
+    groups:
+      spring:
+        patterns: ["org.springframework*", "org.springdoc*"]
+      test:
+        patterns: ["org.junit*", "org.mockito*", "org.assertj*", "com.tngtech.archunit*"]
+
+  - package-ecosystem: npm
+    directory: /前端代码/basic-framework-admin
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      vue:
+        patterns: ["vue", "vue-router", "pinia", "@vue/*", "vue-tsc"]
+      tooling:
+        patterns: ["vite", "vitest", "turbo", "eslint*", "prettier", "typescript", "stylelint*"]
+
+  - package-ecosystem: docker
+    directory: /后端代码/basic-framework-boot/basic-framework-server
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "chore(deps)"

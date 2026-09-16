@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "rule": "@typescript-eslint/no-explicit-any",
+  "maximum": 8
+}

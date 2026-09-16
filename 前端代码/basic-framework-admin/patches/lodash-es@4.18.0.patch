@@ -1,0 +1,20 @@
+diff --git a/fromPairs.js b/fromPairs.js
+index 6c36809cf745adb17a1af90d0f49946a991659eb..5fac85d9c384b447baa9725c1fe70a1eddebb89b 100644
+--- a/fromPairs.js
++++ b/fromPairs.js
+@@ -1,3 +1,5 @@
++import baseAssignValue from './_baseAssignValue.js';
++
+ /**
+  * The inverse of `_.toPairs`; this method returns an object composed
+  * from key-value `pairs`.
+diff --git a/template.js b/template.js
+index 46aa4f2044efb81ae911d814c7075860e4bc95e2..7b35ae92a38eb2cc3c2477c4e5277d0d47240644 100644
+--- a/template.js
++++ b/template.js
+@@ -1,3 +1,5 @@
++import arrayEach from './_arrayEach.js';
++import assignWith from './assignWith.js';
+ import attempt from './attempt.js';
+ import baseValues from './_baseValues.js';
+ import customDefaultsAssignIn from './_customDefaultsAssignIn.js';

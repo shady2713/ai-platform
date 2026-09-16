@@ -1,0 +1,129 @@
+spring:
+  application:
+    name: basic-framework-server
+  lifecycle:
+    timeout-per-shutdown-phase: 30s # 每个关闭阶段的最大等待，配合 server.shutdown: graceful
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  servlet:
+    multipart:
+      max-file-size: 16MB
+      max-request-size: 32MB
+  jackson:
+    serialization:
+      write-dates-as-timestamps: true
+      write-date-timestamps-as-nanoseconds: false
+      write-durations-as-timestamps: true
+      fail-on-empty-beans: false
+  cache:
+    type: REDIS
+    redis:
+      time-to-live: 1h
+  data:
+    redis:
+      repositories:
+        enabled: false
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+    baseline-version: 1
+    clean-disabled: true
+    validate-on-migrate: true
+server:
+  shutdown: graceful # 停止接收新流量后等待在途请求完成
+  servlet:
+    encoding:
+      enabled: true
+      charset: UTF-8
+      force: true
+
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui
+  default-flat-param-object: true
+
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: NONE
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+    banner: false
+  type-aliases-package: ${basic-framework.info.base-package}.module.*.dal.dataobject
+
+mybatis-plus-join:
+  banner: false
+  sub-table-logic: true
+  ms-cache: true
+  table-alias: t
+  logic-del-type: on
+
+aj:
+  captcha:
+    # 浏览器同时持有密钥，客户端 AES 不提供保密性；协议统一依赖 TLS 与一次性令牌。
+    aes-status: false
+    cache-type: redis
+    cache-number: 1000
+    timing-clear: 180
+    type: blockPuzzle
+    water-mark: basic-framework
+    interference-options: 0
+    req-frequency-limit-enable: false
+    req-get-lock-limit: 5
+    req-get-lock-seconds: 10
+    req-get-minute-limit: 30
+    req-check-minute-limit: 60
+    req-verify-minute-limit: 60
+
+basic-framework:
+  monitoring:
+    prometheus:
+      enabled: ${PROMETHEUS_ENABLED:false}
+      token: ${PROMETHEUS_SCRAPE_TOKEN:}
+  bootstrap-admin:
+    password: ${BOOTSTRAP_ADMIN_PASSWORD:}
+  info:
+    version: 1.0.0
+    base-package: com.basicframework
+  xss:
+    enable: true
+    exclude-urls:
+      - ${management.endpoints.web.base-path}/**
+  security:
+    credential-encryption-key: ${CREDENTIAL_ENCRYPTION_KEY:}
+    login-protection:
+      max-failed-attempts: ${LOGIN_MAX_FAILED_ATTEMPTS:5}
+      lock-duration: ${LOGIN_LOCK_DURATION:15m}
+    session:
+      access-token-ttl: ${SESSION_ACCESS_TOKEN_TTL:30m}
+      refresh-token-ttl: ${SESSION_REFRESH_TOKEN_TTL:30d}
+  swagger:
+    title: basic-framework API
+    description: Admin and app API documentation
+    version: ${basic-framework.info.version}
+  sms-code:
+    expire-times: 10m
+    send-frequency: 1m
+    send-maximum-quantity-per-day: 10
+  sms-callback:
+    enabled: ${SMS_CALLBACK_ENABLED:false}
+    token: ${SMS_CALLBACK_TOKEN:}
+    max-payload-length: ${SMS_CALLBACK_MAX_PAYLOAD_LENGTH:1048576}
+  file:
+    presigned-upload:
+      ttl: ${FILE_PRESIGNED_UPLOAD_TTL:15m}
+      max-size: ${FILE_PRESIGNED_UPLOAD_MAX_SIZE:16MB}
+
+debug: false

@@ -1,0 +1,111 @@
+server:
+  port: 48080
+
+spring:
+  # autoconfigure:
+  #   exclude:
+  #     - org.springframework.boot.autoconfigure.quartz.QuartzAutoConfiguration
+  datasource:
+    druid:
+      web-stat-filter:
+        enabled: false
+      stat-view-servlet:
+        enabled: false
+        allow: 127.0.0.1
+        url-pattern: /druid/*
+        login-username: ${DRUID_USERNAME:admin}
+        login-password: ${DRUID_PASSWORD:}
+      filter:
+        stat:
+          enabled: true
+          log-slow-sql: true
+          slow-sql-millis: 100
+          merge-sql: true
+        wall:
+          config:
+    dynamic:
+      druid:
+        initial-size: 1
+        min-idle: 1
+        max-active: 20
+        max-wait: 60000
+        time-between-eviction-runs-millis: 60000
+        min-evictable-idle-time-millis: 600000
+        max-evictable-idle-time-millis: 1800000
+        validation-query: SELECT 1 FROM DUAL
+        test-while-idle: true
+        test-on-borrow: false
+        test-on-return: false
+        pool-prepared-statements: true
+        max-pool-prepared-statement-per-connection-size: 20
+      primary: master
+      datasource:
+        master:
+          url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_NAME:basic_framework}?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&nullCatalogMeansCurrent=true&rewriteBatchedStatements=true
+          username: ${DB_USERNAME:root}
+          password: ${DB_PASSWORD}
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      database: ${REDIS_DATABASE:0}
+      password: ${REDIS_PASSWORD:}
+  quartz:
+    auto-startup: true
+    scheduler-name: schedulerName
+    job-store-type: jdbc
+    wait-for-jobs-to-complete-on-shutdown: true
+    properties:
+      org:
+        quartz:
+          scheduler:
+            instanceName: schedulerName
+            instanceId: AUTO
+          jobStore:
+            class: org.springframework.scheduling.quartz.LocalDataSourceJobStore
+            isClustered: true
+            clusterCheckinInterval: 15000
+            misfireThreshold: 60000
+          threadPool:
+            threadCount: 25
+            threadPriority: 5
+            class: org.quartz.simpl.SimpleThreadPool
+    jdbc:
+      initialize-schema: NEVER
+lock4j:
+  acquire-timeout: 3000
+  expire: 30000
+
+management:
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: health,info,metrics,prometheus
+
+logging:
+  file:
+    name: ${user.home}/logs/${spring.application.name}.log
+  level:
+    com.basicframework.module.infra.dal.mysql: debug
+    com.basicframework.module.infra.dal.mysql.logger.ApiErrorLogMapper: INFO
+    com.basicframework.module.infra.dal.mysql.job.JobLogMapper: INFO
+    com.basicframework.module.infra.dal.mysql.file.FileConfigMapper: INFO
+    com.basicframework.module.system.dal.mysql: debug
+    com.basicframework.module.system.dal.mysql.session: INFO # access/refresh Token 不得写入 SQL 参数日志
+    com.basicframework.module.system.dal.mysql.sms.SmsChannelMapper: INFO
+    com.basicframework.module.system.dal.mysql.sms.SmsCodeMapper: INFO # 短信验证码不得写入 SQL 参数日志
+    com.basicframework.module.system.dal.mysql.sms.SmsLogMapper: INFO # 短信正文与模板参数不得写入 SQL 参数日志
+    com.basicframework.module.system.dal.mysql.user.AdminUserMapper: INFO # 密码哈希与用户敏感字段不得写入 SQL 参数日志
+    org.springframework.context.support.PostProcessorRegistrationDelegate: ERROR
+
+basic-framework:
+  captcha:
+    enable: false
+  access-log:
+    enable: false
+  web:
+    cors-allowed-origins:
+      - '*'
+
+debug: false

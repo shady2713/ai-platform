@@ -1,0 +1,34 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 220 220"
+  role="img"
+  aria-labelledby="title desc"
+>
+  <title id="title">Basic framework logo</title>
+  <desc id="desc">
+    A rounded blue square with a white structural skeleton mark representing a
+    foundational framework.
+  </desc>
+  <defs>
+    <linearGradient id="bg" x1="34" x2="186" y1="24" y2="196" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4C97FF" />
+      <stop offset="1" stop-color="#2A6EF2" />
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="204" height="204" rx="42" fill="url(#bg)" />
+  <g
+    fill="none"
+    stroke="#FFFFFF"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="16"
+  >
+    <path d="M62 60H158" />
+    <path d="M70 78V142" />
+    <path d="M110 78V142" />
+    <path d="M150 78V142" />
+    <path d="M54 160H166" />
+    <path d="M82 94L110 150" />
+    <path d="M138 94L110 150" />
+  </g>
+</svg>

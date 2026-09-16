@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "policies": [
+    {
+      "id": "soft-delete",
+      "tables": [
+        "infra_config",
+        "infra_file_config",
+        "infra_job",
+        "system_dept",
+        "system_dict_data",
+        "system_dict_type",
+        "system_menu",
+        "system_notice",
+        "system_notify_template",
+        "system_post",
+        "system_role",
+        "system_sms_channel",
+        "system_sms_template",
+        "system_users"
+      ]
+    },
+    {
+      "id": "hard-delete",
+      "tables": [
+        "infra_file",
+        "infra_file_content",
+        "system_user_session",
+        "system_role_menu",
+        "system_sms_code",
+        "system_user_post",
+        "system_user_role"
+      ]
+    },
+    {
+      "id": "append-retention",
+      "tables": [
+        "infra_api_access_log",
+        "infra_api_error_log",
+        "infra_job_log",
+        "system_login_log",
+        "system_notify_message",
+        "system_operate_log",
+        "system_sms_log"
+      ]
+    },
+    {
+      "id": "platform-managed",
+      "tables": [
+        "QRTZ_BLOB_TRIGGERS",
+        "QRTZ_CALENDARS",
+        "QRTZ_CRON_TRIGGERS",
+        "QRTZ_FIRED_TRIGGERS",
+        "QRTZ_JOB_DETAILS",
+        "QRTZ_LOCKS",
+        "QRTZ_PAUSED_TRIGGER_GRPS",
+        "QRTZ_SCHEDULER_STATE",
+        "QRTZ_SIMPLE_TRIGGERS",
+        "QRTZ_SIMPROP_TRIGGERS",
+        "QRTZ_TRIGGERS"
+      ]
+    }
+  ],
+  "physicalForeignKeys": [
+    "FK_QRTZ_BLOB_TRIGGERS_TRIGGERS",
+    "FK_QRTZ_CRON_TRIGGERS_TRIGGERS",
+    "FK_QRTZ_SIMPLE_TRIGGERS_TRIGGERS",
+    "FK_QRTZ_SIMPROP_TRIGGERS_TRIGGERS",
+    "FK_QRTZ_TRIGGERS_JOB_DETAILS",
+    "fk_dict_data_type",
+    "fk_file_config",
+    "fk_file_content_config",
+    "fk_role_menu_menu",
+    "fk_role_menu_role",
+    "fk_sms_template_channel",
+    "fk_user_post_post",
+    "fk_user_post_user",
+    "fk_user_role_role",
+    "fk_user_role_user"
+  ]
+}

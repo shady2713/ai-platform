@@ -1,0 +1,57 @@
+package com.basicframework.module.system.controller.admin.notify.vo.template;
+
+import com.basicframework.framework.common.enums.CommonStatusEnum;
+import com.basicframework.framework.common.validation.InEnum;
+import com.basicframework.module.system.enums.notify.NotifyTemplateTypeEnum;
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
+import lombok.*;
+
+@Schema(description = "管理后台 - 站内信模版创建/修改 Request VO")
+@Data
+public class NotifyTemplateSaveReqVO {
+
+    @Schema(description = "ID", example = "1024")
+    @Positive(message = "ID 必须大于 0")
+    private Long id;
+
+    @Schema(description = "模版名称", requiredMode = Schema.RequiredMode.REQUIRED, example = "测试模版")
+    @NotEmpty(message = "模版名称不能为空")
+    @Size(max = 63, message = "模版名称长度不能超过 63 个字符")
+    private String name;
+
+    @Schema(description = "模版编码", requiredMode = Schema.RequiredMode.REQUIRED, example = "SEND_TEST")
+    @NotEmpty(message = "模版编码不能为空")
+    @Size(max = 64, message = "模版编码长度不能超过 64 个字符")
+    private String code;
+
+    @Schema(
+            description = "模版类型，对应 system_notify_template_type 字典",
+            requiredMode = Schema.RequiredMode.REQUIRED,
+            example = "1")
+    @NotNull(message = "模版类型不能为空")
+    @InEnum(value = NotifyTemplateTypeEnum.class, message = "模版类型必须是 {value}")
+    private Integer type;
+
+    @Schema(description = "发送人名称", requiredMode = Schema.RequiredMode.REQUIRED, example = "土豆")
+    @NotEmpty(message = "发送人名称不能为空")
+    @Size(max = 255, message = "发送人名称长度不能超过 255 个字符")
+    private String nickname;
+
+    @Schema(description = "模版内容", requiredMode = Schema.RequiredMode.REQUIRED, example = "我是模版内容")
+    @NotEmpty(message = "模版内容不能为空")
+    @Size(max = 1024, message = "模版内容长度不能超过 1024 个字符")
+    private String content;
+
+    @Schema(description = "状态，参见 CommonStatusEnum 枚举", requiredMode = Schema.RequiredMode.REQUIRED, example = "1")
+    @NotNull(message = "状态不能为空")
+    @InEnum(value = CommonStatusEnum.class, message = "状态必须是 {value}")
+    private Integer status;
+
+    @Schema(description = "备注", example = "我是备注")
+    @Size(max = 255, message = "备注长度不能超过 255 个字符")
+    private String remark;
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@3.0.0/schema.json",
+  "changelog": false,
+  "commit": false,
+  "fixed": [["@vben-core/*", "@vben/*"]],
+  "snapshot": {
+    "prereleaseTemplate": "{tag}-{datetime}"
+  },
+  "privatePackages": { "version": true, "tag": true },
+  "linked": [],
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "ignore": []
+}

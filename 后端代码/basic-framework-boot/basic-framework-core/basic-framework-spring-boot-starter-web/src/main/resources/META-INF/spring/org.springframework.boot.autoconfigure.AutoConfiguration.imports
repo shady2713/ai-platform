@@ -1,0 +1,5 @@
+com.basicframework.framework.apilog.config.BasicFrameworkApiLogAutoConfiguration
+com.basicframework.framework.jackson.config.BasicFrameworkJacksonAutoConfiguration
+com.basicframework.framework.swagger.config.BasicFrameworkSwaggerAutoConfiguration
+com.basicframework.framework.web.config.BasicFrameworkWebAutoConfiguration
+com.basicframework.framework.xss.config.BasicFrameworkXssAutoConfiguration

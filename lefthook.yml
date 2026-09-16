@@ -1,0 +1,19 @@
+# Repo-level git hooks. Install: npx lefthook install (run once per clone).
+# Frontend lint steps run via scripts/pre-commit-frontend.sh because the
+# frontend toolchain needs the frontend dir as CWD.
+
+pre-commit:
+  parallel: true
+  commands:
+    whitespace-and-newline:
+      run: git diff --cached --check
+    secret-scan:
+      run: sh scripts/secret-scan.sh
+    frontend-lint-staged:
+      glob: "前端代码/basic-framework-admin/**"
+      run: sh scripts/pre-commit-frontend.sh
+
+commit-msg:
+  commands:
+    commitlint:
+      run: cd 前端代码/basic-framework-admin && pnpm exec commitlint --edit $1

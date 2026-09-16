@@ -1,0 +1,198 @@
+name: verify
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  secret-scan:
+    name: secret-scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out complete history
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Scan Git history for secrets
+        run: >-
+          docker run --rm
+          --user "$(id -u):$(id -g)"
+          --volume "$GITHUB_WORKSPACE:/repo"
+          --workdir /repo
+          zricethezav/gitleaks:v8.24.3@sha256:e1b35e12a8c6fa8901f060459cfb6b2fc4c484d3afbe3b029733a3bbfab07055
+          git --verbose --redact /repo
+
+  lockfile-integrity:
+    name: lockfile-integrity
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+      - name: Verify lockfile
+        run: |
+          corepack enable
+          sh .harness/verify.sh lockfile
+
+  repo-contracts:
+    name: repo-contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+      - name: Verify repository contracts
+        run: sh .harness/verify.sh contracts
+
+  backend-build:
+    name: backend-build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Java
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+          cache-dependency-path: 后端代码/basic-framework-boot/**/pom.xml
+      - name: Verify backend
+        run: |
+          chmod +x 后端代码/basic-framework-boot/mvnw
+          sh .harness/verify.sh backend
+
+  frontend-build:
+    name: frontend-build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+      - name: Install frontend dependencies
+        working-directory: 前端代码/basic-framework-admin
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+      - name: Verify frontend
+        env:
+          COVERAGE_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: sh .harness/verify.sh frontend
+
+  dependency-scan:
+    name: dependency-scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Set up Java
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+          cache-dependency-path: 后端代码/basic-framework-boot/**/pom.xml
+      - name: Reject high and critical dependency vulnerabilities
+        run: |
+          chmod +x 后端代码/basic-framework-boot/mvnw
+          sh .harness/verify.sh dependencies
+
+  backend-integration:
+    name: backend-integration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Java
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+          cache-dependency-path: 后端代码/basic-framework-boot/**/pom.xml
+      - name: Verify Docker daemon
+        run: docker info --format 'Docker server {{.ServerVersion}}'
+      - name: Verify real integration paths
+        env:
+          COVERAGE_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          chmod +x 后端代码/basic-framework-boot/mvnw
+          sh .harness/verify.sh integration
+
+  aggregate:
+    name: aggregate
+    if: ${{ always() }}
+    needs:
+      - secret-scan
+      - lockfile-integrity
+      - repo-contracts
+      - backend-build
+      - frontend-build
+      - dependency-scan
+      - backend-integration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require every blocking gate
+        env:
+          SECRET_SCAN: ${{ needs.secret-scan.result }}
+          LOCKFILE_INTEGRITY: ${{ needs.lockfile-integrity.result }}
+          REPO_CONTRACTS: ${{ needs.repo-contracts.result }}
+          BACKEND_BUILD: ${{ needs.backend-build.result }}
+          FRONTEND_BUILD: ${{ needs.frontend-build.result }}
+          DEPENDENCY_SCAN: ${{ needs.dependency-scan.result }}
+          BACKEND_INTEGRATION: ${{ needs.backend-integration.result }}
+        run: |
+          test "$SECRET_SCAN" = success
+          test "$LOCKFILE_INTEGRITY" = success
+          test "$REPO_CONTRACTS" = success
+          test "$BACKEND_BUILD" = success
+          test "$FRONTEND_BUILD" = success
+          test "$DEPENDENCY_SCAN" = success
+          test "$BACKEND_INTEGRATION" = success

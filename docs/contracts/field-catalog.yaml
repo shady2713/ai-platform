@@ -1,0 +1,308 @@
+# 字段契约目录 —— 平台字段语义的唯一机器可读来源
+# 字段处理规则以 docs/security/data-classification.md 为准；本目录记录代码
+# 当前真值。双端代码必须与本目录登记值一致，由
+# scripts/check-field-catalog.mjs 门禁保证。
+version: 1
+fields:
+  - id: username
+    semanticType: login_username
+    status: aligned
+    description: 登录用户名（system_users.username）
+    required: true
+    nullable: false
+    normalization: trim、NFC 规范化并转小写；写入、唯一性校验和登录查询使用同一规则
+    lengthUnit: utf16_code_unit
+    minLength: 4
+    maxLength: 30
+    characterPolicy: 小写 ASCII 字母开头，其余为小写 ASCII 字母、数字或下划线
+    format: '^[a-z][a-z0-9_]{3,29}$'
+    examples: [admin, user_123]
+    sensitiveClass: internal
+    masking: none
+    databaseType: varchar(30)
+    indexPolicy: unique_index
+    uniquenessScope: global（system_users.uk_username）
+    frontendWidget: Input
+    backendValidator: '@Username -> ValidationUtils#isUsername'
+    vectorMode: regex
+    usage: AuthLoginReqVO、UserSaveReqVO、UserImportDTO；登录和用户管理表单统一使用 buildRequiredUsernameSchema
+    implementations:
+      frontendShared:
+        kind: frontend_regex
+        file: 前端代码/basic-framework-admin/apps/web-ele/src/adapter/field-rules.ts
+        constant: USERNAME_REGEX
+        pattern: '^[a-z][a-z0-9_]{3,29}$'
+        flags: ''
+      backendShared:
+        kind: backend_regex
+        file: 后端代码/basic-framework-boot/basic-framework-core/basic-framework-common/src/main/java/com/basicframework/framework/common/util/validation/ValidationUtils.java
+        constant: PATTERN_USERNAME
+        pattern: '^[a-z][a-z0-9_]{3,29}$'
+    sharedTestVectors:
+      valid: [admin, user_123, a1b2]
+      invalid:
+        - abc
+        - aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        - 1user
+        - _user
+        - user name
+        - 用户名
+        - 😀abcd
+        - ''
+        - null
+
+  - id: nickname
+    semanticType: user_nickname
+    status: aligned
+    description: 用户昵称（system_users.nickname）
+    required: true
+    nullable: false
+    normalization: 双端 trim 并进行 NFC 规范化；写入前再次执行同一归一化
+    lengthUnit: code_point
+    minLength: 1
+    maxLength: 30
+    characterPolicy: 允许各语言文字、数字、普通空格、标点和 emoji；拒绝控制、格式、代理及行分隔字符
+    format: null
+    examples: [张三, 管理员]
+    sensitiveClass: internal
+    masking: none
+    databaseType: varchar(30)
+    indexPolicy: none
+    uniquenessScope: none
+    frontendWidget: Input
+    backendValidator: '@NotBlank + @Nickname -> ValidationUtils#isNickname'
+    vectorMode: algorithm
+    usage: UserSaveReqVO、UserProfileUpdateReqVO；前端用户管理表单统一使用 buildRequiredNicknameSchema
+    implementations:
+      frontendShared:
+        kind: source_contains
+        file: 前端代码/basic-framework-admin/apps/web-ele/src/adapter/field-rules.ts
+        text: const NICKNAME_MAX_CODE_POINTS = 30;
+      backendShared:
+        kind: source_contains
+        file: 后端代码/basic-framework-boot/basic-framework-core/basic-framework-common/src/main/java/com/basicframework/framework/common/util/validation/ValidationUtils.java
+        text: public static final int NICKNAME_MAX_CODE_POINTS = 30;
+      backendRequest:
+        kind: source_contains
+        file: 后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/user/vo/user/UserSaveReqVO.java
+        text: '@Nickname'
+    sharedTestVectors:
+      valid: [张三, Alice, 管理员😀]
+      invalid:
+        - ''
+        - "a\nb"
+        - xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+        - null
+
+  - id: password
+    semanticType: user_password
+    status: aligned
+    description: 用户自选密码（system_users.password 存 BCrypt 哈希；成功密码登录后按部署当前工作因子条件重编码）
+    required: true
+    nullable: false
+    normalization: 不 trim、不规范化、不截断；原样进入 BCrypt，且永不写日志
+    lengthUnit: min_code_point_and_max_utf8_octet
+    minLength: 15
+    maxLength: 72
+    characterPolicy: 不要求字符组合；服务端额外拒绝高频弱密码、低字符多样性、账号名及平台名
+    format: null
+    examples: ['correct horse battery staple', 'LongPassword123!']
+    sensitiveClass: credential
+    masking: full（仅存 BCrypt 哈希，永不回显、禁入日志）
+    databaseType: varchar(100)（BCrypt 哈希）
+    indexPolicy: none
+    uniquenessScope: none
+    frontendWidget: VbenInputPassword
+    backendValidator: '@Password 做 15 码点/72 UTF-8 字节边界；PasswordPolicy 在所有用户设密服务入口执行上下文弱密码检查'
+    vectorMode: algorithm
+    usage: UserSaveReqVO、UserUpdatePasswordReqVO、UserProfileUpdatePasswordReqVO、AuthResetPasswordReqVO、AuthChangeExpiredPasswordReqVO（仅 newPassword 字段套新密码策略，oldPassword 仅非空）；前端所有设密表单使用 buildRequiredPasswordSchema，登录表单不套新密码策略
+    implementations:
+      frontendMinimum:
+        kind: source_contains
+        file: 前端代码/basic-framework-admin/apps/web-ele/src/adapter/field-rules.ts
+        text: const PASSWORD_MIN_CODE_POINTS = 15;
+      frontendMaximum:
+        kind: source_contains
+        file: 前端代码/basic-framework-admin/apps/web-ele/src/adapter/field-rules.ts
+        text: const PASSWORD_MAX_UTF8_BYTES = 72;
+      backendMinimum:
+        kind: source_contains
+        file: 后端代码/basic-framework-boot/basic-framework-core/basic-framework-common/src/main/java/com/basicframework/framework/common/util/validation/ValidationUtils.java
+        text: public static final int PASSWORD_MIN_CODE_POINTS = 15;
+      backendMaximum:
+        kind: source_contains
+        file: 后端代码/basic-framework-boot/basic-framework-core/basic-framework-common/src/main/java/com/basicframework/framework/common/util/validation/ValidationUtils.java
+        text: public static final int PASSWORD_MAX_UTF8_BYTES = 72;
+      backendSettingEntry:
+        kind: source_contains
+        file: 后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/user/vo/user/UserUpdatePasswordReqVO.java
+        text: '@Password'
+      backendContextPolicy:
+        kind: source_contains
+        file: 后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/service/user/AdminUserServiceImpl.java
+        text: passwordPolicy.validate
+    sharedTestVectors:
+      valid: ['correct horse battery staple', 'LongPassword123!', 密密密密密密密密密密密密密密密密密密密密密密密密]
+      invalid:
+        - short-password
+        - aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        - 密密密密密密密密密密密密密密密密密密密密密密密密密
+        - ''
+        - null
+
+  - id: mobile
+    semanticType: mobile_cn
+    status: aligned
+    description: 中国大陆手机号（system_users.mobile）
+    required: false
+    nullable: true
+    normalization: 双端 trim；可选空白值在前端转 undefined、后端写入前转 null
+    lengthUnit: utf16_code_unit
+    minLength: 11
+    maxLength: 11
+    characterPolicy: 纯数字，1 开头、第二位 3-9，共 11 位
+    format: '^1[3-9]\d{9}$'
+    examples: ['13812345678']
+    sensitiveClass: pii
+    masking: 现状未统一脱敏；目标保留前 3 后 4
+    databaseType: varchar(11)
+    indexPolicy: non_unique_index+functional_unique_index
+    uniquenessScope: 未删除（deleted=b'0'）用户内唯一，由函数式唯一索引 uk_system_users_mobile_active（V45）强制；空白/NULL 不参与约束
+    frontendWidget: Input
+    backendValidator: '@Mobile -> ValidationUtils#isMobile'
+    vectorMode: regex
+    usage: AuthSmsSendReqVO、AuthResetPasswordReqVO、UserSaveReqVO 等
+    implementations:
+      frontendShared:
+        kind: frontend_regex
+        file: 前端代码/basic-framework-admin/packages/utils/src/validator/regex.ts
+        constant: MOBILE_REGEX
+        pattern: '^1[3-9]\d{9}$'
+        flags: ''
+        note: field-rules.ts 从 @vben/utils 复用此正则
+      frontendUserForm:
+        kind: source_contains
+        file: 前端代码/basic-framework-admin/apps/web-ele/src/views/system/user/data.ts
+        text: buildOptionalMobileSchema('手机号码')
+        note: 用户管理表单复用字段规则中心
+      backendShared:
+        kind: backend_regex
+        file: 后端代码/basic-framework-boot/basic-framework-core/basic-framework-common/src/main/java/com/basicframework/framework/common/util/validation/ValidationUtils.java
+        constant: PATTERN_MOBILE
+        pattern: '^1[3-9]\d{9}$'
+      backendNormalization:
+        kind: source_contains
+        file: 后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/service/user/AdminUserServiceImpl.java
+        text: ValidationUtils.normalizeMobile
+    sharedTestVectors:
+      valid: ['13812345678', '19900001234']
+      invalid:
+        - '23812345678'
+        - '+8613812345678'
+        - '1381234567'
+        - '138123456789'
+        - '138 2345 678'
+        - ''
+        - null
+
+  - id: email
+    semanticType: email
+    status: aligned
+    description: 用户邮箱（system_users.email）
+    required: false
+    nullable: true
+    normalization: 双端 trim 并将 domain 转小写；空白可选值在前端转 undefined、后端写入前转 null；local 部分保留原大小写
+    lengthUnit: utf16_code_unit
+    minLength: 0
+    maxLength: 50
+    characterPolicy: 简单词法正则（local@domain.tld），不证明可投递
+    format: '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
+    examples: ['user@example.com']
+    sensitiveClass: pii
+    masking: 现状未统一脱敏；目标 local 部分打码
+    databaseType: varchar(50)
+    indexPolicy: non_unique_index+functional_unique_index
+    uniquenessScope: 未删除（deleted=b'0'）用户内唯一，由函数式唯一索引 uk_system_users_email_active（V45）强制；空白/NULL 不参与约束；collation utf8mb4_unicode_ci 大小写不敏感
+    frontendWidget: Input
+    backendValidator: '@EmailEx -> ValidationUtils#isEmail，外加 @Size(max = 50)'
+    vectorMode: regex
+    usage: UserSaveReqVO、部门表单等
+    implementations:
+      frontendShared:
+        kind: frontend_regex
+        file: 前端代码/basic-framework-admin/apps/web-ele/src/adapter/field-rules.ts
+        constant: EMAIL_REGEX
+        pattern: '^[\w.%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$'
+        flags: i
+      frontendUserForm:
+        kind: source_contains
+        file: 前端代码/basic-framework-admin/apps/web-ele/src/views/system/user/data.ts
+        text: buildOptionalEmailSchema('邮箱')
+        note: 用户管理表单复用字段规则中心
+      backendShared:
+        kind: backend_regex
+        file: 后端代码/basic-framework-boot/basic-framework-core/basic-framework-common/src/main/java/com/basicframework/framework/common/util/validation/ValidationUtils.java
+        constant: PATTERN_EMAIL
+        pattern: '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
+      backendSize:
+        kind: backend_size
+        file: 后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/user/vo/user/UserSaveReqVO.java
+        max: 50
+      backendNormalization:
+        kind: source_contains
+        file: 后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/service/user/AdminUserServiceImpl.java
+        text: ValidationUtils.normalizeEmail
+    sharedTestVectors:
+      valid: ['user@example.com', 'USER+tag@Example.COM']
+      invalid:
+        - user@invalid
+        - user@
+        - '@example.com'
+        - user @example.com
+        - 用户@example.com
+        - ''
+        - null
+
+  - id: remark
+    semanticType: remark_text
+    status: aligned
+    description: 备注类纯文本（如 system_users.remark、system_role.remark）
+    required: false
+    nullable: true
+    normalization: 无
+    lengthUnit: code_point
+    minLength: 0
+    maxLength: 500
+    characterPolicy: 纯文本，允许换行；禁止作为业务状态或配置的隐式存储
+    format: null
+    examples: [这是一条备注]
+    sensitiveClass: internal
+    masking: none
+    databaseType: varchar(500)
+    indexPolicy: none
+    uniquenessScope: none
+    frontendWidget: Textarea
+    backendValidator: '@CodePointLength(max = 500)；null 由字段自身 required/nullable 语义处理'
+    vectorMode: algorithm
+    usage: UserSaveReqVO、RoleSaveReqVO；前端用户管理表单使用 buildOptionalRemarkSchema
+    implementations:
+      frontendUserForm:
+        kind: source_contains
+        file: 前端代码/basic-framework-admin/apps/web-ele/src/views/system/user/data.ts
+        text: buildOptionalRemarkSchema('备注')
+      backendUser:
+        kind: source_contains
+        file: 后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/user/vo/user/UserSaveReqVO.java
+        text: '@CodePointLength(max = 500'
+      backendRole:
+        kind: source_contains
+        file: 后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/permission/vo/role/RoleSaveReqVO.java
+        text: '@CodePointLength(max = 500'
+    sharedTestVectors:
+      valid:
+        - ''
+        - 这是一条备注
+        - xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+        - null
+      invalid:
+        - xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx

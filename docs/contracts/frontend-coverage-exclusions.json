@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "policy": "Only TypeScript modules that compile to no runtime JavaScript may be excluded via this contract. Application entry assembly files (apps/web-ele/src/main.ts and bootstrap.ts: pure wiring, no testable logic) are separately excluded in vitest.config.ts and are not eligible for this contract.",
+  "files": [
+    "apps/web-ele/src/components/description/typing.ts",
+    "apps/web-ele/src/components/table-action/typing.ts",
+    "packages/@core/base/shared/src/cache/types.ts",
+    "packages/@core/preferences/src/types.ts",
+    "packages/@core/ui-kit/form-ui/src/types.ts",
+    "packages/@core/ui-kit/menu-ui/src/types.ts",
+    "packages/@core/ui-kit/shadcn-ui/src/components/breadcrumb/types.ts",
+    "packages/@core/ui-kit/shadcn-ui/src/components/pin-input/types.ts",
+    "packages/@core/ui-kit/shadcn-ui/src/components/segmented/types.ts",
+    "packages/@core/ui-kit/shadcn-ui/src/ui/button/types.ts",
+    "packages/@core/ui-kit/tabs-ui/src/types.ts",
+    "packages/effects/common-ui/src/components/captcha/types.ts",
+    "packages/effects/common-ui/src/components/captcha/verification/typing.ts",
+    "packages/effects/common-ui/src/components/card/statistic-card/types.ts",
+    "packages/effects/common-ui/src/components/card/summary-card/types.ts",
+    "packages/effects/common-ui/src/components/page/types.ts",
+    "packages/effects/common-ui/src/ui/authentication/types.ts",
+    "packages/effects/common-ui/src/ui/dashboard/typing.ts",
+    "packages/effects/common-ui/src/ui/profile/types.ts",
+    "packages/effects/layouts/src/authentication/types.ts",
+    "packages/effects/layouts/src/widgets/notification/types.ts",
+    "packages/effects/plugins/src/vxe-table/types.ts",
+    "packages/effects/request/src/request-client/types.ts",
+    "packages/locales/src/typing.ts",
+    "packages/types/src/captcha.ts"
+  ]
+}

@@ -1,0 +1,14 @@
+# 工程例外台账 v1
+# 每个条目都必须能查到：负责人(owner)、到期日(dueDate)、移除条件(removalCondition)。
+# 由 scripts/check-exceptions.mjs 门禁守卫：status=active 且已过 dueDate 的条目
+# 会让 CI 变红（expired 例外必须处理，不能留着）。
+# status：active=有效中 / removed=已移除（跳过检查）。
+version: 1
+exceptions:
+  - id: owasp-dependency-check-disabled
+    title: 依赖漏洞扫描门禁缺失
+    description: 已由 Harness dependencies 门禁替代：扫描 Maven 解析后的 CycloneDX 聚合 SBOM 和 pnpm 锁文件，并在 HIGH/CRITICAL 漏洞出现时阻断 CI。
+    owner: basic-framework 维护者
+    dueDate: 2027-01-01
+    removalCondition: 引入依赖漏洞扫描（dependency-check 或等价）并接入 backend-build 阻塞门禁后，本条目标记 removed。
+    status: removed

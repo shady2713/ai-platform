@@ -1,0 +1,2 @@
+com.basicframework.framework.quartz.config.BasicFrameworkQuartzAutoConfiguration
+com.basicframework.framework.quartz.config.BasicFrameworkAsyncAutoConfiguration

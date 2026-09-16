@@ -1,0 +1,12 @@
+# 将此文件复制为部署配置，通过只读 Secret 文件提供独立抓取令牌。
+rule_files:
+  - security-signals.rules.yml
+scrape_configs:
+  - job_name: basic-framework
+    scheme: https
+    metrics_path: /actuator/prometheus
+    authorization:
+      type: Bearer
+      credentials_file: /run/secrets/basic-framework-prometheus-token
+    static_configs:
+      - targets: ['admin.example.com']

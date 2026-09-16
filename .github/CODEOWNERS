@@ -1,0 +1,21 @@
+# 代码所有者：合并必需评审的默认负责人。
+# 说明：仓库规则的唯一权威来源是根 AGENTS.md；本文件只声明评审归属。
+# 若团队扩容，请按模块细分并同步 docs/development-guide.md。
+
+# 默认：全部文件
+*                       @shady2713
+
+# 工程规则与门禁拓扑（改动必须双人确认）
+/AGENTS.md              @shady2713
+/.harness/              @shady2713
+/.github/workflows/     @shady2713
+/scripts/               @shady2713
+
+# 安全与数据契约
+/docs/security/         @shady2713
+/docs/contracts/        @shady2713
+/docs/adr/              @shady2713
+/数据库文件/            @shady2713
+
+# 后端装配与迁移
+/后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/  @shady2713

@@ -1,0 +1,340 @@
+{
+  "version": 3,
+  "exemptions": [
+    {
+      "id": "global-administration",
+      "reason": "全局控制面配置由功能权限管理，不具有部门或用户行级归属。",
+      "tables": [
+        "infra_config",
+        "infra_file_config",
+        "infra_job",
+        "system_dict_data",
+        "system_dict_type",
+        "system_menu",
+        "system_notice",
+        "system_notify_template",
+        "system_post",
+        "system_role",
+        "system_sms_channel",
+        "system_sms_template"
+      ],
+      "controls": [
+        {
+          "kind": "function-permission",
+          "tables": [
+            "infra_config",
+            "infra_file_config",
+            "infra_job",
+            "system_dict_data",
+            "system_dict_type",
+            "system_menu",
+            "system_notice",
+            "system_notify_template",
+            "system_post",
+            "system_role",
+            "system_sms_channel",
+            "system_sms_template"
+          ],
+          "evidence": [
+            {
+              "table": "infra_config",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/controller/admin/config/ConfigController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('infra:config:query')\")"
+            },
+            {
+              "table": "infra_file_config",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/controller/admin/file/FileConfigController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('infra:file-config:query')\")"
+            },
+            {
+              "table": "infra_job",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/controller/admin/job/JobController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('infra:job:query')\")"
+            },
+            {
+              "table": "system_dict_data",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/dict/DictDataController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('system:dict:query')\")"
+            },
+            {
+              "table": "system_dict_type",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/dict/DictTypeController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('system:dict:query')\")"
+            },
+            {
+              "table": "system_menu",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/permission/MenuController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('system:menu:query')\")"
+            },
+            {
+              "table": "system_notice",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/notice/NoticeController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('system:notice:query')\")"
+            },
+            {
+              "table": "system_notify_template",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/notify/NotifyTemplateController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('system:notify-template:query')\")"
+            },
+            {
+              "table": "system_post",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/dept/PostController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('system:post:query')\")"
+            },
+            {
+              "table": "system_role",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/permission/RoleController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('system:role:query')\")"
+            },
+            {
+              "table": "system_sms_channel",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/sms/SmsChannelController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('system:sms-channel:query')\")"
+            },
+            {
+              "table": "system_sms_template",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/sms/SmsTemplateController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('system:sms-template:query')\")"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "infrastructure-storage",
+      "reason": "文件元数据由所有者或文件管理权限控制，数据库内容表只能经受控文件客户端按配置与路径访问。",
+      "tables": [
+        "infra_file",
+        "infra_file_content"
+      ],
+      "controls": [
+        {
+          "kind": "owner-or-permission",
+          "tables": [
+            "infra_file",
+            "infra_file_content"
+          ],
+          "evidence": [
+            {
+              "table": "infra_file",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/service/file/FileServiceImpl.java",
+              "contains": "if (file == null || !canRead(file, principal))"
+            },
+            {
+              "table": "infra_file",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/service/file/FileServiceImpl.java",
+              "contains": "principal.owns(file.getOwnerUserId(), file.getOwnerUserType())"
+            },
+            {
+              "table": "infra_file_content",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/framework/file/core/client/db/DBFileClient.java",
+              "contains": "fileContentMapper.selectListByConfigIdAndPath(getId(), path)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "identity-security",
+      "reason": "身份安全记录只通过凭据或当前主体绑定的服务访问，不按组织部门范围查询。",
+      "tables": [
+        "system_sms_code",
+        "system_user_session"
+      ],
+      "controls": [
+        {
+          "kind": "credential-bound",
+          "tables": [
+            "system_sms_code"
+          ],
+          "evidence": [
+            {
+              "table": "system_sms_code",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/service/sms/SmsCodeServiceImpl.java",
+              "contains": "smsCodeMapper.selectLastByMobile(mobile, null, scene)"
+            },
+            {
+              "table": "system_sms_code",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/dal/mysql/sms/SmsCodeMapper.java",
+              "contains": "WHERE id = #{id} AND used = 0"
+            }
+          ]
+        },
+        {
+          "kind": "credential-bound",
+          "tables": [
+            "system_user_session"
+          ],
+          "evidence": [
+            {
+              "table": "system_user_session",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/service/session/UserSessionServiceImpl.java",
+              "contains": "SessionTokenDigest.digest(refreshToken)"
+            },
+            {
+              "table": "system_user_session",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/session/UserSessionController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('system:session:revoke')\")"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "relationship-tables",
+      "reason": "授权关系表不提供独立写接口，写入前由所属服务校验目标主体并由专用权限 保护入口。",
+      "tables": [
+        "system_role_menu",
+        "system_user_post",
+        "system_user_role"
+      ],
+      "controls": [
+        {
+          "kind": "target-validated",
+          "tables": [
+            "system_role_menu"
+          ],
+          "evidence": [
+            {
+              "table": "system_role_menu",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/service/permission/PermissionServiceImpl.java",
+              "contains": "roleService.validateRoleList(Collections.singleton(roleId))"
+            },
+            {
+              "table": "system_role_menu",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/service/permission/PermissionServiceImpl.java",
+              "contains": "validateMenuList(menuIds)"
+            }
+          ]
+        },
+        {
+          "kind": "target-validated",
+          "tables": [
+            "system_user_post"
+          ],
+          "evidence": [
+            {
+              "table": "system_user_post",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/service/user/AdminUserUniqueValidator.java",
+              "contains": "postService.validatePostList(postIds)"
+            }
+          ]
+        },
+        {
+          "kind": "target-validated",
+          "tables": [
+            "system_user_role"
+          ],
+          "evidence": [
+            {
+              "table": "system_user_role",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/service/permission/PermissionServiceImpl.java",
+              "contains": "userService.validateUserList(Collections.singleton(userId))"
+            },
+            {
+              "table": "system_user_role",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/service/permission/PermissionServiceImpl.java",
+              "contains": "roleService.validateRoleList(roleIds)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "append-only-observability",
+      "reason": "审计与运行留痕表只通过专用查询权限读取，或仅由内部记录服务写入并按保留策略清理。",
+      "tables": [
+        "infra_api_access_log",
+        "infra_api_error_log",
+        "infra_job_log",
+        "system_login_log",
+        "system_operate_log",
+        "system_sms_log"
+      ],
+      "controls": [
+        {
+          "kind": "function-permission",
+          "tables": [
+            "infra_job_log",
+            "system_login_log",
+            "system_operate_log"
+          ],
+          "evidence": [
+            {
+              "table": "infra_job_log",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/controller/admin/job/JobLogController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('infra:job:query')\")"
+            },
+            {
+              "table": "system_login_log",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/logger/LoginLogController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('system:login-log:query')\")"
+            },
+            {
+              "table": "system_operate_log",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/logger/OperateLogController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('system:operate-log:query')\")"
+            }
+          ]
+        },
+        {
+          "kind": "internal-only",
+          "tables": [
+            "infra_api_access_log",
+            "infra_api_error_log",
+            "system_sms_log"
+          ],
+          "evidence": [
+            {
+              "table": "infra_api_access_log",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/service/logger/ApiAccessLogServiceImpl.java",
+              "contains": "apiAccessLogMapper.insert(apiAccessLog)"
+            },
+            {
+              "table": "infra_api_error_log",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/service/logger/ApiErrorLogServiceImpl.java",
+              "contains": "apiErrorLogMapper.insert(apiErrorLog)"
+            },
+            {
+              "table": "system_sms_log",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/service/sms/SmsLogServiceImpl.java",
+              "contains": "smsLogMapper.insert(smsLogDO)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "user-owned-notification",
+      "reason": "站内信按 user_id 与 user_type 由通知服务限定当前主体，不使用部门数据范围规则。",
+      "tables": [
+        "system_notify_message"
+      ],
+      "controls": [
+        {
+          "kind": "subject-bound",
+          "tables": [
+            "system_notify_message"
+          ],
+          "evidence": [
+            {
+              "table": "system_notify_message",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/notify/NotifyMessageController.java",
+              "contains": "notifyMessageService.updateNotifyMessageRead(ids, getLoginUserId(), UserTypeEnum.ADMIN.getValue())"
+            },
+            {
+              "table": "system_notify_message",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/dal/mysql/notify/NotifyMessageMapper.java",
+              "contains": ".eq(NotifyMessageDO::getUserId, userId)"
+            },
+            {
+              "table": "system_notify_message",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/dal/mysql/notify/NotifyMessageMapper.java",
+              "contains": ".eq(NotifyMessageDO::getUserType, userType)"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
