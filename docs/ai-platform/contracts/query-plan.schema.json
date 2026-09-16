@@ -1,0 +1,246 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-platform.invalid/schemas/query-plan-v1.json",
+  "title": "QueryPlan v1 设计契约",
+  "description": "模型只可选择登记的逻辑字段、指标与条件；所有字段权限、类型、日期顺序和粒度由服务端再次验证。",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "datasetId": {
+      "type": "string",
+      "pattern": "^dset_[A-Za-z0-9_-]{3,35}$",
+      "maxLength": 40
+    },
+    "datasetVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "metrics": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]{0,63}$"
+      },
+      "minItems": 1,
+      "maxItems": 20,
+      "uniqueItems": true
+    },
+    "dimensions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]{0,63}$"
+      },
+      "minItems": 0,
+      "maxItems": 8,
+      "uniqueItems": true
+    },
+    "filters": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "field": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,63}$"
+              },
+              "operator": {
+                "enum": [
+                  "EQ",
+                  "NE",
+                  "GT",
+                  "GE",
+                  "LT",
+                  "LE"
+                ]
+              },
+              "value": {
+                "type": [
+                  "string",
+                  "number",
+                  "boolean"
+                ],
+                "maxLength": 1000
+              }
+            },
+            "required": [
+              "field",
+              "operator",
+              "value"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "field": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,63}$"
+              },
+              "operator": {
+                "const": "IN"
+              },
+              "values": {
+                "type": "array",
+                "items": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean"
+                  ],
+                  "maxLength": 1000
+                },
+                "minItems": 1,
+                "maxItems": 100,
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "field",
+              "operator",
+              "values"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "field": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,63}$"
+              },
+              "operator": {
+                "const": "BETWEEN"
+              },
+              "lower": {
+                "type": [
+                  "string",
+                  "number",
+                  "boolean"
+                ],
+                "maxLength": 1000
+              },
+              "upper": {
+                "type": [
+                  "string",
+                  "number",
+                  "boolean"
+                ],
+                "maxLength": 1000
+              }
+            },
+            "required": [
+              "field",
+              "operator",
+              "lower",
+              "upper"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "field": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,63}$"
+              },
+              "operator": {
+                "const": "IS_NULL"
+              }
+            },
+            "required": [
+              "field",
+              "operator"
+            ]
+          }
+        ]
+      },
+      "minItems": 0,
+      "maxItems": 20
+    },
+    "timeRange": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,63}$"
+            },
+            "startInclusive": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "endExclusive": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "timezone": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[A-Za-z_]+(?:/[A-Za-z0-9_+.-]+)*$"
+            }
+          },
+          "required": [
+            "field",
+            "startInclusive",
+            "endExclusive",
+            "timezone"
+          ]
+        }
+      ]
+    },
+    "orderBy": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "field": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          },
+          "direction": {
+            "enum": [
+              "ASC",
+              "DESC"
+            ]
+          }
+        },
+        "required": [
+          "field",
+          "direction"
+        ]
+      },
+      "minItems": 0,
+      "maxItems": 8
+    },
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "datasetId",
+    "datasetVersion",
+    "metrics",
+    "dimensions",
+    "filters",
+    "timeRange",
+    "orderBy",
+    "limit"
+  ]
+}

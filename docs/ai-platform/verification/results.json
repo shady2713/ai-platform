@@ -1,0 +1,304 @@
+{
+  "checkedAt": "2026-09-16T07:06:23.470671+00:00",
+  "scope": "DOCUMENTS_AND_CONTRACT_EXAMPLES_ONLY",
+  "passed": true,
+  "checks": [
+    {
+      "name": "所有JSON可解析",
+      "passed": true,
+      "detail": "10份（含已有验证结果时计入）"
+    },
+    {
+      "name": "文档本地链接存在",
+      "passed": true,
+      "detail": "1725个链接；缺失=[]"
+    },
+    {
+      "name": "任务数量及ID唯一",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "任务卡均存在且标题一致",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "任务均为规划状态",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "任务执行字段非空",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "任务依赖存在且无自依赖",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "任务依赖图无环",
+      "passed": true,
+      "detail": "可拓扑排序102项"
+    },
+    {
+      "name": "不存在依赖未来阶段",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "40项需求均有任务映射",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "72项验收均有任务映射",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "PRD与任务需求编号一致",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "验收目录编号一致",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "任务允许路径未指向源绝对目录",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "QueryPlan Schema符合Draft2020-12",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "ReportSpec Schema符合Draft2020-12",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "QueryPlan与ReportSpec正例通过",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "QueryPlan拒绝额外SQL字段",
+      "passed": true,
+      "detail": "拒绝路径已触发"
+    },
+    {
+      "name": "QueryPlan拒绝越界行数",
+      "passed": true,
+      "detail": "拒绝路径已触发"
+    },
+    {
+      "name": "QueryPlan拒绝表达式充当指标code",
+      "passed": true,
+      "detail": "拒绝路径已触发"
+    },
+    {
+      "name": "QueryPlan拒绝未知操作符",
+      "passed": true,
+      "detail": "拒绝路径已触发"
+    },
+    {
+      "name": "QueryPlan拒绝未解析自然日期",
+      "passed": true,
+      "detail": "拒绝路径已触发"
+    },
+    {
+      "name": "ReportSpec拒绝可执行HTML字段",
+      "passed": true,
+      "detail": "拒绝路径已触发"
+    },
+    {
+      "name": "ReportSpec拒绝任意图表执行类型",
+      "passed": true,
+      "detail": "拒绝路径已触发"
+    },
+    {
+      "name": "报表正例引用与布局一致",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "报表不存在数据引用被语义检查拒绝",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "报表不存在字段被语义检查拒绝",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "报表布局重叠被语义检查拒绝",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "查询样例时间区间有序",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "合成报表金额与黄金用例一致",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "OpenAPI3.1核心规范通过",
+      "passed": true,
+      "detail": "外部本地Schema等价内联校验；不是完整已实现API"
+    },
+    {
+      "name": "核心API操作ID唯一且全部声明认证",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "taskCount": 102,
+  "phaseCounts": {
+    "P0": 10,
+    "V1.0": 75,
+    "V1.1": 6,
+    "V1.2": 5,
+    "V2": 6
+  },
+  "requirements": 40,
+  "acceptanceScenarios": 72,
+  "topologicalOrder": [
+    "F01",
+    "F02",
+    "F03",
+    "F04",
+    "F05",
+    "F07",
+    "F06",
+    "F08",
+    "F09",
+    "F10",
+    "M01",
+    "A01",
+    "M02",
+    "A02",
+    "C04",
+    "M03",
+    "M04",
+    "A03",
+    "M05",
+    "M06",
+    "A04",
+    "A07",
+    "S01",
+    "K01",
+    "D01",
+    "A05",
+    "S02",
+    "K02",
+    "D02",
+    "D03",
+    "D08",
+    "A06",
+    "S03",
+    "D04",
+    "A08",
+    "A09",
+    "S04",
+    "O01",
+    "S05",
+    "O02",
+    "D05",
+    "O03",
+    "D06",
+    "D07",
+    "O04",
+    "K03",
+    "O05",
+    "K04",
+    "D09",
+    "O06",
+    "K05",
+    "D10",
+    "D11",
+    "O07",
+    "K06",
+    "R01",
+    "Q02",
+    "Q04",
+    "O08",
+    "K07",
+    "K08",
+    "R02",
+    "C01",
+    "K09",
+    "R03",
+    "C02",
+    "Q01",
+    "R04",
+    "Q03",
+    "R05",
+    "R06",
+    "R07",
+    "C03",
+    "Q05",
+    "C05",
+    "C06",
+    "C07",
+    "C08",
+    "C09",
+    "C10",
+    "Q06",
+    "Q07",
+    "Q08",
+    "Q09",
+    "Q10",
+    "X01",
+    "X06",
+    "X07",
+    "X09",
+    "X10",
+    "X11",
+    "Y01",
+    "X02",
+    "X03",
+    "X04",
+    "X08",
+    "Y02",
+    "X05",
+    "Y03",
+    "Y04",
+    "Y05",
+    "Y06"
+  ],
+  "validators": {
+    "jsonschema": "4.25.1",
+    "openapi-spec-validator": "0.7.2"
+  },
+  "source": {
+    "requested": false,
+    "path": null,
+    "head": null,
+    "gitStatus": "NOT_REQUESTED",
+    "currentKeyFileSha256": {},
+    "hashNote": "仅在明确提供--source-root时读取；省略参数不会访问原电脑路径。"
+  },
+  "notVerified": [
+    "框架完整Harness/构建",
+    "上游运行时兼容及漏洞扫描",
+    "实际模型效果",
+    "业务API及SQL正确性",
+    "权限生产实现",
+    "浏览器交互",
+    "性能/容量",
+    "安装/升级/备份恢复",
+    "原始框架HEAD/工作树：本次未传--source-root"
+  ]
+}

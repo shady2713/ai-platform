@@ -7,6 +7,55 @@ const migration =
   "后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/";
 const assignment = (value) => `password = '${value}'`;
 
+test("initial import accepts exact reviewed literals without trusting their files", () => {
+  const cases = [
+    [`${frontend}api/core/auth.test.ts`, "captcha-token"],
+    [`${frontend}api/infra/file/index.test.ts`, "upload-token"],
+    [
+      `${frontend}views/_core/profile/modules/reset-pwd.test.ts`,
+      "NewPassword1",
+    ],
+    [
+      "前端代码/basic-framework-admin/packages/locales/src/langs/en-US/ui.json",
+      "Password",
+    ],
+    [
+      "前端代码/basic-framework-admin/packages/@core/ui-kit/shadcn-ui/src/components/input-password/input-password.vue",
+      "modelValue",
+    ],
+    [
+      "后端代码/basic-framework-boot/basic-framework-server/src/test/java/com/basicframework/server/integration/PackagedJarBootSmokeIT.java",
+      "integration-only-db",
+    ],
+  ];
+  for (const [path, value] of cases) {
+    assert.equal(hasSecretAssignment(path, assignment(value)), false, path);
+    assert.equal(
+      hasSecretAssignment("application.yml", assignment(value)),
+      true,
+      path,
+    );
+    assert.equal(
+      hasSecretAssignment(path, assignment(value + "-changed")),
+      true,
+      path,
+    );
+    assert.equal(
+      hasSecretAssignment(path, assignment(value).slice(0, -1)),
+      true,
+      path,
+    );
+    assert.equal(
+      hasSecretAssignment(
+        path,
+        `${assignment(value)}; ${assignment("synthetic-" + "credential")}`,
+      ),
+      true,
+      path,
+    );
+  }
+});
+
 test("public fixtures are exempt only in their owning file", () => {
   assert.equal(
     hasSecretAssignment(

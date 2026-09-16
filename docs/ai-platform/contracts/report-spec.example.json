@@ -1,0 +1,145 @@
+{
+  "schemaVersion": "1.0",
+  "title": "2026年8月华东客户净销售额",
+  "themeRef": {
+    "themeId": "thm_default",
+    "revision": 1
+  },
+  "layout": {
+    "columns": 12,
+    "gap": 16,
+    "items": [
+      {
+        "blockId": "intro",
+        "row": 0,
+        "column": 0,
+        "span": 12
+      },
+      {
+        "blockId": "sales_chart",
+        "row": 1,
+        "column": 0,
+        "span": 7
+      },
+      {
+        "blockId": "sales_table",
+        "row": 1,
+        "column": 7,
+        "span": 5
+      }
+    ]
+  },
+  "blocks": [
+    {
+      "id": "intro",
+      "title": "统计口径",
+      "type": "text",
+      "text": "2026年8月、华东、已付款订单，按客户汇总扣除退款后的净额。仅包含当前主体获授权的数据。"
+    },
+    {
+      "id": "sales_chart",
+      "title": "客户净销售额",
+      "type": "chart",
+      "datasetRef": "sales_result",
+      "chart": {
+        "chartType": "column",
+        "categoryField": "customer_name",
+        "valueField": "net_amount",
+        "legend": false
+      }
+    },
+    {
+      "id": "sales_table",
+      "title": "客户明细",
+      "type": "table",
+      "datasetRef": "sales_result",
+      "columns": [
+        {
+          "field": "customer_name",
+          "label": "客户",
+          "format": "TEXT"
+        },
+        {
+          "field": "net_amount",
+          "label": "净销售额（元）",
+          "format": "CURRENCY"
+        }
+      ],
+      "pageSize": 10
+    }
+  ],
+  "datasetRefs": [
+    {
+      "id": "sales_result",
+      "resultRef": "run_sales_demo/result/0",
+      "queryRef": "sales_query",
+      "columns": [
+        {
+          "field": "customer_name",
+          "label": "客户",
+          "dataType": "STRING"
+        },
+        {
+          "field": "net_amount",
+          "label": "净销售额",
+          "dataType": "DECIMAL",
+          "unit": "CNY"
+        }
+      ],
+      "rowCount": 2,
+      "asOf": "2026-09-16T00:00:00Z",
+      "completeness": "COMPLETE"
+    }
+  ],
+  "queryRefs": [
+    {
+      "id": "sales_query",
+      "plan": {
+        "schemaVersion": "1.0",
+        "datasetId": "dset_sales_demo",
+        "datasetVersion": 1,
+        "metrics": [
+          "net_amount"
+        ],
+        "dimensions": [
+          "customer_name"
+        ],
+        "filters": [
+          {
+            "field": "region",
+            "operator": "EQ",
+            "value": "EAST"
+          },
+          {
+            "field": "payment_status",
+            "operator": "EQ",
+            "value": "PAID"
+          }
+        ],
+        "timeRange": {
+          "field": "order_time",
+          "startInclusive": "2026-08-01T00:00:00+08:00",
+          "endExclusive": "2026-09-01T00:00:00+08:00",
+          "timezone": "Asia/Shanghai"
+        },
+        "orderBy": [
+          {
+            "field": "net_amount",
+            "direction": "DESC"
+          }
+        ],
+        "limit": 10
+      }
+    }
+  ],
+  "sources": [
+    {
+      "id": "sales_source",
+      "kind": "DATASET",
+      "resourceId": "dset_sales_demo",
+      "resourceVersion": 1,
+      "queryRef": "sales_query",
+      "description": "合成销售数据集；数据截至时间为测试固定时点。"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "1.0",
+  "resultRef": "run_sales_demo/result/0",
+  "rows": [
+    {
+      "customer_name": "客户二",
+      "net_amount": "450.00"
+    },
+    {
+      "customer_name": "客户一",
+      "net_amount": "290.00"
+    }
+  ],
+  "completeness": "COMPLETE",
+  "warnings": [],
+  "synthetic": true
+}

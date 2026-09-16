@@ -1,0 +1,138 @@
+{
+  "schemaVersion": "1.0",
+  "status": "CANDIDATES_NOT_LOCKED",
+  "verifiedAt": "2026-09-16",
+  "rules": {
+    "freezeExactVersionBeforeProduction": true,
+    "latestTagsForbidden": true,
+    "vendorTypesRestrictedToAdapters": true,
+    "requireSbomLicenseSecurityAndCompatibility": true
+  },
+  "components": [
+    {
+      "id": "spring-ai",
+      "kind": "JAVA_LIBRARY",
+      "candidateVersion": "1.1.7",
+      "status": "OFFICIAL_RELEASE_POM_CHECKED_RUNTIME_UNVERIFIED",
+      "coordinate": "org.springframework.ai:spring-ai-bom",
+      "license": "Apache-2.0",
+      "source": "https://github.com/spring-projects/spring-ai/blob/v1.1.7/pom.xml",
+      "compatibilityEvidence": "Java17 / Boot3.5.14 in tagged POM; framework Boot3.5.16 remains to be tested",
+      "fixedVersion": null,
+      "artifactDigest": null,
+      "sbom": null,
+      "securityScan": null,
+      "ownerRole": "后端集成负责人",
+      "adapterPath": "basic-framework-spring-boot-starter-ai/provider/springai",
+      "updateGateTasks": [
+        "F02",
+        "Q08"
+      ],
+      "localPatches": []
+    },
+    {
+      "id": "spring-ai-alibaba",
+      "kind": "OPTIONAL_JAVA_LIBRARY",
+      "candidateVersion": null,
+      "status": "OPTIONAL_NOT_SELECTED",
+      "license": "Apache-2.0",
+      "source": "https://java2ai.com/docs/versions/",
+      "fixedVersion": null,
+      "artifactDigest": null,
+      "ownerRole": "后端集成负责人",
+      "updateGateTasks": [
+        "F02",
+        "X08"
+      ],
+      "localPatches": []
+    },
+    {
+      "id": "antv-gpt-vis",
+      "kind": "FRONTEND_LIBRARY",
+      "candidateVersion": "1.0.1 (ai branch package.json only)",
+      "status": "PACKAGE_RELEASE_AND_BUNDLE_UNVERIFIED",
+      "license": "MIT",
+      "source": "https://github.com/antvis/GPT-Vis/blob/ai/package.json",
+      "fixedVersion": null,
+      "artifactDigest": null,
+      "ownerRole": "前端集成负责人",
+      "updateGateTasks": [
+        "F04",
+        "R02",
+        "Q08"
+      ],
+      "localPatches": []
+    },
+    {
+      "id": "antv-g2",
+      "kind": "FRONTEND_LIBRARY_ALTERNATIVE",
+      "candidateVersion": null,
+      "status": "ALTERNATIVE_TO_VALIDATE",
+      "license": "MIT",
+      "source": "https://github.com/antvis/G2",
+      "fixedVersion": null,
+      "artifactDigest": null,
+      "ownerRole": "前端集成负责人",
+      "updateGateTasks": [
+        "F04",
+        "R02",
+        "Q08"
+      ],
+      "localPatches": []
+    },
+    {
+      "id": "qdrant",
+      "kind": "OPTIONAL_EXTERNAL_SERVICE",
+      "candidateVersion": null,
+      "status": "PROPOSED_NOT_USER_CONFIRMED",
+      "license": "Apache-2.0",
+      "source": "https://qdrant.tech/documentation/upgrades/",
+      "fixedVersion": null,
+      "artifactDigest": null,
+      "clientVersion": null,
+      "ownerRole": "检索与运维负责人",
+      "updateGateTasks": [
+        "F02",
+        "K01",
+        "Q09"
+      ],
+      "rollback": "保留旧服务与兼容快照/原文；不直接以旧二进制打开已升级数据目录",
+      "localPatches": []
+    },
+    {
+      "id": "tika-parser",
+      "kind": "JAVA_LIBRARY",
+      "candidateVersion": null,
+      "status": "FULL_PARSER_SET_UNVERIFIED",
+      "existingCoreVersion": "3.2.3",
+      "license": "Apache-2.0",
+      "source": "https://tika.apache.org/",
+      "fixedVersion": null,
+      "artifactDigest": null,
+      "ownerRole": "文档解析负责人",
+      "updateGateTasks": [
+        "F02",
+        "K04",
+        "Q08"
+      ],
+      "localPatches": []
+    },
+    {
+      "id": "external-model-api",
+      "kind": "EXTERNAL_MODEL_ENDPOINT",
+      "candidateVersion": null,
+      "status": "PER_ENTERPRISE_CONFIGURATION",
+      "source": "https://docs.ollama.com/api/openai-compatibility",
+      "fixedVersion": null,
+      "artifactDigest": null,
+      "modelRevision": null,
+      "ownerRole": "企业模型运维负责人",
+      "updateGateTasks": [
+        "M04",
+        "Q05",
+        "X01"
+      ],
+      "localPatches": []
+    }
+  ]
+}

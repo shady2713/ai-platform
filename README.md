@@ -1,4 +1,8 @@
-# basic-framework
+# 企业 AI 中台
+
+> 企业AI中台开发副本：先阅读[开发入口](开发入口.md)，产品需求、集成方案和任务卡位于[docs/ai-platform](docs/ai-platform/README.md)。以下保留基础框架的使用说明与工程入口。
+
+当前已具备基础框架与产品开发方案，AI功能按任务卡逐项实施。目录、Git迁移及原框架基线管理见[项目初始化与迁移](docs/ai-platform/00-project-bootstrap.md)。
 
 Spring Boot 3 / Java 17 后端 + Vue 3 / TypeScript 管理端的基础框架单体仓库。
 工程规则的唯一权威来源是根 `AGENTS.md`；业务开发从 `docs/development-guide.md` 进入。

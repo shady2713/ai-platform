@@ -1,0 +1,499 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-platform.invalid/schemas/report-spec-v1.json",
+  "title": "ReportSpec v1 设计契约",
+  "description": "声明式报表结构；不允许HTML、JS、CSS或任意URL。Schema以外仍须验证引用存在、当前ACL和语义一致性。",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "themeRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "themeId": {
+          "type": "string",
+          "pattern": "^thm_[A-Za-z0-9_-]{3,35}$",
+          "maxLength": 40
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "themeId",
+        "revision"
+      ]
+    },
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "columns": {
+          "const": 12
+        },
+        "gap": {
+          "enum": [
+            8,
+            12,
+            16,
+            24
+          ]
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "blockId": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,63}$"
+              },
+              "row": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "column": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 11
+              },
+              "span": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 12
+              }
+            },
+            "required": [
+              "blockId",
+              "row",
+              "column",
+              "span"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 40
+        }
+      },
+      "required": [
+        "columns",
+        "gap",
+        "items"
+      ]
+    },
+    "blocks": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,63}$"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "type": {
+                "const": "metric"
+              },
+              "binding": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "datasetRef": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]{0,63}$"
+                  },
+                  "field": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]{0,63}$"
+                  }
+                },
+                "required": [
+                  "datasetRef",
+                  "field"
+                ]
+              },
+              "rowIndex": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 999
+              },
+              "format": {
+                "enum": [
+                  "NUMBER",
+                  "DECIMAL",
+                  "PERCENT",
+                  "CURRENCY"
+                ]
+              },
+              "unit": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 32
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "type",
+              "binding",
+              "rowIndex",
+              "format"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,63}$"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "type": {
+                "const": "text"
+              },
+              "text": {
+                "type": "string",
+                "maxLength": 5000
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "type",
+              "text"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,63}$"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "type": {
+                "const": "table"
+              },
+              "datasetRef": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,63}$"
+              },
+              "columns": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "field": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9_]{0,63}$"
+                    },
+                    "label": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    },
+                    "format": {
+                      "enum": [
+                        "TEXT",
+                        "NUMBER",
+                        "DECIMAL",
+                        "PERCENT",
+                        "CURRENCY",
+                        "DATE",
+                        "DATETIME"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "field",
+                    "label",
+                    "format"
+                  ]
+                },
+                "minItems": 1,
+                "maxItems": 30
+              },
+              "pageSize": {
+                "enum": [
+                  10,
+                  20,
+                  50,
+                  100
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "type",
+              "datasetRef",
+              "columns",
+              "pageSize"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,63}$"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "type": {
+                "const": "chart"
+              },
+              "datasetRef": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,63}$"
+              },
+              "chart": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "chartType": {
+                    "enum": [
+                      "column",
+                      "line",
+                      "pie"
+                    ]
+                  },
+                  "categoryField": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]{0,63}$"
+                  },
+                  "valueField": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]{0,63}$"
+                  },
+                  "seriesField": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]{0,63}$"
+                  },
+                  "legend": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "chartType",
+                  "categoryField",
+                  "valueField",
+                  "legend"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "type",
+              "datasetRef",
+              "chart"
+            ]
+          }
+        ]
+      },
+      "minItems": 1,
+      "maxItems": 40
+    },
+    "datasetRefs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          },
+          "resultRef": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "queryRef": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "field": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]{0,63}$"
+                },
+                "label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "dataType": {
+                  "enum": [
+                    "STRING",
+                    "INTEGER",
+                    "DECIMAL",
+                    "BOOLEAN",
+                    "DATE",
+                    "DATETIME"
+                  ]
+                },
+                "unit": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 32
+                }
+              },
+              "required": [
+                "field",
+                "label",
+                "dataType"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 50
+          },
+          "rowCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000
+          },
+          "asOf": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completeness": {
+            "enum": [
+              "COMPLETE",
+              "PARTIAL",
+              "UNKNOWN"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "resultRef",
+          "queryRef",
+          "columns",
+          "rowCount",
+          "asOf",
+          "completeness"
+        ]
+      },
+      "minItems": 1,
+      "maxItems": 20
+    },
+    "queryRefs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          },
+          "plan": {
+            "$ref": "https://ai-platform.invalid/schemas/query-plan-v1.json"
+          }
+        },
+        "required": [
+          "id",
+          "plan"
+        ]
+      },
+      "minItems": 1,
+      "maxItems": 20
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          },
+          "kind": {
+            "enum": [
+              "DATASET",
+              "DOCUMENT",
+              "API"
+            ]
+          },
+          "resourceId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "resourceVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "queryRef": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "resourceId",
+          "resourceVersion",
+          "description"
+        ]
+      },
+      "minItems": 1,
+      "maxItems": 40
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "title",
+    "themeRef",
+    "layout",
+    "blocks",
+    "datasetRefs",
+    "queryRefs",
+    "sources"
+  ]
+}

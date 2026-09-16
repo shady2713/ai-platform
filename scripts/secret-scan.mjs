@@ -5,14 +5,96 @@ const frontend = "前端代码/basic-framework-admin/apps/web-ele/src/";
 const server = "后端代码/basic-framework-boot/basic-framework-server/src/";
 const system =
   "后端代码/basic-framework-boot/basic-framework-module-system/src/";
-// Exact public fixtures are exempt only in their owning file, never by directory.
+// Reviewed test values and UI literals are exempt only in their owning file.
+// No file or directory is exempt: changed values and other assignments still fail.
 const publicFixtures = new Map([
-  [`${frontend}api/core/auth.test.ts`, new Set(["old-password"])],
+  [
+    `${frontend}api/core/auth.test.ts`,
+    new Set(["old-password", "captcha-token", "new-pass"]),
+  ],
+  [`${frontend}api/infra/file/index.test.ts`, new Set(["upload-token"])],
+  [`${frontend}api/system/user/index.test.ts`, new Set(["new-password"])],
+  [
+    `${frontend}api/system/user/profile/index.test.ts`,
+    new Set(["new-pass", "old-pass"]),
+  ],
+  [
+    `${frontend}components/upload/use-upload.test.ts`,
+    new Set(["upload-token"]),
+  ],
   [
     `${frontend}api/request.test.ts`,
-    new Set(["access-token", "previous", "new-account", "obsolete"]),
+    new Set([
+      "access-token",
+      "previous",
+      "new-account",
+      "obsolete",
+      "new-access-token",
+      "expired-token",
+    ]),
   ],
-  [`${frontend}router/guard.test.ts`, new Set(["restored"])],
+  [`${frontend}router/guard.test.ts`, new Set(["restored", "access-token"])],
+  [
+    `${frontend}views/_core/authentication/forget-password.test.ts`,
+    new Set(["StrongPassword1"]),
+  ],
+  [
+    `${frontend}views/_core/profile/modules/reset-pwd.test.ts`,
+    new Set(["NewPassword1", "OldPassword1"]),
+  ],
+  [
+    "前端代码/basic-framework-admin/internal/vite-config/src/plugins/extra-app-config.test.ts",
+    new Set(["must-not-reach-the-browser"]),
+  ],
+  [
+    "前端代码/basic-framework-admin/packages/@core/ui-kit/shadcn-ui/src/components/input-password/input-password.vue",
+    new Set(["modelValue"]),
+  ],
+  [
+    "前端代码/basic-framework-admin/packages/effects/common-ui/src/components/captcha/verification/contract.test.ts",
+    new Set(["one-time-token"]),
+  ],
+  [
+    "前端代码/basic-framework-admin/packages/effects/layouts/src/widgets/lock-screen/lock-screen-modal.test.ts",
+    new Set(["candidate-password"]),
+  ],
+  [
+    "前端代码/basic-framework-admin/packages/effects/layouts/src/widgets/lock-screen/lock-screen.test.ts",
+    new Set(["candidate-password"]),
+  ],
+  [
+    "前端代码/basic-framework-admin/packages/locales/src/langs/en-US/authentication.json",
+    new Set(["Password"]),
+  ],
+  [
+    "前端代码/basic-framework-admin/packages/locales/src/langs/en-US/ui.json",
+    new Set(["Password"]),
+  ],
+  [
+    `${system}test/java/com/basicframework/module/system/controller/admin/auth/AuthControllerTest.java`,
+    new Set(["access-token", "refresh-token"]),
+  ],
+  [
+    `${system}test/java/com/basicframework/module/system/controller/admin/user/UserProfileControllerTest.java`,
+    new Set(["CurrentPassword1"]),
+  ],
+  [
+    `${system}test/java/com/basicframework/module/system/service/sms/SmsTemplateServiceImplTest.java`,
+    new Set(["provider-secret-token"]),
+  ],
+  [
+    `${server}test/java/com/basicframework/server/integration/AbstractPersistenceIntegrationTest.java`,
+    new Set(["integration-only"]),
+  ],
+  [
+    `${server}test/java/com/basicframework/server/integration/PackagedJarBootSmokeIT.java`,
+    new Set([
+      "integration-only-db",
+      "integration-only-flyway",
+      "integration-only-root",
+      "integration-only-redis",
+    ]),
+  ],
   [
     `${frontend}views/system/user/modules/reset-password-form.test.ts`,
     new Set(["New@123456"]),

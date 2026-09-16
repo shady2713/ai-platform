@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "1.0",
+  "datasetId": "dset_sales_demo",
+  "datasetVersion": 1,
+  "metrics": [
+    "net_amount"
+  ],
+  "dimensions": [
+    "customer_name"
+  ],
+  "filters": [
+    {
+      "field": "region",
+      "operator": "EQ",
+      "value": "EAST"
+    },
+    {
+      "field": "payment_status",
+      "operator": "EQ",
+      "value": "PAID"
+    }
+  ],
+  "timeRange": {
+    "field": "order_time",
+    "startInclusive": "2026-08-01T00:00:00+08:00",
+    "endExclusive": "2026-09-01T00:00:00+08:00",
+    "timezone": "Asia/Shanghai"
+  },
+  "orderBy": [
+    {
+      "field": "net_amount",
+      "direction": "DESC"
+    }
+  ],
+  "limit": 10
+}

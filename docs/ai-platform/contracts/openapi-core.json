@@ -1,0 +1,1799 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "企业AI中台核心开放API设计草案",
+    "version": "1.0.0-draft",
+    "description": "未实现的设计契约子集。完整目录见04-api-chat-integration.md。身份、资源ACL、语义验证和业务幂等不能仅用Schema证明。"
+  },
+  "servers": [
+    {
+      "url": "/app-api/ai/v1",
+      "description": "企业独立部署的站点相对路径；实际生产必须TLS。"
+    }
+  ],
+  "paths": {
+    "/auth/token": {
+      "post": {
+        "operationId": "exchangeToken",
+        "summary": "可信业务后端凭应用凭据换取短期票据",
+        "security": [
+          {
+            "ClientBasic": []
+          }
+        ],
+        "x-required-scope": "CLIENT_AUTH",
+        "responses": {
+          "200": {
+            "description": "操作成功。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "502": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "504": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/revoke": {
+      "post": {
+        "operationId": "revokeCurrentToken",
+        "summary": "撤销当前票据",
+        "security": [
+          {
+            "PlatformBearer": []
+          }
+        ],
+        "x-required-scope": "CURRENT_SUBJECT",
+        "responses": {
+          "200": {
+            "description": "操作成功。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Acknowledged"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "502": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "504": {
+            "$ref": "#/components/responses/Failure"
+          }
+        }
+      }
+    },
+    "/conversations": {
+      "post": {
+        "operationId": "createConversation",
+        "summary": "创建当前主体的私人会话",
+        "security": [
+          {
+            "PlatformBearer": []
+          }
+        ],
+        "x-required-scope": "conversations:write",
+        "responses": {
+          "200": {
+            "description": "操作成功。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "502": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "504": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConversationCreate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/runs": {
+      "post": {
+        "operationId": "createRun",
+        "summary": "受理一次服务运行",
+        "security": [
+          {
+            "PlatformBearer": []
+          }
+        ],
+        "x-required-scope": "runs:execute",
+        "responses": {
+          "202": {
+            "description": "已接受异步执行；不是执行成功。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "502": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "504": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRun"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "应用+主体+操作范围内去重；重用同一键且正文不同返回409。",
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128
+            }
+          }
+        ]
+      }
+    },
+    "/runs/{runId}": {
+      "get": {
+        "operationId": "getRun",
+        "summary": "查询当前主体有权运行及终态",
+        "security": [
+          {
+            "PlatformBearer": []
+          }
+        ],
+        "x-required-scope": "runs:read",
+        "responses": {
+          "200": {
+            "description": "操作成功。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunSnapshot"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "502": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "504": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "parameters": [
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^run_[A-Za-z0-9_-]{3,35}$",
+              "maxLength": 40
+            }
+          }
+        ]
+      }
+    },
+    "/runs/{runId}/cancel": {
+      "post": {
+        "operationId": "cancelRun",
+        "summary": "发出取消请求并读取状态",
+        "security": [
+          {
+            "PlatformBearer": []
+          }
+        ],
+        "x-required-scope": "runs:cancel",
+        "responses": {
+          "200": {
+            "description": "操作成功。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunSnapshot"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "502": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "504": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelRun"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^run_[A-Za-z0-9_-]{3,35}$",
+              "maxLength": 40
+            }
+          }
+        ]
+      }
+    },
+    "/runs/{runId}/events": {
+      "get": {
+        "operationId": "streamRunEvents",
+        "summary": "按seq重放并继续订阅运行；使用带Bearer的fetch流",
+        "security": [
+          {
+            "PlatformBearer": []
+          }
+        ],
+        "x-required-scope": "runs:read",
+        "parameters": [
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^run_[A-Za-z0-9_-]{3,35}$",
+              "maxLength": 40
+            }
+          },
+          {
+            "name": "afterSeq",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "Last-Event-ID",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            },
+            "description": "与afterSeq同时提供且不一致时400。"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SSE事件；心跳为注释行，不推进seq。结构块完成后才渲染，流中失败使用run.failed。",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "id: 1\nevent: run.accepted\ndata: {\"protocolVersion\":\"1.0\",\"runId\":\"run_demo\",\"seq\":1,\"type\":\"run.accepted\",\"occurredAt\":\"2026-09-16T00:00:00Z\",\"data\":{\"status\":\"QUEUED\"}}\n\n: heartbeat\n\n"
+              }
+            }
+          },
+          "401": {
+            "description": "语义错误，code为实施时字段/错误码目录中登记的稳定业务码；msg不包含秘密。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "语义错误，code为实施时字段/错误码目录中登记的稳定业务码；msg不包含秘密。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "语义错误，code为实施时字段/错误码目录中登记的稳定业务码；msg不包含秘密。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "重放窗口已过期；读取run快照，禁止重新创建运行。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports": {
+      "post": {
+        "operationId": "saveReport",
+        "summary": "保存有权运行的报表快照或刷新定义",
+        "security": [
+          {
+            "PlatformBearer": []
+          }
+        ],
+        "x-required-scope": "reports:write",
+        "responses": {
+          "200": {
+            "description": "操作成功。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportSaved"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "502": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "504": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveReport"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "应用+主体+操作范围内去重；重用同一键且正文不同返回409。",
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128
+            }
+          }
+        ]
+      }
+    },
+    "/reports/{reportId}": {
+      "get": {
+        "operationId": "getReport",
+        "summary": "读取报告版本；按当前数据权限验证",
+        "security": [
+          {
+            "PlatformBearer": []
+          }
+        ],
+        "x-required-scope": "reports:read",
+        "responses": {
+          "200": {
+            "description": "操作成功。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "502": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "504": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "parameters": [
+          {
+            "name": "reportId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^rpt_[A-Za-z0-9_-]{3,35}$",
+              "maxLength": 40
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ]
+      }
+    },
+    "/reports/{reportId}/refresh": {
+      "post": {
+        "operationId": "refreshReport",
+        "summary": "提交报告刷新任务",
+        "security": [
+          {
+            "PlatformBearer": []
+          }
+        ],
+        "x-required-scope": "reports:refresh",
+        "responses": {
+          "202": {
+            "description": "已接受异步执行；不是执行成功。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "502": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "504": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExpectedVersion"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "reportId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^rpt_[A-Za-z0-9_-]{3,35}$",
+              "maxLength": 40
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "应用+主体+操作范围内去重；重用同一键且正文不同返回409。",
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128
+            }
+          }
+        ]
+      }
+    },
+    "/actions/{actionId}/confirm": {
+      "post": {
+        "operationId": "confirmAction",
+        "summary": "确认绑定具体参数的一次工具操作",
+        "security": [
+          {
+            "PlatformBearer": []
+          }
+        ],
+        "x-required-scope": "actions:confirm",
+        "responses": {
+          "202": {
+            "description": "已接受异步执行；不是执行成功。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "409": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "413": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "422": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "429": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "502": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "503": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "504": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActionConfirm"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "actionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^act_[A-Za-z0-9_-]{3,35}$",
+              "maxLength": 40
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "应用+主体+操作范围内去重；重用同一键且正文不同返回409。",
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128
+            }
+          }
+        ]
+      }
+    },
+    "/tasks/{taskId}": {
+      "get": {
+        "operationId": "getTask",
+        "summary": "按任务归属及目的权限查询后台任务状态",
+        "security": [
+          {
+            "PlatformBearer": []
+          }
+        ],
+        "x-required-scope": "PURPOSE_SPECIFIC_AND_OWNER",
+        "parameters": [
+          {
+            "name": "taskId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^task_[A-Za-z0-9_-]{3,35}$",
+              "maxLength": 40
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "任务当前状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskSnapshot"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "403": {
+            "$ref": "#/components/responses/Failure"
+          },
+          "404": {
+            "$ref": "#/components/responses/Failure"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ClientBasic": {
+        "type": "http",
+        "scheme": "basic",
+        "description": "仅可信业务后端持有appKey:appSecret；不是浏览器身份认证。"
+      },
+      "PlatformBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "opaque",
+        "description": "中台随机短期票据，不是后台ADMIN token。"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "integer",
+            "not": {
+              "const": 0
+            }
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "type": "null"
+          }
+        },
+        "required": [
+          "code",
+          "msg",
+          "data"
+        ]
+      },
+      "Scope": {
+        "enum": [
+          "services:read",
+          "runs:execute",
+          "runs:read",
+          "runs:cancel",
+          "conversations:write",
+          "files:write",
+          "files:read",
+          "knowledge:search",
+          "knowledge:write",
+          "reports:read",
+          "reports:write",
+          "reports:refresh",
+          "actions:confirm"
+        ]
+      },
+      "TokenRequest": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "subjectKind": {
+                "const": "APP"
+              },
+              "scopes": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Scope"
+                },
+                "minItems": 0,
+                "maxItems": 30
+              },
+              "serviceIds": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^svc_[A-Za-z0-9_-]{3,35}$",
+                  "maxLength": 40
+                },
+                "minItems": 0,
+                "maxItems": 30
+              }
+            },
+            "required": [
+              "subjectKind"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "subjectKind": {
+                "const": "USER"
+              },
+              "externalUserId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "scopes": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Scope"
+                },
+                "minItems": 0,
+                "maxItems": 30
+              },
+              "serviceIds": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^svc_[A-Za-z0-9_-]{3,35}$",
+                  "maxLength": 40
+                },
+                "minItems": 0,
+                "maxItems": 30
+              }
+            },
+            "required": [
+              "subjectKind",
+              "externalUserId"
+            ]
+          }
+        ]
+      },
+      "TokenResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": 0
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "accessToken": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "tokenType": {
+                "const": "Bearer"
+              },
+              "expiresIn": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "subjectId": {
+                "type": "string",
+                "pattern": "^sub_[A-Za-z0-9_-]{3,35}$",
+                "maxLength": 40
+              },
+              "scopes": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Scope"
+                },
+                "minItems": 0,
+                "maxItems": 30
+              }
+            },
+            "required": [
+              "accessToken",
+              "tokenType",
+              "expiresIn",
+              "subjectId",
+              "scopes"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "msg",
+          "data"
+        ]
+      },
+      "BusinessContext": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "page": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "objectType": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "objectId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "filters": {
+            "type": "object",
+            "maxProperties": 20,
+            "additionalProperties": {
+              "type": [
+                "string",
+                "number",
+                "boolean"
+              ],
+              "maxLength": 1000
+            }
+          },
+          "locale": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "timezone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        },
+        "required": []
+      },
+      "CreateRun": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "serviceId": {
+            "type": "string",
+            "pattern": "^svc_[A-Za-z0-9_-]{3,35}$",
+            "maxLength": 40
+          },
+          "conversationId": {
+            "type": "string",
+            "pattern": "^conv_[A-Za-z0-9_-]{3,35}$",
+            "maxLength": 40
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16000
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^file_[A-Za-z0-9_-]{3,35}$",
+              "maxLength": 40
+            },
+            "minItems": 0,
+            "maxItems": 10
+          },
+          "context": {
+            "$ref": "#/components/schemas/BusinessContext"
+          }
+        },
+        "required": [
+          "serviceId",
+          "message"
+        ]
+      },
+      "RunStatus": {
+        "enum": [
+          "QUEUED",
+          "RUNNING",
+          "WAITING_INPUT",
+          "WAITING_CONFIRMATION",
+          "SUCCEEDED",
+          "FAILED",
+          "CANCELLED"
+        ]
+      },
+      "RunAccepted": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": 0
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "runId": {
+                "type": "string",
+                "pattern": "^run_[A-Za-z0-9_-]{3,35}$",
+                "maxLength": 40
+              },
+              "status": {
+                "$ref": "#/components/schemas/RunStatus"
+              },
+              "links": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "self": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "events": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  }
+                },
+                "required": [
+                  "self",
+                  "events"
+                ]
+              }
+            },
+            "required": [
+              "runId",
+              "status",
+              "links"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "msg",
+          "data"
+        ]
+      },
+      "ResultBlock": {
+        "description": "核心规范先定义文本、澄清及report引用；其他类型在拥有方任务交付时加入同一判别联合，完整目录见04。",
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "const": "text"
+              },
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "text": {
+                "type": "string",
+                "maxLength": 50000
+              }
+            },
+            "required": [
+              "type",
+              "id",
+              "text"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "const": "clarification"
+              },
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "question": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              },
+              "options": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "minItems": 0,
+                "maxItems": 10
+              }
+            },
+            "required": [
+              "type",
+              "id",
+              "question",
+              "options"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "const": "report"
+              },
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "reportId": {
+                "type": "string",
+                "pattern": "^rpt_[A-Za-z0-9_-]{3,35}$",
+                "maxLength": 40
+              },
+              "version": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "type",
+              "id",
+              "reportId",
+              "version"
+            ]
+          }
+        ]
+      },
+      "RunSnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": 0
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "runId": {
+                "type": "string",
+                "pattern": "^run_[A-Za-z0-9_-]{3,35}$",
+                "maxLength": 40
+              },
+              "serviceReleaseId": {
+                "type": "string",
+                "pattern": "^rel_[A-Za-z0-9_-]{3,35}$",
+                "maxLength": 40
+              },
+              "modelRevision": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "status": {
+                "$ref": "#/components/schemas/RunStatus"
+              },
+              "blocks": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ResultBlock"
+                },
+                "minItems": 0,
+                "maxItems": 40
+              },
+              "completeness": {
+                "enum": [
+                  "COMPLETE",
+                  "PARTIAL",
+                  "UNKNOWN"
+                ]
+              },
+              "warnings": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500
+                },
+                "minItems": 0,
+                "maxItems": 20
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "completedAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "runId",
+              "serviceReleaseId",
+              "status",
+              "blocks",
+              "completeness",
+              "warnings",
+              "createdAt",
+              "completedAt"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "msg",
+          "data"
+        ]
+      },
+      "ConversationCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "serviceId": {
+            "type": "string",
+            "pattern": "^svc_[A-Za-z0-9_-]{3,35}$",
+            "maxLength": 40
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "serviceId"
+        ]
+      },
+      "ConversationResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": 0
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "conversationId": {
+                "type": "string",
+                "pattern": "^conv_[A-Za-z0-9_-]{3,35}$",
+                "maxLength": 40
+              },
+              "serviceReleaseId": {
+                "type": "string",
+                "pattern": "^rel_[A-Za-z0-9_-]{3,35}$",
+                "maxLength": 40
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "version": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "conversationId",
+              "serviceReleaseId",
+              "title",
+              "version"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "msg",
+          "data"
+        ]
+      },
+      "SaveReport": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "runId": {
+            "type": "string",
+            "pattern": "^run_[A-Za-z0-9_-]{3,35}$",
+            "maxLength": 40
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "mode": {
+            "enum": [
+              "SNAPSHOT",
+              "REFRESHABLE"
+            ]
+          }
+        },
+        "required": [
+          "runId",
+          "title",
+          "mode"
+        ]
+      },
+      "ReportResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": 0
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "reportId": {
+                "type": "string",
+                "pattern": "^rpt_[A-Za-z0-9_-]{3,35}$",
+                "maxLength": 40
+              },
+              "version": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "mode": {
+                "enum": [
+                  "SNAPSHOT",
+                  "REFRESHABLE"
+                ]
+              },
+              "spec": {
+                "$ref": "./report-spec.schema.json"
+              },
+              "resultRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                },
+                "minItems": 1,
+                "maxItems": 20
+              }
+            },
+            "required": [
+              "reportId",
+              "version",
+              "mode",
+              "spec",
+              "resultRefs"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "msg",
+          "data"
+        ]
+      },
+      "ReportSaved": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": 0
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "reportId": {
+                "type": "string",
+                "pattern": "^rpt_[A-Za-z0-9_-]{3,35}$",
+                "maxLength": 40
+              },
+              "version": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "reportId",
+              "version"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "msg",
+          "data"
+        ]
+      },
+      "ExpectedVersion": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "expectedVersion"
+        ]
+      },
+      "TaskAccepted": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": 0
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "taskId": {
+                "type": "string",
+                "pattern": "^task_[A-Za-z0-9_-]{3,35}$",
+                "maxLength": 40
+              },
+              "state": {
+                "enum": [
+                  "PENDING",
+                  "RUNNING",
+                  "RETRY_WAIT",
+                  "SUCCEEDED",
+                  "FAILED",
+                  "CANCELLED",
+                  "UNKNOWN"
+                ]
+              }
+            },
+            "required": [
+              "taskId",
+              "state"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "msg",
+          "data"
+        ]
+      },
+      "ActionConfirm": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "challengeId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "challengeId",
+          "expectedVersion"
+        ]
+      },
+      "Acknowledged": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": 0
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "accepted": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "accepted"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "msg",
+          "data"
+        ]
+      },
+      "CancelRun": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "reasonCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "TaskSnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "msg",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "const": 0
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "taskId",
+              "state",
+              "progress",
+              "errorCode"
+            ],
+            "properties": {
+              "taskId": {
+                "type": "string",
+                "pattern": "^task_[A-Za-z0-9_-]{3,35}$",
+                "maxLength": 40
+              },
+              "state": {
+                "enum": [
+                  "PENDING",
+                  "RUNNING",
+                  "RETRY_WAIT",
+                  "SUCCEEDED",
+                  "FAILED",
+                  "CANCELLED",
+                  "UNKNOWN"
+                ]
+              },
+              "progress": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "errorCode": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 100
+              },
+              "resultRef": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 120
+              }
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "Failure": {
+        "description": "语义错误，code为实施时字段/错误码目录中登记的稳定业务码；msg不包含秘密。",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    }
+  }
+}
