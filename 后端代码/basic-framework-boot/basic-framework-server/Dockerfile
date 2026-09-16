@@ -1,10 +1,10 @@
 # 阶段一：仅解包 layered jar，供运行阶段按层拷贝以最大化构建缓存复用
-FROM eclipse-temurin:17.0.20_8-jre@sha256:13cc28a6cc72a38ce1f00c906be3580c1a3e604b8984d694f369a96742abc93b AS layers
+FROM eclipse-temurin:24.0.2_12-jre@sha256:8cb2387a28af84cf0db0948d9c67d4480192f4e567027a3963f145d218e8b4f2 AS layers
 WORKDIR /build
 COPY ./target/basic-framework-server.jar app.jar
 RUN java -Djarmode=tools -jar app.jar extract --layers --destination extracted
 
-FROM eclipse-temurin:17.0.20_8-jre@sha256:13cc28a6cc72a38ce1f00c906be3580c1a3e604b8984d694f369a96742abc93b
+FROM eclipse-temurin:24.0.2_12-jre@sha256:8cb2387a28af84cf0db0948d9c67d4480192f4e567027a3963f145d218e8b4f2
 
 # JRE 基座不含 curl：仅安装 curl 供 HEALTHCHECK 探测，--no-install-recommends
 # 并清理 apt 索引以控制体积；基座附带但运行期不用的 pebble 工具显式移除。
