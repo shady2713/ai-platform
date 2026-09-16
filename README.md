@@ -47,6 +47,9 @@ mysql -uroot -p -e "CREATE DATABASE basic_framework CHARACTER SET utf8mb4 COLLAT
 
 # 3. 前端：安装锁定依赖
 (cd 前端代码/basic-framework-admin && corepack enable && pnpm install --frozen-lockfile)
+
+# 4. 提交钩子：使用项目锁定版本，Windows与Linux使用同一入口
+node 前端代码/basic-framework-admin/node_modules/lefthook/bin/index.js install
 ```
 
 种子管理员默认禁用。首次启动前请通过环境变量 `BOOTSTRAP_ADMIN_PASSWORD` 设置每个部署独立的强口令，激活后移除该变量，并按登录页提示轮换密码；详见 [部署初始化](docs/deployment.md)。

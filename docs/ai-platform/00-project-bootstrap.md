@@ -38,7 +38,7 @@
 - 原源码通过`framework-baseline-23a7edb37593`标签保留，标签所指提交是本仓库独立创建的快照提交，不含原仓库历史。逐文件Git blob及文件模式与manifest一致；manifest中的SHA-256记录原电脑工作树字节，可能因CRLF/LF与Git规范化后的字节不同。
 - 原源码标签与manifest可用于比较“原基线→新框架”和“原基线→本产品”的差异；升级时遵循[06](06-upstream-upgrade.md)。正常克隆后执行`git fetch --tags`，不得省略基线标签备份。
 - 新仓库中找不到原commit是正常的；不能把本项目HEAD强行改回原框架commit。未来需要导入上游Git历史时另行设计，不假装已有共同Git祖先。
-- `.gitignore`、根README及秘密检查的精确字面量登记为本次接入做了调整，新增根`.gitattributes`；前后端业务代码保持原样。原基线标签保留调整前版本，具体理由见[ADR 0048](../adr/0048-independent-ai-platform-repository.md)。
+- `.gitignore`、根README、Lefthook入口及秘密检查的精确字面量登记为本次接入做了调整，新增根`.gitattributes`；前后端业务代码保持原样。原基线标签保留调整前版本，具体理由见[ADR 0048](../adr/0048-independent-ai-platform-repository.md)。
 
 ## 3. 当前文件处理
 
@@ -53,6 +53,12 @@
 ## 4. 新电脑验证顺序
 
 先按根README安装匹配的JDK、Node、pnpm和Docker。工具版本以项目权威配置为准，不能把本机检测结果当作项目的新要求。
+
+前端冻结依赖安装完成后，在仓库根安装提交钩子。使用项目锁定的Lefthook，配置通过相对路径定位工具，不依赖原电脑的安装路径：
+
+```sh
+node 前端代码/basic-framework-admin/node_modules/lefthook/bin/index.js install
+```
 
 Windows在仓库根运行：
 

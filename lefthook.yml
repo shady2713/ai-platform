@@ -1,6 +1,10 @@
-# Repo-level git hooks. Install: npx lefthook install (run once per clone).
+# Repo-level git hooks. Install after the frozen frontend dependency install:
+# node 前端代码/basic-framework-admin/node_modules/lefthook/bin/index.js install
 # Frontend lint steps run via scripts/pre-commit-frontend.sh because the
 # frontend toolchain needs the frontend dir as CWD.
+
+# Resolve the locked frontend tool from the Git root on Windows and Linux.
+lefthook: node "./前端代码/basic-framework-admin/node_modules/lefthook/bin/index.js"
 
 pre-commit:
   parallel: true
@@ -16,4 +20,4 @@ pre-commit:
 commit-msg:
   commands:
     commitlint:
-      run: cd 前端代码/basic-framework-admin && pnpm exec commitlint --edit $1
+      run: cd 前端代码/basic-framework-admin && pnpm exec commitlint --config ./internal/lint-configs/commitlint-config/index.mjs --edit "{1}"

@@ -11,6 +11,7 @@
 - 保留框架目录，AI方案统一在`docs/ai-platform`。历史ZIP和初始化专用打包工具移到项目外归档目录；常规迁移使用Git克隆或bundle。
 - 原框架快照以独立Git提交和`framework-baseline-23a7edb37593`标签保存，保留文件模式和Git blob；不导入原框架提交历史。原电脑工作树字节哈希另见`docs/framework-baseline.json`。
 - 根`.gitattributes`固定文本在Git内使用LF，Windows批处理签出为CRLF。二进制由Git自动识别，保持不变。
+- Lefthook通过配置中的相对Node入口启动锁定版本，避免Windows生成钩子中的裸反斜杠路径导致工具找不到而未执行检查。提交消息使用Lefthook的`{1}`参数，commitlint按Git根解析消息路径；在前端目录显式加载现有规则的`.mjs`模块，兼容Node 24的ESM加载，不用空`$1`意外检查旧消息。每次克隆安装依赖后重新安装钩子。
 - 沿用0044的精确例外模型：秘密检查仅登记已经逐项审阅的“文件路径+完整字面量”，包括模拟凭据、隔离测试容器凭据、英文Password标签与Vue的modelValue绑定。没有整目录或整文件豁免，不改变检测表达式。
 - 新增反例验证：同值换路径、原路径改值、不完整引号、同一行追加其他凭据，均继续拒绝。
 
