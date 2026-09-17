@@ -1,0 +1,24 @@
+{
+  "name": "@vben/ai-chat",
+  "version": "5.6.0",
+  "license": "MIT",
+  "author": "project-team",
+  "type": "module",
+  "scripts": {
+    "build": "vite build --mode production",
+    "dev": "vite --mode development",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit --skipLibCheck"
+  },
+  "imports": {
+    "#/*": "./src/*"
+  },
+  "dependencies": {
+    "@vben/ai-chat-ui": "workspace:*",
+    "@vben/ai-embed-sdk": "workspace:*",
+    "vue": "catalog:"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "catalog:"
+  }
+}

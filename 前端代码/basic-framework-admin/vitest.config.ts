@@ -41,6 +41,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json-summary'],
       include: [
+        'apps/ai-chat/src/**/*.{ts,tsx,vue}',
         'apps/web-ele/src/**/*.{ts,tsx,vue}',
         'packages/**/src/**/*.{ts,tsx,vue}',
       ],
@@ -54,6 +55,7 @@ export default defineConfig({
         '**/icons/**/*.vue',
         '**/mock*/**',
         // entry assembly files: wiring only, no testable logic
+        'apps/ai-chat/src/main.ts',
         'apps/web-ele/src/main.ts',
         'apps/web-ele/src/bootstrap.ts',
       ],

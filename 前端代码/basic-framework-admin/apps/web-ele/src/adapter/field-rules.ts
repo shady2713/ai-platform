@@ -218,3 +218,56 @@ function normalizeOptionalTrimmedValue(value: string | undefined) {
   const normalized = value.trim();
   return normalized.length === 0 ? undefined : normalized;
 }
+
+// ===== AI 中台公用字段（F08 冻结，与后端 AiFieldRules 逐字一致）=====
+
+// 与后端 AiFieldRules 及 docs/contracts/field-catalog.yaml 逐字一致，不使用 \\w 简写
+// eslint-disable-next-line regexp/prefer-w
+export const AI_SERVICE_KEY_REGEX = /^svc_[A-Za-z0-9_-]{3,35}$/;
+
+// 与后端 AiFieldRules 及 docs/contracts/field-catalog.yaml 逐字一致，不使用 \\w 简写
+// eslint-disable-next-line regexp/prefer-w
+export const AI_CONVERSATION_KEY_REGEX = /^conv_[A-Za-z0-9_-]{3,35}$/;
+
+// 与后端 AiFieldRules 及 docs/contracts/field-catalog.yaml 逐字一致，不使用 \\w 简写
+// eslint-disable-next-line regexp/prefer-w
+export const AI_RUN_KEY_REGEX = /^run_[A-Za-z0-9_-]{3,35}$/;
+
+export const AI_BUSINESS_KEY_MAX_LENGTH = 40;
+
+export const AI_IDEMPOTENCY_KEY_MIN_LENGTH = 16;
+
+export const AI_IDEMPOTENCY_KEY_MAX_LENGTH = 128;
+
+export const AI_MESSAGE_MAX_LENGTH = 16_000;
+
+export function isAiServiceKeyValue(value: string) {
+  return (
+    value.length <= AI_BUSINESS_KEY_MAX_LENGTH &&
+    AI_SERVICE_KEY_REGEX.test(value)
+  );
+}
+
+export function isAiConversationKeyValue(value: string) {
+  return (
+    value.length <= AI_BUSINESS_KEY_MAX_LENGTH &&
+    AI_CONVERSATION_KEY_REGEX.test(value)
+  );
+}
+
+export function isAiRunKeyValue(value: string) {
+  return (
+    value.length <= AI_BUSINESS_KEY_MAX_LENGTH && AI_RUN_KEY_REGEX.test(value)
+  );
+}
+
+export function isAiIdempotencyKeyValue(value: string) {
+  return (
+    value.length >= AI_IDEMPOTENCY_KEY_MIN_LENGTH &&
+    value.length <= AI_IDEMPOTENCY_KEY_MAX_LENGTH
+  );
+}
+
+export function isAiMessageValue(value: string) {
+  return value.trim().length > 0 && value.length <= AI_MESSAGE_MAX_LENGTH;
+}

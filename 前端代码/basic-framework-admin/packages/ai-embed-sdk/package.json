@@ -1,0 +1,19 @@
+{
+  "name": "@vben/ai-embed-sdk",
+  "version": "5.6.0",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "dependencies": {
+    "@vben/ai-contracts": "workspace:*"
+  }
+}

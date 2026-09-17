@@ -1,0 +1,20 @@
+{
+  "dataset": "ds_orders_demo",
+  "pageSize": 2,
+  "pages": [
+    {
+      "pageNo": 1,
+      "rows": ["ORD-2026-0001", "ORD-2026-0002"],
+      "hasNext": true
+    },
+    {
+      "pageNo": 2,
+      "rows": ["ORD-2026-0003", "ORD-2026-0004"],
+      "hasNext": false
+    }
+  ],
+  "overLimit": {
+    "pageSize": 1001,
+    "expected": "REJECT（超过最大页大小）"
+  }
+}

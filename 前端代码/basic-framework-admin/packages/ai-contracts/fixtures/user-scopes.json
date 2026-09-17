@@ -1,0 +1,37 @@
+{
+  "note": "范围解析夹具：空集合必须解释为无权限而不是无限制",
+  "scopes": [
+    {
+      "subject": {
+        "subjectKind": "USER",
+        "externalUserId": "alice"
+      },
+      "resource": "customer",
+      "values": ["C001"]
+    },
+    {
+      "subject": {
+        "subjectKind": "USER",
+        "externalUserId": "bob"
+      },
+      "resource": "customer",
+      "values": ["C002"]
+    },
+    {
+      "subject": {
+        "subjectKind": "APP",
+        "externalUserId": "svc_billing"
+      },
+      "resource": "customer",
+      "values": ["C001", "C002"]
+    },
+    {
+      "subject": {
+        "subjectKind": "USER",
+        "externalUserId": "carol"
+      },
+      "resource": "customer",
+      "values": []
+    }
+  ]
+}

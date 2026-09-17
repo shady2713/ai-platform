@@ -1,2 +1,2 @@
-export * from "E:/kuangjia/2026-main/前端代码/basic-framework-admin/scripts/turbo-run/src/index.js";
-export { default } from "E:/kuangjia/2026-main/前端代码/basic-framework-admin/scripts/turbo-run/src/index.js";
+export * from "/home/ctyun/桌面/zhongtai/ai-platform/前端代码/basic-framework-admin/scripts/turbo-run/src/index.js";
+export { default } from "/home/ctyun/桌面/zhongtai/ai-platform/前端代码/basic-framework-admin/scripts/turbo-run/src/index.js";

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  AI_CONVERSATION_KEY_REGEX,
+  AI_RUN_KEY_REGEX,
+  AI_SERVICE_KEY_REGEX,
   buildLoginPasswordSchema,
   buildOptionalEmailSchema,
   buildOptionalMobileSchema,
@@ -13,6 +16,11 @@ import {
   buildRequiredPercentSchema,
   buildRequiredQuantitySchema,
   buildRequiredUsernameSchema,
+  isAiConversationKeyValue,
+  isAiIdempotencyKeyValue,
+  isAiMessageValue,
+  isAiRunKeyValue,
+  isAiServiceKeyValue,
   isEmailValue,
   isMobileValue,
   isNicknameValue,
@@ -144,5 +152,32 @@ describe('field rules', () => {
     expect(buildRequiredUsernameSchema().safeParse('abc').success).toBe(false);
     expect(buildRequiredPasswordSchema().safeParse('').success).toBe(false);
     expect(buildLoginPasswordSchema().safeParse(undefined).success).toBe(false);
+  });
+});
+
+describe('aI 公用字段规则', () => {
+  it('业务键前缀与长度必须同时满足', () => {
+    expect(isAiServiceKeyValue('svc_demo1')).toBe(true);
+    expect(isAiServiceKeyValue('demo1')).toBe(false);
+    expect(isAiServiceKeyValue(`svc_${'x'.repeat(36)}`)).toBe(false);
+    expect(isAiConversationKeyValue('conv_abc')).toBe(true);
+    expect(isAiConversationKeyValue('run_abc')).toBe(false);
+    expect(isAiRunKeyValue('run_abc')).toBe(true);
+    expect(isAiRunKeyValue('run')).toBe(false);
+  });
+
+  it('幂等键与消息长度按冻结区间校验', () => {
+    expect(isAiIdempotencyKeyValue('0123456789abcdef')).toBe(true);
+    expect(isAiIdempotencyKeyValue('short')).toBe(false);
+    expect(isAiIdempotencyKeyValue('x'.repeat(129))).toBe(false);
+    expect(isAiMessageValue('你好')).toBe(true);
+    expect(isAiMessageValue('   ')).toBe(false);
+    expect(isAiMessageValue('x'.repeat(16_001))).toBe(false);
+  });
+
+  it('正则与后端 AiFieldRules 登记值一致', () => {
+    expect(AI_SERVICE_KEY_REGEX.source).toBe('^svc_[A-Za-z0-9_-]{3,35}$');
+    expect(AI_CONVERSATION_KEY_REGEX.source).toBe('^conv_[A-Za-z0-9_-]{3,35}$');
+    expect(AI_RUN_KEY_REGEX.source).toBe('^run_[A-Za-z0-9_-]{3,35}$');
   });
 });
