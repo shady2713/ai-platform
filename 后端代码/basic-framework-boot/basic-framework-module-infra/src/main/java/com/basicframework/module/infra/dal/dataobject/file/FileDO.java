@@ -70,6 +70,15 @@ public class FileDO extends BaseDO {
     private Long ownerUserId;
     /** 文件所有者用户类型；与 ownerUserId 共同组成主体标识。 */
     private Integer ownerUserType;
+
+    /**
+     * 业务类型：非空表示该文件受业务授权 SPI 管控（读取/删除由业务模块判定）
+     */
+    private String businessType;
+    /**
+     * 业务对象编号
+     */
+    private Long businessId;
     /** 删除状态：0 正常，1 等待清理外部存储。 */
     private Integer deleteStatus;
     /** 外部存储清理失败次数。 */

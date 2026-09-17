@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://basic-framework.local/contracts/ai/result-block.schema.json",
+  "title": "ResultBlock v1 正式契约",
+  "description": "Chat 与报表共享的最小渲染单元；判别联合，未知 kind 必须拒绝。",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "text"
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 20000
+        }
+      },
+      "required": [
+        "kind",
+        "text"
+      ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "chart"
+        },
+        "spec": {
+          "$ref": "chart-spec.schema.json"
+        }
+      },
+      "required": [
+        "kind",
+        "spec"
+      ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "error"
+        },
+        "message": {
+          "type": "string",
+          "maxLength": 1000
+        }
+      },
+      "required": [
+        "kind",
+        "message"
+      ]
+    }
+  ]
+}

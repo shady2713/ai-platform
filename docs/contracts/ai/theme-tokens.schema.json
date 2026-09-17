@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://basic-framework.local/contracts/ai/theme-tokens.schema.json",
+  "title": "ThemeTokens v1 正式契约",
+  "description": "嵌入与报表共用主题 token；只接受受校验的颜色与数值，不接受任意 CSS 文本。",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "primaryColor": {
+      "$ref": "#/$defs/color"
+    },
+    "radius": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 24
+    },
+    "fontFamily": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "colorScheme": {
+      "enum": [
+        "light",
+        "dark"
+      ]
+    }
+  },
+  "required": [
+    "primaryColor",
+    "radius",
+    "fontFamily"
+  ],
+  "$defs": {
+    "color": {
+      "type": "string",
+      "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$"
+    }
+  }
+}

@@ -106,4 +106,27 @@ public interface FileService {
      * @return 文件内容
      */
     byte[] getFileContent(Long configId, String path, FileAccessPrincipal principal) throws Exception;
+
+    /**
+     * 创建受业务绑定管控的私有文件，返回文件编号。
+     *
+     * <p>复用既有路径/MIME/归档/白名单校验链；业务类型必须已注册业务授权实现，否则拒绝创建。
+     */
+    Long createBusinessFile(
+            byte[] content,
+            String name,
+            String type,
+            String businessType,
+            Long businessId,
+            FileUploadPrincipal principal);
+
+    /**
+     * 按主体授权读取文件；无权限与不存在返回同一业务异常。
+     */
+    FileDO getAuthorizedFile(Long id, FileAccessPrincipal principal);
+
+    /**
+     * 删除业务绑定文件：删除授权由业务 Provider 判定，管理权限不适用。
+     */
+    void deleteBusinessFile(Long id, FileAccessPrincipal principal) throws Exception;
 }

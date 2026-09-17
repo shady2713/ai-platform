@@ -24,3 +24,23 @@
 - S3 区域以显式配置为先；全球端点或无法推断区域的兼容端点使用默认区域，全球端点不参与区域字符串截取。
 
 完整决策见 [ADR 0012](../../../docs/adr/0012-file-upload-metadata-boundary.md)、[ADR 0015](../../../docs/adr/0015-resilient-file-deletion.md) 和 [ADR 0018](../../../docs/adr/0018-file-access-visibility.md)。
+
+## 文件薄契约与业务授权 SPI
+
+跨模块只能通过 `FileCommonApi`（`com.basicframework.module.infra.api.file`）创建、读取与删除受控私有文件，
+不得直接使用 `FileService`、Mapper 或 `FileDO`；契约类已登记到 `ModuleBoundaryArchitectureTest` 的显式允许清单。
+
+- **业务绑定**：`createFile` 必须携带 `businessType` + `businessId`（`infra_file.business_type/business_id`，V47 迁移）；
+  业务类型未注册授权实现时拒绝创建，避免产生永远不可读的文件。
+- **授权归业务模块**：读取与删除由该业务类型的 `FileBusinessAccessProvider` 判定；
+  **管理权限（`canManageFiles`）与所有者身份都不构成业务绑定文件的豁免**，`FileCommonApi` 传入的主体
+  一律按 `canManageFiles=false` 构造。
+- **fail-closed**：业务类型没有对应 Provider（或 Provider 未实现 `canDelete`）时读取/删除一律拒绝，
+  并与"文件不存在"保持同一语义，避免借编号探测文件是否受管控。
+- **删除语义**：管理端 `deleteFile/deleteFileList` 拒绝业务绑定文件（`FILE_BUSINESS_DELETE_REQUIRES_AUTHORIZATION`）；
+  业务文件删除必须经 `FileCommonApi.deleteFile` 且 Provider 明确允许，随后仍走既有受控删除与重试流程。
+- **Provider 唯一性**：每个业务类型只允许一个实现，空白类型或重复注册在启动期失败；
+  零 Provider 是合法状态（业务实现落地前），此时任何业务绑定文件都不可读。
+
+拒绝测试见 `FileBusinessAuthorizationTest`：未注册业务类型、管理权限冒充、未授权主体、管理端删除业务文件等用例
+均要求被拒绝；无业务绑定的历史文件保持既有公开/所有者/管理员规则（回归由 `FileServiceImplTest` 覆盖）。

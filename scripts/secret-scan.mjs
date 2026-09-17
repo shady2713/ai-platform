@@ -5,6 +5,8 @@ const frontend = "前端代码/basic-framework-admin/apps/web-ele/src/";
 const server = "后端代码/basic-framework-boot/basic-framework-server/src/";
 const system =
   "后端代码/basic-framework-boot/basic-framework-module-system/src/";
+const moduleAi =
+  "后端代码/basic-framework-boot/basic-framework-module-ai/src/";
 // Reviewed test values and UI literals are exempt only in their owning file.
 // No file or directory is exempt: changed values and other assignments still fail.
 const publicFixtures = new Map([
@@ -69,6 +71,15 @@ const publicFixtures = new Map([
   [
     "前端代码/basic-framework-admin/packages/locales/src/langs/en-US/ui.json",
     new Set(["Password"]),
+  ],
+  [
+    // A01/A04 单测里的一次性秘密与票据明文：只在本文件内作为被测值，不指向任何真实凭据。
+    `${moduleAi}test/java/com/basicframework/module/ai/service/application/AiApplicationServiceImplTest.java`,
+    new Set(["aiapp_secret"]),
+  ],
+  [
+    `${moduleAi}test/java/com/basicframework/module/ai/service/auth/AiTicketServiceImplTest.java`,
+    new Set(["aiapp_secret", "some-token"]),
   ],
   [
     `${system}test/java/com/basicframework/module/system/controller/admin/auth/AuthControllerTest.java`,

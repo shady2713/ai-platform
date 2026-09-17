@@ -23,3 +23,13 @@ Web 能力接缝，负责 API 前缀、CORS、统一响应与异常、访问日�
 应用端 Controller 继续放在 `controller.app`，自动获得 `/app-api` 前缀；管理端 Controller 放在 `controller.admin`，自动获得 `/admin-api` 前缀。微信小程序、APP 和 H5 共用应用端契约时，不需要修改本 starter。
 
 OpenAPI 的全量分组和模块分组统一读取上述前缀，不自行硬编码路径。认证参数只声明 `Authorization` 请求头，不提供示例令牌或默认凭据；界面增强由官方 Knife4j 自动配置负责。
+
+## AI 中台扩展点（[ADR 0049](../../../../../docs/adr/0049-ai-open-identity-and-security-extension-boundaries.md)）
+
+- **CORS 不是认证**：`corsFilterBean` 只做浏览器跨源放行（`allowCredentials=true`），端点授权始终由令牌与权限码决定；
+  生产 profile 必须配置精确 HTTPS 来源。已知缺口：`WebProperties.corsAllowedOrigins` 默认值为 `*`，
+  "通配来源 + 凭据"的启动期拒绝校验归属 F09 落地。
+- **embed 安全头**：跨站 Chat 的 iframe 响应必须显式声明 `Content-Security-Policy`、`frame-ancestors` 与
+  `Referrer-Policy`，由 embed 端点（C05/F09）在所在模块声明，不扩大全局匿名面。
+- **SSE**：流式端点沿用本 starter 的响应与日志边界；结束/取消/重放语义以 run 终态与 seq 为准（O05），
+  不得用连接断开表达取消。

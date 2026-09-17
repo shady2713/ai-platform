@@ -2,6 +2,161 @@
   "version": 3,
   "exemptions": [
     {
+      "id": "ai-control-plane-config",
+      "reason": "AI 控制面配置（模型端点及其不可变版本）由功能权限 ai:model-endpoint:* 管理，不具有部门或用户行级归属。 应用与客户端凭据（ai_application / ai_application_credential）同属控制面配置，凭据只存摘要，由 ai:application:* 权限管理。",
+      "tables": [
+        "ai_model_endpoint",
+        "ai_model_endpoint_revision",
+        "ai_model_probe",
+        "ai_application",
+        "ai_application_credential",
+        "ai_resource_grant"
+      ],
+      "controls": [
+        {
+          "kind": "function-permission",
+          "tables": [
+            "ai_model_endpoint",
+            "ai_model_endpoint_revision",
+            "ai_model_probe",
+            "ai_application",
+            "ai_application_credential",
+            "ai_resource_grant"
+          ],
+          "evidence": [
+            {
+              "table": "ai_model_endpoint",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/model/AiModelEndpointController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('ai:model-endpoint:query')\")"
+            },
+            {
+              "table": "ai_model_endpoint_revision",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/model/AiModelEndpointController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('ai:model-endpoint:query')\")"
+            },
+            {
+              "table": "ai_model_probe",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/model/AiModelCapabilityProbeController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('ai:model-endpoint:query')\")"
+            },
+            {
+              "table": "ai_application",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/application/AiApplicationController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('ai:application:query')\")"
+            },
+            {
+              "table": "ai_application_credential",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/application/AiApplicationController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('ai:application:query')\")"
+            },
+            {
+              "table": "ai_resource_grant",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/grant/AiResourceGrantController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('ai:grant:query')\")"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ai-subject-binding",
+      "reason": "AI 外部主体表按 (application_id, subject_type, external_user_id) 绑定到唯一主体，读取一律经 AiSubjectService 的主体唯一键查询，不使用部门数据范围规则；范围授权由 SubjectScopeResolver 在请求期解析并默认 DENY。 访问票据（ai_access_ticket）按签发主体绑定并只存 token 摘要，校验一律经摘要唯一键定位。",
+      "tables": [
+        "ai_subject",
+        "ai_access_ticket"
+      ],
+      "controls": [
+        {
+          "kind": "subject-bound",
+          "tables": [
+            "ai_subject",
+            "ai_access_ticket"
+          ],
+          "evidence": [
+            {
+              "table": "ai_subject",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/subject/AiSubjectMapper.java",
+              "contains": ".eq(AiSubjectDO::getApplicationId, applicationId)"
+            },
+            {
+              "table": "ai_subject",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/subject/AiSubjectServiceImpl.java",
+              "contains": "findActiveSubject("
+            },
+            {
+              "table": "ai_access_ticket",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/auth/AiTicketServiceImpl.java",
+              "contains": "selectByDigest("
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "append-only-observability",
+      "reason": "审计与运行留痕表只通过专用查询权限读取，或仅由内部记录服务写入并按保留策略清理。",
+      "tables": [
+        "infra_api_access_log",
+        "infra_api_error_log",
+        "infra_job_log",
+        "system_login_log",
+        "system_operate_log",
+        "system_sms_log"
+      ],
+      "controls": [
+        {
+          "kind": "function-permission",
+          "tables": [
+            "infra_job_log",
+            "system_login_log",
+            "system_operate_log"
+          ],
+          "evidence": [
+            {
+              "table": "infra_job_log",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/controller/admin/job/JobLogController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('infra:job:query')\")"
+            },
+            {
+              "table": "system_login_log",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/logger/LoginLogController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('system:login-log:query')\")"
+            },
+            {
+              "table": "system_operate_log",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/logger/OperateLogController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('system:operate-log:query')\")"
+            }
+          ]
+        },
+        {
+          "kind": "internal-only",
+          "tables": [
+            "infra_api_access_log",
+            "infra_api_error_log",
+            "system_sms_log"
+          ],
+          "evidence": [
+            {
+              "table": "infra_api_access_log",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/service/logger/ApiAccessLogServiceImpl.java",
+              "contains": "apiAccessLogMapper.insert(apiAccessLog)"
+            },
+            {
+              "table": "infra_api_error_log",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/service/logger/ApiErrorLogServiceImpl.java",
+              "contains": "apiErrorLogMapper.insert(apiErrorLog)"
+            },
+            {
+              "table": "system_sms_log",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/service/sms/SmsLogServiceImpl.java",
+              "contains": "smsLogMapper.insert(smsLogDO)"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "global-administration",
       "reason": "全局控制面配置由功能权限管理，不具有部门或用户行级归属。",
       "tables": [
@@ -101,40 +256,6 @@
       ]
     },
     {
-      "id": "infrastructure-storage",
-      "reason": "文件元数据由所有者或文件管理权限控制，数据库内容表只能经受控文件客户端按配置与路径访问。",
-      "tables": [
-        "infra_file",
-        "infra_file_content"
-      ],
-      "controls": [
-        {
-          "kind": "owner-or-permission",
-          "tables": [
-            "infra_file",
-            "infra_file_content"
-          ],
-          "evidence": [
-            {
-              "table": "infra_file",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/service/file/FileServiceImpl.java",
-              "contains": "if (file == null || !canRead(file, principal))"
-            },
-            {
-              "table": "infra_file",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/service/file/FileServiceImpl.java",
-              "contains": "principal.owns(file.getOwnerUserId(), file.getOwnerUserType())"
-            },
-            {
-              "table": "infra_file_content",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/framework/file/core/client/db/DBFileClient.java",
-              "contains": "fileContentMapper.selectListByConfigIdAndPath(getId(), path)"
-            }
-          ]
-        }
-      ]
-    },
-    {
       "id": "identity-security",
       "reason": "身份安全记录只通过凭据或当前主体绑定的服务访问，不按组织部门范围查询。",
       "tables": [
@@ -175,6 +296,40 @@
               "table": "system_user_session",
               "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/session/UserSessionController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('system:session:revoke')\")"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "infrastructure-storage",
+      "reason": "文件元数据由所有者或文件管理权限控制，数据库内容表只能经受控文件客户端按配置与路径访问。",
+      "tables": [
+        "infra_file",
+        "infra_file_content"
+      ],
+      "controls": [
+        {
+          "kind": "owner-or-permission",
+          "tables": [
+            "infra_file",
+            "infra_file_content"
+          ],
+          "evidence": [
+            {
+              "table": "infra_file",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/service/file/FileServiceImpl.java",
+              "contains": "if (file == null || !canRead(file, principal))"
+            },
+            {
+              "table": "infra_file",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/service/file/FileServiceImpl.java",
+              "contains": "principal.owns(file.getOwnerUserId(), file.getOwnerUserType())"
+            },
+            {
+              "table": "infra_file_content",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/framework/file/core/client/db/DBFileClient.java",
+              "contains": "fileContentMapper.selectListByConfigIdAndPath(getId(), path)"
             }
           ]
         }
@@ -235,70 +390,6 @@
               "table": "system_user_role",
               "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/service/permission/PermissionServiceImpl.java",
               "contains": "roleService.validateRoleList(roleIds)"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "append-only-observability",
-      "reason": "审计与运行留痕表只通过专用查询权限读取，或仅由内部记录服务写入并按保留策略清理。",
-      "tables": [
-        "infra_api_access_log",
-        "infra_api_error_log",
-        "infra_job_log",
-        "system_login_log",
-        "system_operate_log",
-        "system_sms_log"
-      ],
-      "controls": [
-        {
-          "kind": "function-permission",
-          "tables": [
-            "infra_job_log",
-            "system_login_log",
-            "system_operate_log"
-          ],
-          "evidence": [
-            {
-              "table": "infra_job_log",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/controller/admin/job/JobLogController.java",
-              "contains": "@PreAuthorize(\"@ss.hasPermission('infra:job:query')\")"
-            },
-            {
-              "table": "system_login_log",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/logger/LoginLogController.java",
-              "contains": "@PreAuthorize(\"@ss.hasPermission('system:login-log:query')\")"
-            },
-            {
-              "table": "system_operate_log",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/logger/OperateLogController.java",
-              "contains": "@PreAuthorize(\"@ss.hasPermission('system:operate-log:query')\")"
-            }
-          ]
-        },
-        {
-          "kind": "internal-only",
-          "tables": [
-            "infra_api_access_log",
-            "infra_api_error_log",
-            "system_sms_log"
-          ],
-          "evidence": [
-            {
-              "table": "infra_api_access_log",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/service/logger/ApiAccessLogServiceImpl.java",
-              "contains": "apiAccessLogMapper.insert(apiAccessLog)"
-            },
-            {
-              "table": "infra_api_error_log",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/service/logger/ApiErrorLogServiceImpl.java",
-              "contains": "apiErrorLogMapper.insert(apiErrorLog)"
-            },
-            {
-              "table": "system_sms_log",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/service/sms/SmsLogServiceImpl.java",
-              "contains": "smsLogMapper.insert(smsLogDO)"
             }
           ]
         }

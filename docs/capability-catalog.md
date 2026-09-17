@@ -19,6 +19,7 @@
 | `basic-framework-spring-boot-starter-job` | `JobHandler`、Quartz 与受管异步执行器 | [Job README](../后端代码/basic-framework-boot/basic-framework-core/basic-framework-spring-boot-starter-job/README.md) |
 | `basic-framework-spring-boot-starter-excel` | 文件读写、字典与领域转换器 | [Excel README](../后端代码/basic-framework-boot/basic-framework-core/basic-framework-spring-boot-starter-excel/README.md) |
 | `basic-framework-spring-boot-starter-biz-data-permission` | `DeptDataPermissionRuleCustomizer` 与 SQL 行级过滤 | [Data Permission README](../后端代码/basic-framework-boot/basic-framework-core/basic-framework-spring-boot-starter-biz-data-permission/README.md) |
+| `basic-framework-spring-boot-starter-ai` | 自有模型契约（`ModelPort`/`ModelCapability`）、装配期 fail-closed 校验；`provider.springai` 为唯一 Spring AI 引用区域 | [AI README](../后端代码/basic-framework-boot/basic-framework-core/basic-framework-spring-boot-starter-ai/README.md) |
 | `basic-framework-biz-ip` | IP 归属地、行政区划与 Excel 地区转换；纯工具组件 | [IP README](../后端代码/basic-framework-boot/basic-framework-core/basic-framework-biz-ip/README.md) |
 
 `@Idempotent` 是供下游按端点启用的被动能力，仓库内暂无生产消费点，保留依据见
@@ -27,13 +28,14 @@
 
 ## 业务模块契约与装配
 
-`basic-framework-module-system-api` 和 `basic-framework-module-infra-api` 是薄契约模块，
-只承载 CommonApi 与 DTO；实现由各业务模块拥有。
+`basic-framework-module-system-api`、`basic-framework-module-infra-api` 与
+`basic-framework-module-ai-api` 是薄契约模块，只承载 CommonApi 与 DTO；实现由各业务模块拥有。
 
 | 契约模块 | 对外能力 | 实现与边界 |
 | --- | --- | --- |
 | `module-system-api` | Permission、UserSession、OperateLog、DictData | [system README](../后端代码/basic-framework-boot/basic-framework-module-system/README.md) |
 | `module-infra-api` | ApiAccessLog、ApiErrorLog | [infra README](../后端代码/basic-framework-boot/basic-framework-module-infra/README.md) |
+| `module-ai-api` | `AiRunCommonApi`（运行状态查询）与运行状态词汇 | [AI module README](../后端代码/basic-framework-boot/basic-framework-module-ai/README.md) |
 
 core starter 和跨业务模块调用只消费已发布的薄 API 契约，不访问对方 Mapper、DO 或
 ServiceImpl。ArchUnit 使用显式契约清单，不因包名含 `api` 自动放行；同步完整性校验加入调用方事务。

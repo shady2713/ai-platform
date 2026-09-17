@@ -95,6 +95,21 @@
         </dependency>
         <dependency>
             <groupId>com.basicframework</groupId>
+            <artifactId>basic-framework-module-ai-api</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.basicframework</groupId>
+            <artifactId>basic-framework-module-ai</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.basicframework</groupId>
+            <artifactId>basic-framework-spring-boot-starter-ai</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.basicframework</groupId>
             <artifactId>basic-framework-server</artifactId>
             <version>${revision}</version>
         </dependency>

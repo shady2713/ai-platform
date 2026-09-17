@@ -56,6 +56,9 @@
         <okhttp.version>4.12.0</okhttp.version>
         <!-- 三方云服务相关 -->
         <awssdk.version>2.40.15</awssdk.version>
+        <!-- AI 中台上游依赖：F02 已验证并冻结，兼容矩阵与证据见 docs/integrations/ai-platform-upstream-candidates.md -->
+        <spring-ai.version>1.1.8</spring-ai.version>
+        <qdrant-client.version>1.13.0</qdrant-client.version>
     </properties>
 
     <dependencyManagement>
@@ -107,6 +110,15 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
                 <version>${spring.boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- AI 中台上游 BOM：只管理 org.springframework.ai 构件，不覆盖 Boot/Netty/Jackson 版本；
+                 与 Boot 3.5.16 的解析结果见 F02 兼容矩阵（Netty 由 grpc-netty-shaded 隔离，无共用版本冲突） -->
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring-ai.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -172,6 +184,12 @@
             <dependency>
                 <groupId>com.basicframework</groupId>
                 <artifactId>basic-framework-spring-boot-starter-security</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.basicframework</groupId>
+                <artifactId>basic-framework-spring-boot-starter-ai</artifactId>
                 <version>${revision}</version>
             </dependency>
 
@@ -335,6 +353,11 @@
                 <artifactId>basic-framework-module-infra-api</artifactId>
                 <version>${revision}</version>
             </dependency>
+            <dependency>
+                <groupId>com.basicframework</groupId>
+                <artifactId>basic-framework-module-ai-api</artifactId>
+                <version>${revision}</version>
+            </dependency>
 
             <dependency>
                 <groupId>com.basicframework</groupId>
@@ -374,6 +397,14 @@
             <dependency>
                 <groupId>org.apache.tika</groupId>
                 <artifactId>tika-core</artifactId> <!-- 文件类型的识别 -->
+                <version>${tika-core.version}</version>
+            </dependency>
+
+            <!-- 文档解析器与 core 同版本线锁定：3.2.2 修复 GHSA-f58c-gq56-vjjf、GHSA-p72g-pv48-7w9x 两个 CRITICAL，
+                 当前 3.2.3 已覆盖；版本必须与 tika-core 保持一致，不作为独立升级项 -->
+            <dependency>
+                <groupId>org.apache.tika</groupId>
+                <artifactId>tika-parsers-standard-package</artifactId>
                 <version>${tika-core.version}</version>
             </dependency>
 
@@ -431,6 +462,14 @@
                 <groupId>software.amazon.awssdk</groupId>
                 <artifactId>s3</artifactId>
                 <version>${awssdk.version}</version>
+            </dependency>
+
+            <!-- AI 中台上游相关：版本为 F02 实测组合（客户端 1.13.0 对服务端 1.19.1 的
+                 create/upsert/query/search/retrieve/delete 全链路通过），升级须重跑该组合验证 -->
+            <dependency>
+                <groupId>io.qdrant</groupId>
+                <artifactId>client</artifactId>
+                <version>${qdrant-client.version}</version>
             </dependency>
 
 

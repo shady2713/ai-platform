@@ -4,6 +4,8 @@
     {
       "id": "soft-delete",
       "tables": [
+        "ai_model_endpoint",
+        "ai_model_endpoint_revision",
         "infra_config",
         "infra_file_config",
         "infra_job",
@@ -17,7 +19,13 @@
         "system_role",
         "system_sms_channel",
         "system_sms_template",
-        "system_users"
+        "system_users",
+        "ai_model_probe",
+        "ai_application",
+        "ai_application_credential",
+        "ai_subject",
+        "ai_resource_grant",
+        "ai_access_ticket"
       ]
     },
     {
@@ -67,6 +75,7 @@
     "FK_QRTZ_SIMPLE_TRIGGERS_TRIGGERS",
     "FK_QRTZ_SIMPROP_TRIGGERS_TRIGGERS",
     "FK_QRTZ_TRIGGERS_JOB_DETAILS",
+    "fk_ai_model_endpoint_revision",
     "fk_dict_data_type",
     "fk_file_config",
     "fk_file_content_config",
@@ -76,6 +85,10 @@
     "fk_user_post_post",
     "fk_user_post_user",
     "fk_user_role_role",
-    "fk_user_role_user"
+    "fk_user_role_user",
+    "fk_ai_application_credential",
+    "fk_ai_subject_application",
+    "fk_ai_resource_grant_application",
+    "fk_ai_access_ticket_application"
   ]
 }

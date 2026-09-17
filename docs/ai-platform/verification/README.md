@@ -28,4 +28,11 @@ python docs/ai-platform/scripts/verify-documents.py
 
 结果由实际执行生成于[results.json](results.json)及[report.md](report.md)。若脚本失败，以失败为准，不能使用本README描述代替结果。
 
+## 其他记录
+
+- [初始化验收摘要](bootstrap-summary.md)：首次目录与迁移验收。
+- [仓库复核记录](repository-review.md)：提交前复核。
+- [F01 门禁与启动证据](f01-gate-evidence.md)：六项 Harness 门禁、前后端启动与数据库初始化的实测结果。
+
+
 外部引用已经在调查阶段按官方资料核查；本脚本不重复联网抓取，也不把资料核查当作运行时兼容实验。首次校验时安装依赖遇到代理连接错误，改用PyPI直连后成功；TLS校验未关闭。

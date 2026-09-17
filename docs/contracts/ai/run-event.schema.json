@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://basic-framework.local/contracts/ai/run-event.schema.json",
+  "title": "RunEvent v1 正式契约",
+  "description": "SSE 事件：seq 由服务端并发安全分配；heartbeat 不是事件。",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "runId": {
+      "type": "string",
+      "pattern": "^run_[A-Za-z0-9_-]{3,35}$",
+      "maxLength": 40
+    },
+    "status": {
+      "enum": [
+        "QUEUED",
+        "RUNNING",
+        "WAITING_INPUT",
+        "WAITING_CONFIRMATION",
+        "SUCCEEDED",
+        "FAILED",
+        "CANCELLED"
+      ]
+    },
+    "block": {
+      "$ref": "result-block.schema.json"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "seq",
+    "runId",
+    "status",
+    "createdAt"
+  ]
+}

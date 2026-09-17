@@ -37,6 +37,8 @@ public interface ErrorCodeConstants {
     ErrorCode FILE_UPLOAD_OBJECT_INVALID = new ErrorCode(1_001_003_009, "上传对象不存在或与签发信息不一致");
     ErrorCode FILE_PRESIGNED_UPLOAD_REQUIRES_PRIVATE_STORAGE = new ErrorCode(1_001_003_010, "预签名上传必须使用私有对象存储配置");
     ErrorCode FILE_PRIVATE_READ_REQUIRES_PRIVATE_STORAGE = new ErrorCode(1_001_003_011, "私有文件必须使用受控读取的存储配置");
+    ErrorCode FILE_BUSINESS_TYPE_UNREGISTERED = new ErrorCode(1_001_003_012, "业务类型({})未注册文件授权实现");
+    ErrorCode FILE_BUSINESS_DELETE_REQUIRES_AUTHORIZATION = new ErrorCode(1_001_003_013, "业务绑定文件必须在业务模块内删除");
 
     // ========== 文件配置 1-001-006-000 ==========
     ErrorCode FILE_CONFIG_NOT_EXISTS = new ErrorCode(1_001_006_000, "文件配置不存在");

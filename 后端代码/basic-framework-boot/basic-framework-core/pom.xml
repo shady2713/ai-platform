@@ -23,6 +23,7 @@
 
 
         <module>basic-framework-spring-boot-starter-biz-data-permission</module>
+        <module>basic-framework-spring-boot-starter-ai</module>
         <module>basic-framework-biz-ip</module>
     </modules>
 

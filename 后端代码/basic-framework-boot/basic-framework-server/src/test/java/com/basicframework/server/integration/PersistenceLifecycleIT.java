@@ -254,6 +254,14 @@ class PersistenceLifecycleIT extends AbstractPersistenceIntegrationTest {
                         """,
                         String.class))
                 .containsExactly(
+                        "ai_access_ticket",
+                        "ai_application",
+                        "ai_application_credential",
+                        "ai_model_endpoint",
+                        "ai_model_endpoint_revision",
+                        "ai_model_probe",
+                        "ai_resource_grant",
+                        "ai_subject",
                         "infra_config",
                         "infra_file_config",
                         "infra_job",

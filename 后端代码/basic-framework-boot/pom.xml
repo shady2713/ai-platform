@@ -17,6 +17,8 @@
         <module>basic-framework-module-system</module>
         <module>basic-framework-module-infra-api</module>
         <module>basic-framework-module-infra</module>
+        <module>basic-framework-module-ai-api</module>
+        <module>basic-framework-module-ai</module>
         <!-- 覆盖率聚合：无源码，只聚合生产模块的 JaCoCo 执行数据（ADR 0045） -->
         <module>basic-framework-coverage</module>
     </modules>

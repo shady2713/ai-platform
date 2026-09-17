@@ -46,8 +46,17 @@ class FileServiceImplTest {
             new FileArchiveValidator(new FileArchiveSecurityProperties());
     private final FileDeletionService fileDeletionService = mock(FileDeletionService.class);
     private final FilePresignedUploadService filePresignedUploadService = mock(FilePresignedUploadService.class);
+
+    private final FileBusinessAccessProviderRegistry fileBusinessAccessProviderRegistry =
+            new FileBusinessAccessProviderRegistry(List.of());
+
     private final FileServiceImpl fileService = new FileServiceImpl(
-            fileConfigService, fileMapper, fileArchiveValidator, fileDeletionService, filePresignedUploadService);
+            fileConfigService,
+            fileMapper,
+            fileArchiveValidator,
+            fileDeletionService,
+            filePresignedUploadService,
+            fileBusinessAccessProviderRegistry);
 
     @Test
     void getFilePage_delegatesAllFiltersToMapper() {

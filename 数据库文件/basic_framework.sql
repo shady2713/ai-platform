@@ -4,7 +4,7 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V46.
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V53.
 -- Only the 14 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
@@ -509,6 +509,8 @@ CREATE TABLE `infra_file` (
   `upload_user_type` tinyint DEFAULT NULL COMMENT '预签名签发用户类型',
   `owner_user_id` bigint DEFAULT NULL COMMENT '文件所有者用户编号',
   `owner_user_type` tinyint DEFAULT NULL COMMENT '文件所有者用户类型',
+  `business_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '业务类型：非空表示受业务授权 SPI 管控',
+  `business_id` bigint DEFAULT NULL COMMENT '业务对象编号',
   `delete_status` tinyint NOT NULL DEFAULT '0' COMMENT '删除状态：0 正常，1 等待清理',
   `delete_attempts` int NOT NULL DEFAULT '0' COMMENT '外部存储清理失败次数',
   `delete_next_retry_time` datetime DEFAULT NULL COMMENT '下次清理重试时间',
@@ -521,7 +523,9 @@ CREATE TABLE `infra_file` (
   UNIQUE KEY `uk_config_path` (`config_id`,`path`),
   UNIQUE KEY `uk_upload_token_hash` (`upload_token_hash`),
   UNIQUE KEY `uk_upload_staging_path` (`config_id`,`upload_staging_path`),
+  CONSTRAINT `ck_file_business_binding` CHECK (((`business_type` is null) = (`business_id` is null))),
   KEY `idx_config_id` (`config_id`),
+  KEY `idx_business_binding` (`business_type`,`business_id`),
   KEY `idx_path` (`path`),
   KEY `idx_type` (`type`),
   KEY `idx_delete_retry` (`delete_status`,`delete_next_retry_time`),
@@ -1464,6 +1468,228 @@ INSERT INTO `system_users` VALUES (1,'admin','!bootstrap-required','总部门','
 /*!40000 ALTER TABLE `system_users` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+
+--
+-- AI 模型端点（V48）
+--
+
+DROP TABLE IF EXISTS `ai_model_endpoint_revision`;
+DROP TABLE IF EXISTS `ai_model_endpoint`;
+
+CREATE TABLE `ai_model_endpoint` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '端点编号',
+  `name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '端点名称',
+  `provider` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '提供方标识（如 openai_compatible）',
+  `base_url` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '基础地址（https）',
+  `config_revision` int NOT NULL DEFAULT '1' COMMENT '当前非秘密配置版本',
+  `credential_revision` int NOT NULL DEFAULT '0' COMMENT '凭据版本（0 表示未配置；轮换只递增该值）',
+  `credential_ciphertext` varchar(2048) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '凭据密文（AES-GCM，含版本前缀）',
+  `enabled` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否启用',
+  `referenced` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否被发布服务引用（引用后 provider/base_url 不可原地修改）',
+  `embedding_dimension` int DEFAULT NULL COMMENT '已记录的嵌入维度（首次成功嵌入时写入；改变即拒绝写入既有索引）',
+  `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `uk_ai_model_endpoint_name` (`name`,`deleted`),
+  KEY `idx_ai_model_endpoint_provider` (`provider`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 模型端点';
+
+CREATE TABLE `ai_model_endpoint_revision` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '版本编号',
+  `endpoint_id` bigint NOT NULL COMMENT '端点编号',
+  `revision` int NOT NULL COMMENT '非秘密配置版本（从 1 递增，写入后不可变）',
+  `model_id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '模型标识',
+  `capabilities` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '能力集合（逗号分隔：TEXT,EMBEDDING）',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `uk_ai_endpoint_revision` (`endpoint_id`,`revision`),
+  CONSTRAINT `fk_ai_model_endpoint_revision` FOREIGN KEY (`endpoint_id`) REFERENCES `ai_model_endpoint` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 模型端点配置版本（不可变）';
+
+--
+-- AI 模型能力探测结果（V49）
+--
+
+DROP TABLE IF EXISTS `ai_model_probe`;
+
+CREATE TABLE `ai_model_probe` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '探测记录编号',
+  `endpoint_id` bigint NOT NULL COMMENT '端点编号（逻辑引用，不建物理外键）',
+  `config_revision` int NOT NULL COMMENT '探测时的配置版本',
+  `credential_revision` int NOT NULL COMMENT '探测时的凭据版本（只记录版本号，不含凭据）',
+  `probe_kind` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '探测类型（CONNECTIVITY/TEXT/TEXT_STREAM/STRUCTURED_OUTPUT/TOOL_CALLING/EMBEDDING）',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '结论状态（SUPPORTED/UNSUPPORTED/FAILED）',
+  `detail_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '稳定明细码：失败原因名或不支持原因；成功为空',
+  `embedding_dimension` int DEFAULT NULL COMMENT '嵌入探测观测到的向量维度',
+  `latency_ms` int NOT NULL DEFAULT '0' COMMENT '真实调用耗时（毫秒）',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  KEY `idx_ai_model_probe_endpoint_kind` (`endpoint_id`,`probe_kind`,`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 模型能力探测结果';
+
+--
+-- AI 应用与客户端凭据（V50）
+--
+
+DROP TABLE IF EXISTS `ai_application_credential`;
+DROP TABLE IF EXISTS `ai_application`;
+
+CREATE TABLE `ai_application` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '应用编号',
+  `app_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '应用标识（全局唯一，创建后不可修改）',
+  `name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '应用名称',
+  `description` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '应用说明',
+  `origins` varchar(2048) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '精确 Origin 列表（JSON 数组文本，已归一化）',
+  `enabled` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否启用',
+  `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `uk_ai_application_app_code` (`app_code`,`deleted`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 应用';
+
+CREATE TABLE `ai_application_credential` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '凭据编号',
+  `application_id` bigint NOT NULL COMMENT '应用编号',
+  `secret_digest` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '客户端秘密的 SHA-256 摘要（十六进制），不保存明文',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '状态（ACTIVE/REVOKED）',
+  `revoked_time` datetime DEFAULT NULL COMMENT '吊销时间（吊销立即生效）',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `uk_ai_application_credential_digest` (`secret_digest`,`deleted`),
+  KEY `idx_ai_application_credential_app` (`application_id`,`status`),
+  CONSTRAINT `fk_ai_application_credential` FOREIGN KEY (`application_id`) REFERENCES `ai_application` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 应用客户端凭据（只存摘要）';
+
+--
+-- AI 资源授权目录（V52）
+--
+
+DROP TABLE IF EXISTS `ai_resource_grant`;
+
+CREATE TABLE `ai_resource_grant` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '授权编号',
+  `application_id` bigint NOT NULL COMMENT '应用编号',
+  `subject_type` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '主体类型（APP/USER）',
+  `external_user_id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '外部用户标识（APP 主体为空串）',
+  `resource_type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '资源类型（REPORT/KNOWLEDGE_BASE/FILE/TOOL/DATASET）',
+  `resource_key` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '资源标识（同类型内唯一；不同类型同 ID 不串权）',
+  `actions` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '动作白名单（逗号分隔：READ,EXECUTE,EXPORT）',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '状态（ACTIVE/REVOKED）',
+  `authz_revision` bigint NOT NULL DEFAULT '1' COMMENT '授权版本：授权或撤销时递增',
+  `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `uk_ai_resource_grant` (`application_id`,`subject_type`,`external_user_id`,`resource_type`,`resource_key`,`deleted`),
+  KEY `idx_ai_resource_grant_lookup` (`application_id`,`subject_type`,`external_user_id`,`resource_type`),
+  CONSTRAINT `fk_ai_resource_grant_application` FOREIGN KEY (`application_id`) REFERENCES `ai_application` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 资源授权目录';
+
+-- AI 资源授权菜单与权限点（V52）
+INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
+(4020, '资源授权', 'ai:grant:query', 2, 3, 4000, 'grant', 'ep:lock', 'ai/grant/index', 'AiResourceGrant', 0, b'1', b'1', b'1', '1', '2026-09-17 22:00:00', '1', '2026-09-17 22:00:00', b'0'),
+(4021, '授权新增', 'ai:grant:create', 3, 1, 4020, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-17 22:00:00', '1', '2026-09-17 22:00:00', b'0'),
+(4022, '授权修改', 'ai:grant:update', 3, 2, 4020, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-17 22:00:00', '1', '2026-09-17 22:00:00', b'0'),
+(4023, '授权撤销', 'ai:grant:revoke', 3, 3, 4020, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-17 22:00:00', '1', '2026-09-17 22:00:00', b'0');
+
+
+--
+-- AI 访问票据（V53）
+--
+
+DROP TABLE IF EXISTS `ai_access_ticket`;
+
+CREATE TABLE `ai_access_ticket` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '票据编号',
+  `application_id` bigint NOT NULL COMMENT '应用编号',
+  `subject_type` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '主体类型（APP/USER）',
+  `external_user_id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '外部用户标识（APP 主体为空串）',
+  `token_digest` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '票据 token 的 SHA-256 摘要（十六进制），不保存明文',
+  `scope_snapshot` varchar(4096) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '裁剪后的范围快照（JSON：组织与对象白名单 + 来源 + 版本）',
+  `scope_fingerprint` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '范围指纹（与 A03 判定一致；范围收窄后变化）',
+  `authz_revision` bigint NOT NULL DEFAULT '1' COMMENT '签发时的授权版本',
+  `expires_time` datetime NOT NULL COMMENT '到期时间（短期票据）',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '状态（ACTIVE/REVOKED）',
+  `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `uk_ai_access_ticket_digest` (`token_digest`,`deleted`),
+  KEY `idx_ai_access_ticket_subject` (`application_id`,`subject_type`,`external_user_id`),
+  CONSTRAINT `fk_ai_access_ticket_application` FOREIGN KEY (`application_id`) REFERENCES `ai_application` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 访问票据（只存摘要）';
+
+-- AI 中台菜单与权限点（V48/V49/V50，与 AiModelEndpointController / AiModelCapabilityProbeController / AiApplicationController 的 @PreAuthorize 一一对应）
+INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
+(4000, 'AI 中台', '', 1, 40, 0, '/ai', 'ep:cpu', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-17 11:00:00', '1', '2026-09-17 11:00:00', b'0'),
+(4001, '模型端点', 'ai:model-endpoint:query', 2, 1, 4000, 'model-endpoint', 'ep:connection', 'ai/model-endpoint/index', 'AiModelEndpoint', 0, b'1', b'1', b'1', '1', '2026-09-17 11:00:00', '1', '2026-09-17 11:00:00', b'0'),
+(4002, '端点新增', 'ai:model-endpoint:create', 3, 1, 4001, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-17 11:00:00', '1', '2026-09-17 11:00:00', b'0'),
+(4003, '端点修改', 'ai:model-endpoint:update', 3, 2, 4001, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-17 11:00:00', '1', '2026-09-17 11:00:00', b'0'),
+(4004, '端点删除', 'ai:model-endpoint:delete', 3, 3, 4001, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-17 11:00:00', '1', '2026-09-17 11:00:00', b'0'),
+(4005, '端点能力探测', 'ai:model-endpoint:probe', 3, 4, 4001, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-17 18:00:00', '1', '2026-09-17 18:00:00', b'0');
+
+--
+-- AI 外部主体（V51）
+--
+
+DROP TABLE IF EXISTS `ai_subject`;
+
+CREATE TABLE `ai_subject` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主体编号',
+  `application_id` bigint NOT NULL COMMENT '所属应用编号',
+  `subject_type` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '主体类型（APP/USER）',
+  `external_user_id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '可信外部用户标识（APP 主体为空串）',
+  `display_name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '外部主体显示名（仅用于管理端展示）',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '状态（ACTIVE/DISABLED）；业务侧撤销同步为 DISABLED',
+  `scope_source` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '外部授权来源标识（业务系统/授权服务名）',
+  `scope_version` bigint NOT NULL DEFAULT '1' COMMENT '当前范围版本；范围变化必须递增',
+  `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `uk_ai_subject_identity` (`application_id`,`subject_type`,`external_user_id`,`deleted`),
+  KEY `idx_ai_subject_external_user` (`external_user_id`),
+  CONSTRAINT `fk_ai_subject_application` FOREIGN KEY (`application_id`) REFERENCES `ai_application` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 外部主体（APP/USER）';
+
+-- AI 应用菜单与权限点（V50）
+INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
+(4010, 'AI 应用', 'ai:application:query', 2, 2, 4000, 'application', 'ep:key', 'ai/application/index', 'AiApplication', 0, b'1', b'1', b'1', '1', '2026-09-17 21:00:00', '1', '2026-09-17 21:00:00', b'0'),
+(4011, '应用新增', 'ai:application:create', 3, 1, 4010, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-17 21:00:00', '1', '2026-09-17 21:00:00', b'0'),
+(4012, '应用修改', 'ai:application:update', 3, 2, 4010, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-17 21:00:00', '1', '2026-09-17 21:00:00', b'0'),
+(4013, '应用删除', 'ai:application:delete', 3, 3, 4010, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-17 21:00:00', '1', '2026-09-17 21:00:00', b'0'),
+(4014, '凭据轮换', 'ai:application:rotate', 3, 4, 4010, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-17 21:00:00', '1', '2026-09-17 21:00:00', b'0'),
+(4015, '凭据吊销', 'ai:application:revoke', 3, 5, 4010, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-17 21:00:00', '1', '2026-09-17 21:00:00', b'0');
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;

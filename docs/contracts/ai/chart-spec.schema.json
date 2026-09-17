@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://basic-framework.local/contracts/ai/chart-spec.schema.json",
+  "title": "ChartSpec v1 正式契约",
+  "description": "自有图表契约：模型与报表保存 ChartSpec，不保存厂商 DSL。金额等精确数值必须使用十进制字符串。",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "enum": [
+        "line",
+        "bar",
+        "pie"
+      ]
+    },
+    "title": {
+      "type": "string",
+      "maxLength": 200
+    },
+    "categories": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 128
+      },
+      "minItems": 1,
+      "maxItems": 500
+    },
+    "series": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/chartValue"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "data"
+        ]
+      }
+    }
+  },
+  "required": [
+    "type",
+    "categories",
+    "series"
+  ],
+  "$defs": {
+    "chartValue": {
+      "description": "数值或十进制字符串；金额必须使用字符串以避免浮点精度损失。",
+      "oneOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string",
+          "pattern": "^-?\\d+(\\.\\d+)?$",
+          "maxLength": 64
+        }
+      ]
+    }
+  }
+}

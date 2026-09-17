@@ -1,5 +1,5 @@
 {
-  "checkedAt": "2026-09-16T07:18:17.217390+00:00",
+  "checkedAt": "2026-09-16T10:32:57.488876+00:00",
   "scope": "DOCUMENTS_AND_CONTRACT_EXAMPLES_ONLY",
   "passed": true,
   "checks": [
@@ -11,7 +11,7 @@
     {
       "name": "文档本地链接存在",
       "passed": true,
-      "detail": "1725个链接；缺失=[]"
+      "detail": "1730个链接；缺失=[]"
     },
     {
       "name": "任务数量及ID唯一",

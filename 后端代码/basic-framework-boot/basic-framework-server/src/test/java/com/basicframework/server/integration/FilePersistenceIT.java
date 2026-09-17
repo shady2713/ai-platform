@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.basicframework.module.infra.dal.dataobject.file.FileConfigDO;
 import com.basicframework.module.infra.dal.dataobject.file.FileDO;
 import com.basicframework.module.infra.dal.mysql.file.FileMapper;
+import com.basicframework.module.infra.framework.file.core.client.FileClient;
 import com.basicframework.module.infra.framework.file.core.enums.FileStorageEnum;
 import com.basicframework.module.infra.job.InfraDataIntegrityAuditJob;
 import com.basicframework.module.infra.service.file.FileConfigService;
@@ -163,5 +164,38 @@ class FilePersistenceIT extends AbstractPersistenceIntegrationTest {
         assertThat(jdbcTemplate.queryForObject(
                         "SELECT COUNT(*) FROM infra_file WHERE id = ?", Integer.class, file.getId()))
                 .isZero();
+    }
+
+    /**
+     * 数据库存储客户端在真实 MySQL 上的读写删：确定性覆盖
+     * {@code infra_file_content} 的插入、按路径查询与按路径删除，
+     * 避免该路径只依赖调度清理时机而被覆盖（覆盖率棘轮要求稳定基线）。
+     */
+    @Test
+    void databaseStorageClientReadsAndDeletesContent() throws Exception {
+        Long configId = createDatabaseFileConfig("integration-db-client");
+        FileClient client = fileConfigService.getFileClient(configId);
+        assertThat(client).isNotNull();
+
+        byte[] content = new byte[] {1, 2, 3};
+        String path = "integration/db-client.txt";
+        client.upload(content, path, "text/plain");
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM infra_file_content WHERE config_id = ? AND path = ?",
+                        Integer.class,
+                        configId,
+                        path))
+                .isEqualTo(1);
+        assertThat(client.getContent(path)).containsExactly(content);
+
+        client.delete(path);
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM infra_file_content WHERE config_id = ? AND path = ?",
+                        Integer.class,
+                        configId,
+                        path))
+                .isZero();
+
+        fileConfigService.deleteFileConfig(configId);
     }
 }

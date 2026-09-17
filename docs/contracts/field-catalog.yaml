@@ -306,3 +306,118 @@ fields:
         - null
       invalid:
         - xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+  # ===== AI 中台公用字段（F08）=====
+  - id: ai_service_key
+    semanticType: ai_business_key
+    status: aligned
+    description: ai_service_key 业务键（AI 中台对外标识，见 docs/contracts/ai/README.md）
+    required: true
+    nullable: false
+    normalization: trim；不折叠大小写
+    lengthUnit: utf16_code_unit
+    minLength: 7
+    maxLength: 40
+    characterPolicy: svc_ 前缀后跟字母数字、下划线或连字符
+    format: '^svc_[A-Za-z0-9_-]{3,35}$'
+    examples: [svc_demo1]
+    sensitiveClass: internal
+    masking: none
+    databaseType: 无（AI 表随实现任务创建，按迁移分配流程领取编号）
+    indexPolicy: unique_index
+    uniquenessScope: 平台内全局唯一
+    frontendWidget: Input
+    backendValidator: 'AiFieldRules#isValidServiceKey'
+    vectorMode: regex
+    usage: 开放 API serviceId；服务草稿、发布绑定与运行受理
+    sharedTestVectors:
+      valid: [svc_demo1, svc_a-b_c]
+      invalid: [svc_ab, svc_, svc_xyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy]
+    implementations:
+      frontendShared:
+        kind: frontend_regex
+        file: 前端代码/basic-framework-admin/apps/web-ele/src/adapter/field-rules.ts
+        constant: AI_SERVICE_KEY_REGEX
+        pattern: '^svc_[A-Za-z0-9_-]{3,35}$'
+        flags: ''
+      backendShared:
+        kind: backend_regex
+        file: 后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/enums/AiFieldRules.java
+        constant: PATTERN_SERVICE_KEY
+        pattern: '^svc_[A-Za-z0-9_-]{3,35}$'
+
+  - id: ai_conversation_key
+    semanticType: ai_business_key
+    status: aligned
+    description: ai_conversation_key 业务键（AI 中台对外标识，见 docs/contracts/ai/README.md）
+    required: true
+    nullable: false
+    normalization: trim；不折叠大小写
+    lengthUnit: utf16_code_unit
+    minLength: 7
+    maxLength: 40
+    characterPolicy: conv_ 前缀后跟字母数字、下划线或连字符
+    format: '^conv_[A-Za-z0-9_-]{3,35}$'
+    examples: [conv_demo1]
+    sensitiveClass: internal
+    masking: none
+    databaseType: 无（AI 表随实现任务创建，按迁移分配流程领取编号）
+    indexPolicy: unique_index
+    uniquenessScope: 平台内全局唯一
+    frontendWidget: Input
+    backendValidator: 'AiFieldRules#isValidConversationKey'
+    vectorMode: regex
+    usage: 开放 API conversationId；会话归属与事件重放定位
+    sharedTestVectors:
+      valid: [conv_demo1, conv_a-b_c]
+      invalid: [conv_ab, conv_, conv_xyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy]
+    implementations:
+      frontendShared:
+        kind: frontend_regex
+        file: 前端代码/basic-framework-admin/apps/web-ele/src/adapter/field-rules.ts
+        constant: AI_CONVERSATION_KEY_REGEX
+        pattern: '^conv_[A-Za-z0-9_-]{3,35}$'
+        flags: ''
+      backendShared:
+        kind: backend_regex
+        file: 后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/enums/AiFieldRules.java
+        constant: PATTERN_CONVERSATION_KEY
+        pattern: '^conv_[A-Za-z0-9_-]{3,35}$'
+
+  - id: ai_run_key
+    semanticType: ai_business_key
+    status: aligned
+    description: ai_run_key 业务键（AI 中台对外标识，见 docs/contracts/ai/README.md）
+    required: true
+    nullable: false
+    normalization: trim；不折叠大小写
+    lengthUnit: utf16_code_unit
+    minLength: 7
+    maxLength: 40
+    characterPolicy: run_ 前缀后跟字母数字、下划线或连字符
+    format: '^run_[A-Za-z0-9_-]{3,35}$'
+    examples: [run_demo1]
+    sensitiveClass: internal
+    masking: none
+    databaseType: 无（AI 表随实现任务创建，按迁移分配流程领取编号）
+    indexPolicy: unique_index
+    uniquenessScope: 平台内全局唯一
+    frontendWidget: Input
+    backendValidator: 'AiFieldRules#isValidRunKey'
+    vectorMode: regex
+    usage: 开放 API runId；运行查询、取消与事件流
+    sharedTestVectors:
+      valid: [run_demo1, run_a-b_c]
+      invalid: [run_ab, run_, run_xyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy]
+    implementations:
+      frontendShared:
+        kind: frontend_regex
+        file: 前端代码/basic-framework-admin/apps/web-ele/src/adapter/field-rules.ts
+        constant: AI_RUN_KEY_REGEX
+        pattern: '^run_[A-Za-z0-9_-]{3,35}$'
+        flags: ''
+      backendShared:
+        kind: backend_regex
+        file: 后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/enums/AiFieldRules.java
+        constant: PATTERN_RUN_KEY
+        pattern: '^run_[A-Za-z0-9_-]{3,35}$'

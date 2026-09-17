@@ -1,0 +1,19 @@
+{
+  "kind": "chart",
+  "spec": {
+    "type": "line",
+    "categories": [
+      "a"
+    ],
+    "series": [
+      {
+        "name": "s",
+        "data": [
+          {
+            "amount": 1
+          }
+        ]
+      }
+    ]
+  }
+}

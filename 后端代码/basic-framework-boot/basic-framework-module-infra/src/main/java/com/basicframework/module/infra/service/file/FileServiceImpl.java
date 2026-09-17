@@ -2,6 +2,7 @@ package com.basicframework.module.infra.service.file;
 
 import static cn.hutool.core.date.DatePattern.PURE_DATE_PATTERN;
 import static com.basicframework.framework.common.exception.util.ServiceExceptionUtil.exception;
+import static com.basicframework.module.infra.enums.ErrorCodeConstants.FILE_BUSINESS_DELETE_REQUIRES_AUTHORIZATION;
 import static com.basicframework.module.infra.enums.ErrorCodeConstants.FILE_CLIENT_NOT_EXISTS;
 import static com.basicframework.module.infra.enums.ErrorCodeConstants.FILE_IS_EMPTY;
 import static com.basicframework.module.infra.enums.ErrorCodeConstants.FILE_METADATA_INVALID;
@@ -19,6 +20,7 @@ import com.basicframework.framework.common.pojo.PageParam;
 import com.basicframework.framework.common.pojo.PageResult;
 import com.basicframework.framework.common.util.http.HttpUtils;
 import com.basicframework.framework.common.util.validation.ValidationUtils;
+import com.basicframework.module.infra.api.file.dto.FileBusinessAccessContext;
 import com.basicframework.module.infra.dal.dataobject.file.FileDO;
 import com.basicframework.module.infra.dal.mysql.file.FileMapper;
 import com.basicframework.module.infra.enums.file.FileAccessTypeEnum;
@@ -52,6 +54,8 @@ public class FileServiceImpl implements FileService {
 
     private final FilePresignedUploadService filePresignedUploadService;
 
+    private final FileBusinessAccessProviderRegistry fileBusinessAccessProviderRegistry;
+
     @Override
     public PageResult<FileDO> getFilePage(PageParam pageParam, String path, String type, LocalDateTime[] createTime) {
         return fileMapper.selectPage(pageParam, path, type, createTime);
@@ -67,6 +71,40 @@ public class FileServiceImpl implements FileService {
             String type,
             FileUploadPrincipal principal,
             FileAccessTypeEnum accessType) {
+        return persistFile(content, name, directory, type, principal, accessType, null, null)
+                .url();
+    }
+
+    @Override
+    @SneakyThrows
+    @Transactional(rollbackFor = Exception.class)
+    public Long createBusinessFile(
+            byte[] content,
+            String name,
+            String type,
+            String businessType,
+            Long businessId,
+            FileUploadPrincipal principal) {
+        // 未注册授权实现的业务类型不允许创建：否则会产生永远不可读的文件
+        fileBusinessAccessProviderRegistry.requireRegistered(businessType);
+        return persistFile(content, name, null, type, principal, FileAccessTypeEnum.PRIVATE, businessType, businessId)
+                .file()
+                .getId();
+    }
+
+    /** 上传结果：保留原始访问地址（含查询参数）与持久化后的文件记录。 */
+    private record PersistedFile(FileDO file, String url) {}
+
+    @SneakyThrows
+    private PersistedFile persistFile(
+            byte[] content,
+            String name,
+            String directory,
+            String type,
+            FileUploadPrincipal principal,
+            FileAccessTypeEnum accessType,
+            String businessType,
+            Long businessId) {
         validateUploadPrincipal(principal);
         validateAccessType(accessType);
         // 先拦截空内容，避免后续 MIME 识别、摘要计算和长度访问时出现空指针。
@@ -116,6 +154,8 @@ public class FileServiceImpl implements FileService {
                 .setAccessType(accessType.getValue())
                 .setOwnerUserId(principal.userId())
                 .setOwnerUserType(principal.userType())
+                .setBusinessType(businessType)
+                .setBusinessId(businessId)
                 .setUploadStatus(FileMapper.UPLOAD_STATUS_COMPLETE);
         try {
             validateFileMetadata(file);
@@ -128,7 +168,7 @@ public class FileServiceImpl implements FileService {
             }
             throw exception;
         }
-        return url;
+        return new PersistedFile(file, url);
     }
 
     @VisibleForTesting
@@ -248,11 +288,13 @@ public class FileServiceImpl implements FileService {
 
     @Override
     public void deleteFile(Long id) throws Exception {
+        rejectBusinessBoundDeletion(List.of(id));
         fileDeletionService.deleteFiles(List.of(id));
     }
 
     @Override
     public void deleteFileList(List<Long> ids) {
+        rejectBusinessBoundDeletion(ids);
         fileDeletionService.deleteFiles(ids);
     }
 
@@ -296,10 +338,53 @@ public class FileServiceImpl implements FileService {
         }
     }
 
-    private static boolean canRead(FileDO file, FileAccessPrincipal principal) {
+    private boolean canRead(FileDO file, FileAccessPrincipal principal) {
+        // 业务绑定文件：读取授权只由业务 Provider 决定，管理权限与所有者都不构成豁免
+        if (StrUtil.isNotEmpty(file.getBusinessType())) {
+            return principal != null
+                    && fileBusinessAccessProviderRegistry.canRead(buildBusinessContext(file, principal));
+        }
         return FileAccessTypeEnum.isPublic(file.getAccessType())
                 || principal != null
                         && (principal.canManageFiles()
                                 || principal.owns(file.getOwnerUserId(), file.getOwnerUserType()));
+    }
+
+    private FileBusinessAccessContext buildBusinessContext(FileDO file, FileAccessPrincipal principal) {
+        return FileBusinessAccessProviderRegistry.buildContext(
+                file.getId(), file.getBusinessType(), file.getBusinessId(), principal);
+    }
+
+    @Override
+    public FileDO getAuthorizedFile(Long id, FileAccessPrincipal principal) {
+        FileDO file = fileMapper.selectActiveById(id);
+        if (file == null || !canRead(file, principal)) {
+            // 未授权与不存在保持同一语义，避免借编号枚举文件。
+            throw exception(FILE_NOT_EXISTS);
+        }
+        return file;
+    }
+
+    @Override
+    public void deleteBusinessFile(Long id, FileAccessPrincipal principal) throws Exception {
+        FileDO file = fileMapper.selectActiveById(id);
+        if (file == null
+                || StrUtil.isEmpty(file.getBusinessType())
+                || principal == null
+                || !fileBusinessAccessProviderRegistry.canDelete(buildBusinessContext(file, principal))) {
+            // 未授权、非业务绑定或不存在都按同一语义返回，避免探测文件是否受管控。
+            throw exception(FILE_NOT_EXISTS);
+        }
+        fileDeletionService.deleteFiles(List.of(id));
+    }
+
+    private void rejectBusinessBoundDeletion(List<Long> ids) {
+        for (Long id : ids) {
+            FileDO file = fileMapper.selectActiveById(id);
+            if (file != null && StrUtil.isNotEmpty(file.getBusinessType())) {
+                // 业务绑定文件的删除必须走业务模块授权（deleteBusinessFile），管理端存储管理不得代替业务授权
+                throw exception(FILE_BUSINESS_DELETE_REQUIRES_AUTHORIZATION);
+            }
+        }
     }
 }
