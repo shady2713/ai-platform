@@ -25,7 +25,8 @@
         "ai_application_credential",
         "ai_subject",
         "ai_resource_grant",
-        "ai_access_ticket"
+        "ai_access_ticket",
+        "ai_file_binding"
       ]
     },
     {

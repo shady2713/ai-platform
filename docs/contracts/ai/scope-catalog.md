@@ -25,6 +25,17 @@
 新增匿名端点必须同步更新本表，并由 `AiAppEndpointScopeContractTest` 与
 `EndpointAuthorizationContractTest` 双重扫描拦截。
 
+## 登录即可访问端点（服务层按业务归属判定）
+
+这类端点不声明 scope 表达式，只要求已认证的 MEMBER 主体；**归属判定在服务层**按业务绑定执行，
+同样必须在本表登记（契约测试强制）：
+
+| 端点 | 归属判定 |
+|---|---|
+| `AiFileController#upload` | `ai_file_binding`：报表/知识库按 A03 授权目录，会话附件仅本人 |
+| `AiFileController#read` | 同上，且每次都按当前状态重新判定（无缓存） |
+| `AiFileController#release` | 仅所有者可解除引用；无其他有效引用时才删除文件 |
+
 ## 会话身份（MEMBER 用户类型）
 
 - `AiUserSessionCommonApi` 只声明 `UserTypeEnum.MEMBER`：ADMIN 会话与 MEMBER 会话**互斥**，

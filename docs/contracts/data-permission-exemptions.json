@@ -60,17 +60,19 @@
     },
     {
       "id": "ai-subject-binding",
-      "reason": "AI 外部主体表按 (application_id, subject_type, external_user_id) 绑定到唯一主体，读取一律经 AiSubjectService 的主体唯一键查询，不使用部门数据范围规则；范围授权由 SubjectScopeResolver 在请求期解析并默认 DENY。 访问票据（ai_access_ticket）按签发主体绑定并只存 token 摘要，校验一律经摘要唯一键定位。",
+      "reason": "AI 外部主体表按 (application_id, subject_type, external_user_id) 绑定到唯一主体，读取一律经 AiSubjectService 的主体唯一键查询，不使用部门数据范围规则；范围授权由 SubjectScopeResolver 在请求期解析并默认 DENY。 访问票据（ai_access_ticket）按签发主体绑定并只存 token 摘要，校验一律经摘要唯一键定位。 业务文件绑定（ai_file_binding）按上传主体与业务对象归属判定，读写删都经主体唯一键与服务层 ACL。",
       "tables": [
         "ai_subject",
-        "ai_access_ticket"
+        "ai_access_ticket",
+        "ai_file_binding"
       ],
       "controls": [
         {
           "kind": "subject-bound",
           "tables": [
             "ai_subject",
-            "ai_access_ticket"
+            "ai_access_ticket",
+            "ai_file_binding"
           ],
           "evidence": [
             {
@@ -87,6 +89,16 @@
               "table": "ai_access_ticket",
               "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/auth/AiTicketServiceImpl.java",
               "contains": "selectByDigest("
+            },
+            {
+              "table": "ai_file_binding",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/file/AiFileBindingMapper.java",
+              "contains": ".eq(AiFileBindingDO::getFileId, fileId)"
+            },
+            {
+              "table": "ai_file_binding",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/file/AiFileServiceImpl.java",
+              "contains": "subject.sameAs(owner)"
             }
           ]
         }

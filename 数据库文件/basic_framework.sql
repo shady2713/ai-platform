@@ -4,7 +4,7 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V53.
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V54.
 -- Only the 14 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
@@ -1645,6 +1645,34 @@ CREATE TABLE `ai_access_ticket` (
   KEY `idx_ai_access_ticket_subject` (`application_id`,`subject_type`,`external_user_id`),
   CONSTRAINT `fk_ai_access_ticket_application` FOREIGN KEY (`application_id`) REFERENCES `ai_application` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 访问票据（只存摘要）';
+
+--
+-- AI 业务文件绑定（V54）
+--
+
+DROP TABLE IF EXISTS `ai_file_binding`;
+
+CREATE TABLE `ai_file_binding` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '绑定编号',
+  `file_id` bigint NOT NULL COMMENT 'infra 文件编号（逻辑引用，不建物理外键）',
+  `business_type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'AI 业务类型（ai_report/ai_knowledge_document/ai_chat_session）',
+  `business_key` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '业务对象标识（报表键/知识库键/会话键）',
+  `application_id` bigint NOT NULL COMMENT '上传主体所属应用（跨应用隔离）',
+  `subject_type` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '上传主体类型（APP/USER）',
+  `external_user_id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '上传主体外部用户标识（所有者）',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '状态（ACTIVE/RELEASED）',
+  `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `uk_ai_file_binding` (`file_id`,`business_type`,`business_key`,`deleted`),
+  KEY `idx_ai_file_binding_business` (`business_type`,`business_key`,`status`),
+  KEY `idx_ai_file_binding_file` (`file_id`,`status`),
+  KEY `idx_ai_file_binding_subject` (`application_id`,`subject_type`,`external_user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 业务文件绑定（业务 ACL）';
 
 -- AI 中台菜单与权限点（V48/V49/V50，与 AiModelEndpointController / AiModelCapabilityProbeController / AiApplicationController 的 @PreAuthorize 一一对应）
 INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES

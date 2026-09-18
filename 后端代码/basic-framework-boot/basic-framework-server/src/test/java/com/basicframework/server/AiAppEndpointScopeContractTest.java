@@ -2,6 +2,7 @@ package com.basicframework.server;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.basicframework.framework.security.core.annotation.AuthenticatedOnly;
 import com.basicframework.module.ai.domain.policy.AiAction;
 import com.basicframework.module.ai.domain.policy.AiResourceType;
 import jakarta.annotation.security.PermitAll;
@@ -36,6 +37,15 @@ class AiAppEndpointScopeContractTest {
     private static final Set<String> REVIEWED_ANONYMOUS_ENDPOINTS =
             Set.of("com.basicframework.module.ai.controller.app.v1.auth.AiAuthController#issueTicket");
 
+    /**
+     * 已审查的"登录即可访问"端点：不声明 scope 表达式，归属判定在服务层按业务归属执行
+     * （例如业务文件按 ai_file_binding 的所有者/授权目录判定），与 scope 目录同为登记制。
+     */
+    private static final Set<String> REVIEWED_AUTHENTICATED_ENDPOINTS = Set.of(
+            "com.basicframework.module.ai.controller.app.v1.file.AiFileController#upload",
+            "com.basicframework.module.ai.controller.app.v1.file.AiFileController#read",
+            "com.basicframework.module.ai.controller.app.v1.file.AiFileController#release");
+
     private static final String AI_APP_PACKAGE = "com.basicframework.module.ai.controller.app";
 
     /** @aiScope.hasScope('TYPE','key','ACTION') / hasAnyScope('TYPE','key','ACT1','ACT2') */
@@ -62,6 +72,10 @@ class AiAppEndpointScopeContractTest {
                     && !REVIEWED_ANONYMOUS_ENDPOINTS.contains(key(method))) {
                 violations.add(key(method) + " 是匿名端点但未在 scope 目录登记");
             }
+            if (AnnotatedElementUtils.hasAnnotation(method, AuthenticatedOnly.class)
+                    && !REVIEWED_AUTHENTICATED_ENDPOINTS.contains(key(method))) {
+                violations.add(key(method) + " 只要求登录（服务层归属判定）但未在 scope 目录登记");
+            }
         }
         assertThat(violations).as("AI 应用端端点策略必须完整且经审查").isEmpty();
     }
@@ -78,6 +92,10 @@ class AiAppEndpointScopeContractTest {
             actions.add(action.name());
         }
         for (Method method : aiAppControllerMethods()) {
+            if (AnnotatedElementUtils.hasAnnotation(method, AuthenticatedOnly.class)) {
+                // 登录即可访问：不走 scope 表达式，归属判定由服务层按业务归属执行（已在目录登记）
+                continue;
+            }
             PreAuthorize annotation = AnnotatedElementUtils.findMergedAnnotation(method, PreAuthorize.class);
             if (annotation == null) {
                 continue;
@@ -115,6 +133,10 @@ class AiAppEndpointScopeContractTest {
         for (String endpoint : REVIEWED_ANONYMOUS_ENDPOINTS) {
             String simpleName = endpoint.substring(endpoint.lastIndexOf('.') + 1);
             assertThat(content).as("scope 目录必须登记匿名端点 %s", simpleName).contains(simpleName);
+        }
+        for (String endpoint : REVIEWED_AUTHENTICATED_ENDPOINTS) {
+            String simpleName = endpoint.substring(endpoint.lastIndexOf('.') + 1);
+            assertThat(content).as("scope 目录必须登记登录即可访问端点 %s", simpleName).contains(simpleName);
         }
     }
 
