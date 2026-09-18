@@ -32,4 +32,7 @@ public class AiTicketContextDTO {
 
     /** 授权版本 */
     private Long authzRevision;
+
+    /** 票据到期时间（会话校验结果的过期时间） */
+    private java.time.LocalDateTime expiresTime;
 }

@@ -159,7 +159,8 @@ public class AiTicketServiceImpl implements AiTicketService {
                 .setOrganizationIds(readOrganizations(ticket.getScopeSnapshot()))
                 .setResourceKeys(readResources(ticket.getScopeSnapshot()))
                 .setScopeFingerprint(ticket.getScopeFingerprint())
-                .setAuthzRevision(ticket.getAuthzRevision());
+                .setAuthzRevision(ticket.getAuthzRevision())
+                .setExpiresTime(ticket.getExpiresTime());
     }
 
     @Override

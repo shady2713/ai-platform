@@ -92,8 +92,12 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private UserSessionCommonApi resolveUserSessionApi(Integer userType) {
-        if (userType == null && userSessionApis.size() == 1) {
-            return userSessionApis.values().iterator().next();
+        if (userType == null) {
+            if (userSessionApis.size() == 1) {
+                return userSessionApis.values().iterator().next();
+            }
+            // 多 Provider 且请求未声明用户类型：拒绝，绝不按任意类型兜底（否则可能被解析成其他身份）
+            throw new AccessDeniedException("请求未声明用户类型");
         }
         UserSessionCommonApi userSessionApi = userSessionApis.get(userType);
         if (userSessionApi == null) {

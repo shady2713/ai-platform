@@ -184,6 +184,33 @@ class TokenAuthenticationFilterTest {
     }
 
     @Test
+    void doFilterInternal_withMultipleProvidersAndNoUserTypeIsRejectedWithoutFallback() throws Exception {
+        UserSessionCommonApi adminApi = sessionApi(UserTypeEnum.ADMIN);
+        UserSessionCommonApi memberApi = sessionApi(UserTypeEnum.MEMBER);
+        when(adminApi.checkAccessToken("ambiguous-token"))
+                .thenReturn(new UserSessionCheckRespDTO().setUserId(11L).setUserType(UserTypeEnum.ADMIN.getValue()));
+        TokenAuthenticationFilter filter = new TokenAuthenticationFilter(
+                new SecurityProperties(), globalExceptionHandler, List.of(adminApi, memberApi));
+        when(globalExceptionHandler.allExceptionHandler(
+                        org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(Exception.class)))
+                .thenReturn(
+                        org.springframework.http.ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN)
+                                .build());
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setServletPath("/internal/health");
+        request.addHeader("Authorization", "Bearer ambiguous-token");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilterInternal(request, response, chain);
+
+        // 未声明用户类型时不得按任意 Provider 兜底（尤其不得降级为 ADMIN）：请求被显式拒绝
+        assertThat(SecurityFrameworkUtils.getLoginUserId()).isNull();
+        assertThat(response.getStatus()).isEqualTo(org.springframework.http.HttpStatus.FORBIDDEN.value());
+        verify(chain, never()).doFilter(request, response);
+    }
+
+    @Test
     void constructor_rejectsDuplicateUserTypeProviders() {
         UserSessionCommonApi firstApi = sessionApi(UserTypeEnum.ADMIN);
         UserSessionCommonApi secondApi = sessionApi(UserTypeEnum.ADMIN);

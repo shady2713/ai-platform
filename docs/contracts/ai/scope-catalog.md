@@ -1,0 +1,34 @@
+# AI 应用端 scope 目录（A05 冻结）
+
+应用端（`/app-api/ai/**`）的每个接口必须二选一：**匿名审查端点**（`@PermitAll`，登记在下表）
+或**scope 守卫**（`@PreAuthorize("@aiScope.hasScope('资源类型','资源标识','动作')")`）。
+守卫的判定委托 A03 的统一授权入口（应用启用 → 主体范围 → 授权目录 → 动作白名单），表达式自身不做缓存。
+
+## 资源类型 × 动作
+
+| 资源类型（AiResourceType） | 允许动作（AiAction） | 说明 |
+|---|---|---|
+| `REPORT` | `READ` / `EXECUTE` / `EXPORT` | 报表读取、运行、导出 |
+| `KNOWLEDGE_BASE` | `READ` / `EXECUTE` | 知识库检索与问答 |
+| `FILE` | `READ` / `EXPORT` | 文件读取与导出 |
+| `TOOL` | `EXECUTE` | 工具调用 |
+| `DATASET` | `READ` / `EXPORT` | 数据集查询与导出 |
+
+动作词表是白名单：未列入的动作在授权目录写入时即被拒绝（400），表达式解析未知类型/动作时返回拒绝。
+
+## 匿名审查端点
+
+| 端点 | 归属 | 鉴权方式 | 理由 |
+|---|---|---|---|
+| `POST /app-api/ai/auth/ticket` | `AiAuthController#issueTicket` | 应用客户端凭据（appCode + appSecret）+ 失败节流 | 换票入口本身以客户端凭据鉴权；不接受仅 Origin 的调用 |
+
+新增匿名端点必须同步更新本表，并由 `AiAppEndpointScopeContractTest` 与
+`EndpointAuthorizationContractTest` 双重扫描拦截。
+
+## 会话身份（MEMBER 用户类型）
+
+- `AiUserSessionCommonApi` 只声明 `UserTypeEnum.MEMBER`：ADMIN 会话与 MEMBER 会话**互斥**，
+  跨端调用（ADMIN token 调 `/app-api`、MEMBER 票据调 `/admin-api`）被框架的类型校验拒绝，不降级。
+- 会话只携带**服务端建立的字段**：应用编号、主体类型、可信外部用户标识、范围指纹；
+  外部主体身份不映射为系统用户编号（`userId` 使用票据编号）。
+- 票据撤销、到期、应用停用或主体撤销后，`checkAccessToken` 抛稳定错误 → 框架按"未认证"处理。

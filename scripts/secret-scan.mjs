@@ -98,6 +98,11 @@ const publicFixtures = new Map([
     new Set(["integration-only"]),
   ],
   [
+    // A05 身份隔离 IT 自建管理端用户的集成环境口令（仅测试值，不指向任何真实凭据）。
+    `${server}test/java/com/basicframework/server/integration/AiIdentityIsolationIT.java`,
+    new Set(["identity-integration-password"]),
+  ],
+  [
     `${server}test/java/com/basicframework/server/integration/PackagedJarBootSmokeIT.java`,
     new Set([
       "integration-only-db",
