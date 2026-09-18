@@ -98,6 +98,19 @@ const publicFixtures = new Map([
     new Set(["integration-only"]),
   ],
   [
+    // A09 页面与用例里已复核的字面量：事件绑定名与一次性秘密的测试替身。
+    `${frontend}views/ai/application/index.vue`,
+    new Set(["handleSecret"]),
+  ],
+  [
+    `${frontend}views/ai/application/index.test.ts`,
+    new Set(["aiapp_once"]),
+  ],
+  [
+    `${frontend}views/ai/application/modules/modules.test.ts`,
+    new Set(["aiapp_once", "aiapp_rotated"]),
+  ],
+  [
     // A05 身份隔离 IT 自建管理端用户的集成环境口令（仅测试值，不指向任何真实凭据）。
     `${server}test/java/com/basicframework/server/integration/AiIdentityIsolationIT.java`,
     new Set(["identity-integration-password"]),

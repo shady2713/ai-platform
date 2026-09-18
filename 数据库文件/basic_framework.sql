@@ -4,7 +4,7 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V54.
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V55.
 -- Only the 14 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
@@ -1611,7 +1611,7 @@ CREATE TABLE `ai_resource_grant` (
 
 -- AI 资源授权菜单与权限点（V52）
 INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
-(4020, '资源授权', 'ai:grant:query', 2, 3, 4000, 'grant', 'ep:lock', 'ai/grant/index', 'AiResourceGrant', 0, b'1', b'1', b'1', '1', '2026-09-17 22:00:00', '1', '2026-09-17 22:00:00', b'0'),
+(4020, '资源授权', 'ai:grant:query', 2, 3, 4000, 'grant', 'ep:lock', 'ai/authorization/index', 'AiAuthorization', 0, b'1', b'1', b'1', '1', '2026-09-17 22:00:00', '1', '2026-09-17 22:00:00', b'0'),
 (4021, '授权新增', 'ai:grant:create', 3, 1, 4020, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-17 22:00:00', '1', '2026-09-17 22:00:00', b'0'),
 (4022, '授权修改', 'ai:grant:update', 3, 2, 4020, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-17 22:00:00', '1', '2026-09-17 22:00:00', b'0'),
 (4023, '授权撤销', 'ai:grant:revoke', 3, 3, 4020, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-17 22:00:00', '1', '2026-09-17 22:00:00', b'0');
