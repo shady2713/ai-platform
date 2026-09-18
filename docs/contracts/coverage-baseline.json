@@ -227,7 +227,7 @@
     "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/authorization/AiAuthorizationServiceImpl.java": 94.2,
     "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/authorization/AiExecutionContextFactoryImpl.java": 100,
     "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/authorization/AiResourceGrantServiceImpl.java": 92.86,
-    "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/authorization/AiRevocationServiceImpl.java": 96.67,
+    "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/authorization/AiRevocationServiceImpl.java": 100,
     "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/file/AiFileBusinessType.java": 94.12,
     "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/file/AiFileServiceImpl.java": 95.7,
     "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/file/dto/AiFileSubject.java": 100,

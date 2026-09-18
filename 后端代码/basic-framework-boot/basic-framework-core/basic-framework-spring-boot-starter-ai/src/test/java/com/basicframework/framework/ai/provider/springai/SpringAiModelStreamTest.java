@@ -174,8 +174,9 @@ class SpringAiModelStreamTest {
             @Override
             public Flux<ChatResponse> stream(Prompt prompt) {
                 return Flux.create(sink -> {
-                    subscribed.countDown();
+                    // 先注册取消回调再放行测试线程，避免 close() 与注册之间的竞态
                     sink.onCancel(() -> disposed.set(true));
+                    subscribed.countDown();
                 });
             }
         };
