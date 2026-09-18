@@ -38,6 +38,18 @@ public interface AiTicketService {
     /** 校验票据并返回服务端上下文；无效/过期/已撤销/应用或主体不可用都抛 401 语义错误。 */
     AiTicketContextDTO verify(String token);
 
-    /** 撤销某主体当前的全部票据（应用或主体撤销时调用）。 */
+    /** 撤销某主体当前的全部票据（主体撤销时调用）。 */
     void revokeTickets(Long applicationId, AiSubjectType subjectType, String externalUserId);
+
+    /** 撤销某应用当前的全部票据（应用撤销时调用，不区分主体）。 */
+    void revokeTicketsOfApplication(Long applicationId);
+
+    /**
+     * 清理已失效票据（A06）：撤销的或过期超过保留期的票据按批逻辑删除。
+     *
+     * <p>幂等：重复执行不会产生额外副作用；每批只处理 {@code batchSize} 条，最多 {@code maxBatches} 批。
+     *
+     * @return 实际清理条数
+     */
+    int cleanInvalidTickets(int batchSize, int maxBatches, java.time.Duration retention);
 }

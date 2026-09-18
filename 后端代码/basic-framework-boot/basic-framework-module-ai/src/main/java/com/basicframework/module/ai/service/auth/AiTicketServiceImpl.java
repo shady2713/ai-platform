@@ -176,6 +176,61 @@ public class AiTicketServiceImpl implements AiTicketService {
         }
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void revokeTicketsOfApplication(Long applicationId) {
+        for (AiAccessTicketDO ticket : selectActiveTicketsOfApplication(applicationId)) {
+            if (AiAccessTicketDO.STATUS_ACTIVE.equals(ticket.getStatus())) {
+                ticketMapper.updateWithVersion(
+                        new AiAccessTicketDO()
+                                .setId(ticket.getId())
+                                .setStatus(AiAccessTicketDO.STATUS_REVOKED)
+                                .setVersion(ticket.getVersion() + 1),
+                        ticket.getVersion());
+            }
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int cleanInvalidTickets(int batchSize, int maxBatches, Duration retention) {
+        int size = Math.max(1, batchSize);
+        int batches = Math.max(1, maxBatches);
+        Duration keep = retention == null || retention.isNegative() ? Duration.ZERO : retention;
+        LocalDateTime expiredBefore = LocalDateTime.now().minus(keep);
+        int cleaned = 0;
+        for (int batch = 0; batch < batches; batch++) {
+            // 已撤销的、或过期超过保留期的票据；按 id 升序取一批
+            List<AiAccessTicketDO> candidates = ticketMapper.selectList(
+                    new com.basicframework.framework.mybatis.core.query.LambdaQueryWrapperX<AiAccessTicketDO>()
+                            .and(wrapper -> wrapper.eq(AiAccessTicketDO::getStatus, AiAccessTicketDO.STATUS_REVOKED)
+                                    .or()
+                                    .lt(AiAccessTicketDO::getExpiresTime, expiredBefore))
+                            .orderByAsc(AiAccessTicketDO::getId)
+                            .last("LIMIT " + size));
+            if (candidates.isEmpty()) {
+                break;
+            }
+            for (AiAccessTicketDO ticket : candidates) {
+                ticketMapper.deleteById(ticket.getId());
+                cleaned++;
+            }
+            if (candidates.size() < size) {
+                break;
+            }
+        }
+        return cleaned;
+    }
+
+    /** 撤销应用时枚举该应用的可用票据（应用维度，不区分主体类型）。 */
+    private List<AiAccessTicketDO> selectActiveTicketsOfApplication(Long applicationId) {
+        return ticketMapper.selectList(
+                new com.basicframework.framework.mybatis.core.query.LambdaQueryWrapperX<AiAccessTicketDO>()
+                        .eq(AiAccessTicketDO::getApplicationId, applicationId)
+                        .eq(AiAccessTicketDO::getStatus, AiAccessTicketDO.STATUS_ACTIVE)
+                        .orderByAsc(AiAccessTicketDO::getId));
+    }
+
     /** 裁剪：只保留同时出现在主体范围与请求里的对象；请求为空时保留主体范围的全部对象。 */
     private static Set<String> trimResources(Set<String> subjectResources, List<String> requested) {
         if (requested == null || requested.isEmpty()) {

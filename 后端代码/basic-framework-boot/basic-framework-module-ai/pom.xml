@@ -42,6 +42,12 @@
             <artifactId>basic-framework-spring-boot-starter-security</artifactId>
         </dependency>
 
+        <!-- 定时任务：失效票据清理 JobHandler（A06）；版本由 dependencies 统一管理 -->
+        <dependency>
+            <groupId>com.basicframework</groupId>
+            <artifactId>basic-framework-spring-boot-starter-job</artifactId>
+        </dependency>
+
         <!-- 配置校验 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
