@@ -2,13 +2,16 @@ package com.basicframework.module.ai.service.run;
 
 import com.basicframework.framework.common.pojo.PageParam;
 import com.basicframework.framework.common.pojo.PageResult;
+import com.basicframework.module.ai.dal.dataobject.conversation.AiConversationMessageDO;
 import com.basicframework.module.ai.dal.dataobject.run.AiRunDO;
 import com.basicframework.module.ai.dal.dataobject.run.AiRunIdempotencyDO;
 import com.basicframework.module.ai.dal.dataobject.run.AiRunTaskDO;
 import com.basicframework.module.ai.dal.mysql.run.AiRunIdempotencyMapper;
 import com.basicframework.module.ai.dal.mysql.run.AiRunMapper;
 import com.basicframework.module.ai.dal.mysql.run.AiRunTaskMapper;
+import com.basicframework.module.ai.service.conversation.AiConversationService;
 import com.basicframework.module.ai.service.conversation.AiConversationSubject;
+import com.basicframework.module.ai.service.conversation.dto.AiConversationMessageSaveDTO;
 import com.basicframework.module.ai.service.run.dto.AiRunAcceptDTO;
 import com.basicframework.module.ai.service.serviceconfig.dto.AiServiceRunSnapshotDTO;
 import java.util.UUID;
@@ -36,6 +39,8 @@ public class AiRunAcceptanceWriter {
 
     private final AiRunTaskMapper taskMapper;
 
+    private final AiConversationService conversationService;
+
     /** 事务内建立幂等记录、运行与首任务；任一步失败整体回滚，不留半成品。 */
     @Transactional(rollbackFor = Exception.class)
     public AiRunDO create(
@@ -56,6 +61,7 @@ public class AiRunAcceptanceWriter {
                 .setEndpointConfigRevision(snapshot.getPin().getModelRevision())
                 .setContentHash(snapshot.getPin().getContentHash())
                 .setInputDigest(inputDigest)
+                .setDataLevel(acceptDTO.getDataLevel())
                 .setStatus(AiRunDO.STATUS_ACCEPTED)
                 .setStepCount(0)
                 .setVersion(0);
@@ -79,6 +85,14 @@ public class AiRunAcceptanceWriter {
                 .setClaimedEpoch(0)
                 .setMaxAttempts(DEFAULT_MAX_ATTEMPTS)
                 .setVersion(0));
+        if (acceptDTO.getConversationId() != null) {
+            // 用户消息属于受控业务数据，与受理同事务落库：执行阶段从会话取回输入，不再单独保存一份正文
+            conversationService.appendMessage(new AiConversationMessageSaveDTO()
+                    .setConversationId(acceptDTO.getConversationId())
+                    .setRole(AiConversationMessageDO.ROLE_USER)
+                    .setContent(acceptDTO.getMessage())
+                    .setSourceRunId(run.getId()));
+        }
         return run;
     }
 

@@ -74,6 +74,9 @@ public class AiRunDO extends SoftDeletableDO {
     /** 请求摘要（幂等判定；不含 traceId 与 token） */
     private String inputDigest;
 
+    /** 受理时声明的数据分级（执行阶段的外发策略按它判定） */
+    private String dataLevel;
+
     /** 状态（ACCEPTED/RUNNING/SUCCEEDED/FAILED/CANCELLED） */
     private String status;
 

@@ -321,13 +321,14 @@ class AiRunServiceImplTest {
 
     @Test
     void acceptanceWriterCreatesQueuedFirstTaskWithPayloadDigestOnly() {
-        AiRunAcceptanceWriter writer = new AiRunAcceptanceWriter(
-                runMapper, idempotencyMapper, mock(com.basicframework.module.ai.dal.mysql.run.AiRunTaskMapper.class));
         assertThat(AiRunAcceptanceWriter.newRunKey()).startsWith("run_").hasSize(28);
 
         com.basicframework.module.ai.dal.mysql.run.AiRunTaskMapper taskMapper =
                 mock(com.basicframework.module.ai.dal.mysql.run.AiRunTaskMapper.class);
-        AiRunAcceptanceWriter transactionalWriter = new AiRunAcceptanceWriter(runMapper, idempotencyMapper, taskMapper);
+        com.basicframework.module.ai.service.conversation.AiConversationService conversationWriter =
+                mock(com.basicframework.module.ai.service.conversation.AiConversationService.class);
+        AiRunAcceptanceWriter transactionalWriter =
+                new AiRunAcceptanceWriter(runMapper, idempotencyMapper, taskMapper, conversationWriter);
         org.mockito.Mockito.doAnswer(invocation -> {
                     ((AiRunDO) invocation.getArgument(0)).setId(41L);
                     return 1;
@@ -352,7 +353,8 @@ class AiRunServiceImplTest {
                 .as("队列只保存载荷摘要，不保存正文")
                 .isEqualTo(digestOf(acceptDTO()))
                 .isNotEqualTo("帮我查订单");
-        assertThat(writer).isNotNull();
+        // 无会话的一次性运行不写会话消息；有会话的受理才会把用户消息与幂等记录、运行、首任务同事务落库
+        verify(conversationWriter, never()).appendMessage(any());
     }
 
     @Test

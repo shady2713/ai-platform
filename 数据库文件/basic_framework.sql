@@ -4,7 +4,7 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V61.
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V62.
 -- Only the 32 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
@@ -1863,6 +1863,7 @@ CREATE TABLE `ai_run` (
   `endpoint_config_revision` int NOT NULL COMMENT '受理时固定的端点配置版本',
   `content_hash` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '受理时固定的发布内容摘要',
   `input_digest` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '请求摘要（幂等判定；不含 traceId 与 token）',
+  `data_level` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'L2_INTERNAL' COMMENT '受理时声明的数据分级（L1_PUBLIC/L2_INTERNAL/L3_PERSONAL/L4_SECRET）',
   `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '状态（ACCEPTED/RUNNING/SUCCEEDED/FAILED/CANCELLED）',
   `step_count` int NOT NULL DEFAULT '0' COMMENT '已执行步数（有界执行，O04）',
   `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',

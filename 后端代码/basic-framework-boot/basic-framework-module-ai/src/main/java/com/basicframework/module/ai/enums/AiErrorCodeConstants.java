@@ -91,6 +91,15 @@ public interface AiErrorCodeConstants {
     /** 会话业务键重复（409）：同一应用+主体内会话业务键唯一。 */
     ErrorCode AI_CONVERSATION_KEY_DUPLICATE = new ErrorCode(1_003_004_002, "会话业务键({}) 已存在");
 
+    /** 运行缺少可执行输入（409）：例如无会话的运行没有可回放的输入消息。 */
+    ErrorCode AI_RUN_NOT_EXECUTABLE = new ErrorCode(1_003_004_003, "运行缺少可执行输入：{}");
+
+    /** 超出运行预算（429）：步数、耗时或工具次数用尽。 */
+    ErrorCode AI_RUN_BUDGET_EXCEEDED = new ErrorCode(1_003_004_004, "超出运行预算：{}");
+
+    /** 工具调用不被支持（400）：当前没有可用的受控工具实现。 */
+    ErrorCode AI_TOOL_UNSUPPORTED = new ErrorCode(1_003_004_005, "当前不支持工具调用");
+
     // ========== 服务配置 1_003_008_xxx ==========
 
     /** 服务未标记可发布（409）：草稿必须先通过能力校验才能创建发布候选。 */
