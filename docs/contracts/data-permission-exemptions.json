@@ -566,6 +566,38 @@
           ]
         }
       ]
+    },
+    {
+      "id": "ai-run-event-data",
+      "reason": "AI 运行事件是主体自有执行数据的事件源：归属随运行（应用 + 主体类型 + 外部用户标识），订阅与重放都按当前主体过滤运行，越权与不存在同语义；事件只保存受控结果块，不保存提示词或模型输入正文。管理端没有跨主体读取事件正文的入口，因此不登记部门/用户数据权限列，改为按主体绑定（subject-bound）控制。",
+      "tables": [
+        "ai_run_event"
+      ],
+      "controls": [
+        {
+          "kind": "subject-bound",
+          "tables": [
+            "ai_run_event"
+          ],
+          "evidence": [
+            {
+              "table": "ai_run_event",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/event/AiRunEventServiceImpl.java",
+              "contains": "runMapper.selectOwned("
+            },
+            {
+              "table": "ai_run_event",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/event/AiRunEventMapper.java",
+              "contains": ".eq(AiRunEventDO::getRunId, runId)"
+            },
+            {
+              "table": "ai_run_event",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/app/v1/run/AiRunController.java",
+              "contains": "@AuthenticatedOnly"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

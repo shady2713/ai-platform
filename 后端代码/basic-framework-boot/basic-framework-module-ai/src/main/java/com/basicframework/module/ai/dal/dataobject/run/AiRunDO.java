@@ -83,6 +83,9 @@ public class AiRunDO extends SoftDeletableDO {
     /** 已执行步数（有界执行） */
     private Integer stepCount;
 
+    /** 已分配的事件序号（行锁内递增，SSE 事件与状态同事务提交） */
+    private Integer eventSeq;
+
     /** 乐观锁版本 */
     private Integer version;
 }

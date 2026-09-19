@@ -100,6 +100,9 @@ public interface AiErrorCodeConstants {
     /** 工具调用不被支持（400）：当前没有可用的受控工具实现。 */
     ErrorCode AI_TOOL_UNSUPPORTED = new ErrorCode(1_003_004_005, "当前不支持工具调用");
 
+    /** 事件重放窗口已过期（409）：请读取运行快照，不要重新发起运行。 */
+    ErrorCode AI_RUN_EVENT_WINDOW_EXPIRED = new ErrorCode(1_003_004_006, "事件重放窗口已过期，请读取运行快照");
+
     // ========== 服务配置 1_003_008_xxx ==========
 
     /** 服务未标记可发布（409）：草稿必须先通过能力校验才能创建发布候选。 */

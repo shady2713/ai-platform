@@ -4,8 +4,8 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V62.
--- Only the 32 soft-delete tables retain a deleted column; hard-delete and
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V63.
+-- Only the 33 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
 
@@ -1866,6 +1866,7 @@ CREATE TABLE `ai_run` (
   `data_level` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'L2_INTERNAL' COMMENT '受理时声明的数据分级（L1_PUBLIC/L2_INTERNAL/L3_PERSONAL/L4_SECRET）',
   `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '状态（ACCEPTED/RUNNING/SUCCEEDED/FAILED/CANCELLED）',
   `step_count` int NOT NULL DEFAULT '0' COMMENT '已执行步数（有界执行，O04）',
+  `event_seq` int NOT NULL DEFAULT '0' COMMENT '已分配的事件序号（行锁内递增，O05）',
   `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
   `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -1934,6 +1935,32 @@ CREATE TABLE `ai_run_task` (
   KEY `idx_ai_run_task_lease` (`status`,`lease_expires_time`),
   CONSTRAINT `fk_ai_run_task_run` FOREIGN KEY (`run_id`) REFERENCES `ai_run` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 运行任务（首任务与重试等待；租约列由 O03 补齐，O02）';
+
+--
+-- AI 运行事件（V63）
+--
+
+DROP TABLE IF EXISTS `ai_run_event`;
+
+CREATE TABLE `ai_run_event` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '事件编号',
+  `run_id` bigint NOT NULL COMMENT '运行编号',
+  `seq` int NOT NULL COMMENT '运行内事件序号（从 1 递增，由运行行分配）',
+  `status` varchar(24) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '事件状态（QUEUED/RUNNING/WAITING_INPUT/WAITING_CONFIRMATION/SUCCEEDED/FAILED/CANCELLED）',
+  `block_type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '结果块类型（受控结构；无块时为空）',
+  `block_json` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT '结果块正文（受控结构；不含提示词与模型输入正文）',
+  `schema_version` varchar(8) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '1.0' COMMENT '事件契约版本（RunEvent v1）',
+  `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `uk_ai_run_event_seq` (`run_id`,`seq`,`deleted`),
+  KEY `idx_ai_run_event_created` (`create_time`,`id`),
+  CONSTRAINT `fk_ai_run_event_run` FOREIGN KEY (`run_id`) REFERENCES `ai_run` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 运行事件（SSE 事件源，seq 由运行行分配，O05）';
 
 -- AI 服务菜单与权限点（V56）
 INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES

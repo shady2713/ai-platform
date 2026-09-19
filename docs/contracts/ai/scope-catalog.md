@@ -47,6 +47,8 @@
 | `AiRunController#accept` | `ai_run`：归属由服务端会话身份决定；幂等键与请求摘要决定复用或 409 |
 | `AiRunController#get` | 同上：越权与不存在同语义（404） |
 | `AiRunController#page` | 同上：只返回当前主体的运行（按编号倒序） |
+| `AiRunController#events` | `ai_run_event`：订阅前按当前主体判定归属；开流后的错误以终态事件表达，心跳是注释 |
+| `AiRunController#cancel` | `ai_run`：取消是显式动作，写入终态事件并终止任务；越权与不存在同语义 |
 
 ## 会话身份（MEMBER 用户类型）
 

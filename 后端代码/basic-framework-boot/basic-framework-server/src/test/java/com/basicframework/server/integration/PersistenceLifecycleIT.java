@@ -266,6 +266,7 @@ class PersistenceLifecycleIT extends AbstractPersistenceIntegrationTest {
                         "ai_model_probe",
                         "ai_resource_grant",
                         "ai_run",
+                        "ai_run_event",
                         "ai_run_idempotency",
                         "ai_run_task",
                         "ai_service",

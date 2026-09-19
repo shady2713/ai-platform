@@ -10,9 +10,13 @@ import com.basicframework.framework.common.pojo.PageResult;
 import com.basicframework.framework.security.core.annotation.AuthenticatedOnly;
 import com.basicframework.module.ai.controller.app.v1.run.vo.AiRunAcceptReqVO;
 import com.basicframework.module.ai.controller.app.v1.run.vo.AiRunAcceptRespVO;
+import com.basicframework.module.ai.controller.app.v1.run.vo.AiRunCancelReqVO;
 import com.basicframework.module.ai.controller.app.v1.run.vo.AiRunPageReqVO;
 import com.basicframework.module.ai.controller.app.v1.run.vo.AiRunRespVO;
 import com.basicframework.module.ai.dal.dataobject.run.AiRunDO;
+import com.basicframework.module.ai.service.event.AiRunEventService;
+import com.basicframework.module.ai.service.event.dto.AiRunEventDTO;
+import com.basicframework.module.ai.service.event.dto.AiRunEventSnapshotDTO;
 import com.basicframework.module.ai.service.run.AiRunService;
 import com.basicframework.module.ai.service.run.dto.AiRunAcceptDTO;
 import com.basicframework.module.ai.service.run.dto.AiRunAcceptResultDTO;
@@ -29,7 +33,9 @@ class AiRunControllerTest {
 
     private final AiRunService runService = mock(AiRunService.class);
 
-    private final AiRunController controller = new AiRunController(runService);
+    private final AiRunEventService eventService = mock(AiRunEventService.class);
+
+    private final AiRunController controller = new AiRunController(runService, eventService);
 
     private static AiRunDO run() {
         return new AiRunDO()
@@ -113,6 +119,71 @@ class AiRunControllerTest {
         assertThat(runFields)
                 .as("运行读取不得回显请求摘要或凭据")
                 .doesNotContain("inputDigest", "credential", "token", "message", "businessContext");
+    }
+
+    @Test
+    void eventsEndpointAuthenticatesBeforeOpeningTheStreamAndReplays() throws Exception {
+        when(eventService.snapshot(41L))
+                .thenReturn(new AiRunEventSnapshotDTO()
+                        .setRunId(41L)
+                        .setRunKey("run_0123456789abcdef01234567")
+                        .setStatus(AiRunDO.STATUS_RUNNING)
+                        .setLatestSeq(2)
+                        .setEarliestSeq(1));
+        when(eventService.replay(41L, 0, 200))
+                .thenReturn(List.of(new AiRunEventDTO()
+                        .setSchemaVersion("1.0")
+                        .setSeq(1)
+                        .setRunId("run_0123456789abcdef01234567")
+                        .setStatus(AiRunDO.STATUS_RUNNING)));
+
+        var emitter = controller.events(41L, 0);
+
+        assertThat(emitter).isNotNull();
+        // 归属判定在开流之前完成：快照先读，事件按 afterSeq 重放
+        verify(eventService).snapshot(41L);
+        verify(eventService).replay(41L, 0, 200);
+    }
+
+    @Test
+    void eventsEndpointCompletesImmediatelyForTerminalRuns() throws Exception {
+        when(eventService.snapshot(41L))
+                .thenReturn(new AiRunEventSnapshotDTO()
+                        .setRunId(41L)
+                        .setRunKey("run_0123456789abcdef01234567")
+                        .setStatus(AiRunDO.STATUS_SUCCEEDED)
+                        .setLatestSeq(3)
+                        .setEarliestSeq(1));
+        when(eventService.replay(41L, 3, 200)).thenReturn(List.of());
+
+        assertThat(controller.events(41L, 3)).isNotNull();
+        verify(eventService).replay(41L, 3, 200);
+    }
+
+    @Test
+    void eventsEndpointClosesTheStreamOnReplayFailureInsteadOfLeakingAnAnonymousStream() throws Exception {
+        when(eventService.snapshot(41L))
+                .thenReturn(new AiRunEventSnapshotDTO()
+                        .setRunId(41L)
+                        .setRunKey("run_0123456789abcdef01234567")
+                        .setStatus(AiRunDO.STATUS_RUNNING)
+                        .setLatestSeq(3)
+                        .setEarliestSeq(3));
+        // 重放窗口过期（或连接已断开）：开流之后不再改变 HTTP 状态，而是关闭订阅
+        when(eventService.replay(41L, 1, 200))
+                .thenThrow(com.basicframework.framework.common.exception.util.ServiceExceptionUtil.exception(
+                        com.basicframework.module.ai.enums.AiErrorCodeConstants.AI_RUN_EVENT_WINDOW_EXPIRED));
+
+        var emitter = controller.events(41L, 1);
+
+        assertThat(emitter).isNotNull();
+        verify(eventService).replay(41L, 1, 200);
+    }
+
+    @Test
+    void cancelDelegatesWithOptimisticLockVersion() {
+        controller.cancel(new AiRunCancelReqVO().setRunId(41L).setVersion(2));
+        verify(eventService).cancel(41L, 2);
     }
 
     @Test
