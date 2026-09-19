@@ -11,7 +11,6 @@ import com.basicframework.module.ai.dal.mysql.run.AiRunTaskMapper;
 import com.basicframework.module.ai.service.conversation.AiConversationSubject;
 import com.basicframework.module.ai.service.run.dto.AiRunAcceptDTO;
 import com.basicframework.module.ai.service.serviceconfig.dto.AiServiceRunSnapshotDTO;
-import java.time.LocalDateTime;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,6 +26,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class AiRunAcceptanceWriter {
+
+    /** 首任务的默认最大尝试次数（达到后置 FAILED，不再重试）。 */
+    private static final int DEFAULT_MAX_ATTEMPTS = 3;
 
     private final AiRunMapper runMapper;
 
@@ -71,8 +73,11 @@ public class AiRunAcceptanceWriter {
                 .setTaskKind(AiRunTaskDO.KIND_RUN_STEP)
                 .setStatus(AiRunTaskDO.STATUS_QUEUED)
                 .setAttemptCount(0)
-                .setNextAttemptTime(LocalDateTime.now())
+                // 立即可以领取：用 NULL 而不是"当前时间"，避免 JVM 与数据库时钟偏差把任务挡在重试等待里
+                .setNextAttemptTime(null)
                 .setPayloadDigest(inputDigest)
+                .setClaimedEpoch(0)
+                .setMaxAttempts(DEFAULT_MAX_ATTEMPTS)
                 .setVersion(0));
         return run;
     }

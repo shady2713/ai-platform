@@ -11,8 +11,10 @@ import lombok.ToString;
 /**
  * AI 运行任务（O02）：受理时与 run 同事务建立的首任务。
  *
- * <p>队列只保存载荷摘要，不保存正文；{@code attemptCount} 与 {@code nextAttemptTime} 是重试等待的落点，
- * 领取、租约与心跳由 O03 在同一张表上补齐（本类只描述 O02 需要的列）。
+ * <p>队列只保存载荷摘要，不保存正文；{@code attemptCount} 与 {@code nextAttemptTime} 是重试等待的落点。
+ * 租约列（{@code leaseOwner}/{@code leaseExpiresTime}/{@code heartbeatTime}/{@code claimedEpoch}/
+ * {@code maxAttempts}/{@code lastErrorCode}）由 O03 在同一聚合映射上补齐：领取、续租与落库
+ * 都以 (owner, claimedEpoch) 作栅栏，迟到的旧 worker 不能覆盖新 worker。
  */
 @TableName("ai_run_task")
 @KeySequence("ai_run_task_seq")
@@ -60,6 +62,24 @@ public class AiRunTaskDO extends SoftDeletableDO {
 
     /** 任务载荷摘要（正文不入队） */
     private String payloadDigest;
+
+    /** 租约持有者（worker 标识；未领取时为空） */
+    private String leaseOwner;
+
+    /** 租约到期时间（过期即可被恢复扫描接管） */
+    private java.time.LocalDateTime leaseExpiresTime;
+
+    /** 最近一次心跳时间 */
+    private java.time.LocalDateTime heartbeatTime;
+
+    /** 领取代次（续租与落库的栅栏：旧 worker 迟到不能覆盖新 worker） */
+    private Integer claimedEpoch;
+
+    /** 最大尝试次数（达到后置 FAILED，不再重试） */
+    private Integer maxAttempts;
+
+    /** 最近一次失败原因码（稳定词表） */
+    private String lastErrorCode;
 
     /** 乐观锁版本 */
     private Integer version;

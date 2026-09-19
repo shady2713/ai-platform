@@ -4,7 +4,7 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V60.
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V61.
 -- Only the 32 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
@@ -641,7 +641,7 @@ CREATE TABLE `infra_job` (
 
 LOCK TABLES `infra_job` WRITE;
 /*!40000 ALTER TABLE `infra_job` DISABLE KEYS */;
-INSERT INTO `infra_job` VALUES (25,'访问日志清理 Job',1,'accessLogCleanJob','','0 0 0 * * ?',3,0,0,'1','2023-10-03 10:59:41','1','2026-08-23 00:00:00',_binary '\0'),(26,'错误日志清理 Job',1,'errorLogCleanJob','','0 0 0 * * ?',3,0,0,'1','2023-10-03 11:00:43','1','2026-08-23 00:00:00',_binary '\0'),(27,'任务日志清理 Job',1,'jobLogCleanJob','','0 0 0 * * ?',3,0,0,'1','2023-10-03 11:01:33','1','2026-08-23 00:00:00',_binary '\0'),(28,'system 数据保留清理 Job',1,'systemDataRetentionCleanJob','','0 0 1 * * ?',3,0,0,'1','2026-08-23 00:00:00','1','2026-08-23 00:00:00',_binary '\0'),(29,'system 数据完整性审计 Job',1,'systemDataIntegrityAuditJob','','0 30 2 * * ?',0,0,0,'1','2026-08-23 00:00:00','1','2026-08-23 00:00:00',_binary '\0'),(30,'infra 数据完整性审计 Job',1,'infraDataIntegrityAuditJob','','0 45 2 * * ?',0,0,0,'1','2026-08-24 00:00:00','1','2026-08-24 00:00:00',_binary '\0'),(31,'文件外部存储清理重试 Job',1,'fileDeletionRetryJob','','0 * * * * ?',0,0,0,'1','2026-08-29 00:00:00','1','2026-08-29 00:00:00',_binary '\0');
+INSERT INTO `infra_job` VALUES (25,'访问日志清理 Job',1,'accessLogCleanJob','','0 0 0 * * ?',3,0,0,'1','2023-10-03 10:59:41','1','2026-08-23 00:00:00',_binary '\0'),(26,'错误日志清理 Job',1,'errorLogCleanJob','','0 0 0 * * ?',3,0,0,'1','2023-10-03 11:00:43','1','2026-08-23 00:00:00',_binary '\0'),(27,'任务日志清理 Job',1,'jobLogCleanJob','','0 0 0 * * ?',3,0,0,'1','2023-10-03 11:01:33','1','2026-08-23 00:00:00',_binary '\0'),(28,'system 数据保留清理 Job',1,'systemDataRetentionCleanJob','','0 0 1 * * ?',3,0,0,'1','2026-08-23 00:00:00','1','2026-08-23 00:00:00',_binary '\0'),(29,'system 数据完整性审计 Job',1,'systemDataIntegrityAuditJob','','0 30 2 * * ?',0,0,0,'1','2026-08-23 00:00:00','1','2026-08-23 00:00:00',_binary '\0'),(30,'infra 数据完整性审计 Job',1,'infraDataIntegrityAuditJob','','0 45 2 * * ?',0,0,0,'1','2026-08-24 00:00:00','1','2026-08-24 00:00:00',_binary '\0'),(31,'文件外部存储清理重试 Job',1,'fileDeletionRetryJob','','0 * * * * ?',0,0,0,'1','2026-08-29 00:00:00','1','2026-08-29 00:00:00',_binary '\0'),(32,'AI 任务恢复 Job',1,'aiTaskRecoveryJob','','0 * * * * ?',0,0,0,'1','2026-09-19 22:00:00','1','2026-09-19 22:00:00',_binary '\0');
 /*!40000 ALTER TABLE `infra_job` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1915,6 +1915,12 @@ CREATE TABLE `ai_run_task` (
   `attempt_count` int NOT NULL DEFAULT '0' COMMENT '已尝试次数',
   `next_attempt_time` datetime DEFAULT NULL COMMENT '下次可尝试时间（重试等待）',
   `payload_digest` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '任务载荷摘要（正文不入队）',
+  `lease_owner` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '租约持有者（worker 标识）',
+  `lease_expires_time` datetime DEFAULT NULL COMMENT '租约到期时间',
+  `heartbeat_time` datetime DEFAULT NULL COMMENT '最近一次心跳时间',
+  `claimed_epoch` int NOT NULL DEFAULT '0' COMMENT '领取代次（续租与落库的栅栏）',
+  `max_attempts` int NOT NULL DEFAULT '3' COMMENT '最大尝试次数（达到后置 FAILED，不再重试）',
+  `last_error_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '最近一次失败原因码（稳定词表）',
   `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
   `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -1924,6 +1930,7 @@ CREATE TABLE `ai_run_task` (
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE KEY `uk_ai_run_task_kind` (`run_id`,`task_kind`,`deleted`),
   KEY `idx_ai_run_task_status` (`status`,`next_attempt_time`,`id`),
+  KEY `idx_ai_run_task_lease` (`status`,`lease_expires_time`),
   CONSTRAINT `fk_ai_run_task_run` FOREIGN KEY (`run_id`) REFERENCES `ai_run` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 运行任务（首任务与重试等待；租约列由 O03 补齐，O02）';
 
