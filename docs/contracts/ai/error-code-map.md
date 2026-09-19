@@ -14,7 +14,7 @@
 | `1_003_005_xxx` | 知识库 | 文档、解析、索引、检索授权 |
 | `1_003_006_xxx` | 数据与工具 | 连接器、查询计划、工具执行 |
 | `1_003_007_xxx` | 报表与 Chat | 报表、主题、嵌入会话 |
-| `1_003_008_xxx` | 服务配置 | 服务发布、评测门槛、运行快照 |
+| `1_003_008_xxx` | 服务配置 | 服务发布、评测门槛、运行快照、版本回退 |
 
 框架与基础设施占用 `1_001_xxx_xxx`，system 模块占用 `1_002_xxx_xxx`；AI 中台独占 `1_003`，不与既有区间交叉。
 
@@ -51,6 +51,8 @@
 | 1_003_008_003 | AI_SERVICE_NOT_PUBLISHED | 409 | 服务没有生效的发布版本，新运行拒绝 |
 | 1_003_008_004 | AI_SERVICE_RESOURCE_UNAVAILABLE | 409 | 发布版本依赖的资源绑定已解除或不可用，新运行拒绝 |
 | 1_003_008_005 | AI_SERVICE_ENDPOINT_CONFIG_CHANGED | 409 | 端点配置版本已变化，需重建候选并重新评测 |
+| 1_003_008_006 | AI_SERVICE_RELEASE_NOT_PUBLISHED | 409 | 发布版本尚未发布，不能用于运行解析或作为回退目标 |
+| 1_003_008_007 | AI_SERVICE_RELEASE_PIN_STALE | 409 | 会话固定的发布内容已不一致，需要显式迁移会话 |
 
 HTTP 语义遵循 [ADR 0003](../../adr/0003-http-status-semantics.md)；认证与授权边界见
 [ADR 0049](../../adr/0049-ai-open-identity-and-security-extension-boundaries.md)。

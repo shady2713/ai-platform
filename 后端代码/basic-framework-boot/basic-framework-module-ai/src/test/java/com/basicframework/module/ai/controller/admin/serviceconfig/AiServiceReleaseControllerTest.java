@@ -12,10 +12,13 @@ import com.basicframework.module.ai.controller.admin.serviceconfig.vo.AiServiceR
 import com.basicframework.module.ai.controller.admin.serviceconfig.vo.AiServiceReleaseCreateReqVO;
 import com.basicframework.module.ai.controller.admin.serviceconfig.vo.AiServiceReleaseRespVO;
 import com.basicframework.module.ai.controller.admin.serviceconfig.vo.AiServiceResourceRespVO;
+import com.basicframework.module.ai.controller.admin.serviceconfig.vo.AiServiceRunSnapshotRespVO;
 import com.basicframework.module.ai.dal.dataobject.serviceconfig.AiServiceReleaseDO;
 import com.basicframework.module.ai.dal.dataobject.serviceconfig.AiServiceReleaseEvaluationDO;
 import com.basicframework.module.ai.dal.dataobject.serviceconfig.AiServiceResourceDO;
+import com.basicframework.module.ai.domain.runtime.AiRunSnapshot;
 import com.basicframework.module.ai.service.serviceconfig.AiServiceReleaseService;
+import com.basicframework.module.ai.service.serviceconfig.dto.AiServiceRunSnapshotDTO;
 import java.lang.reflect.Method;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -67,6 +70,41 @@ class AiServiceReleaseControllerTest {
 
         controller.disable(new AiServiceReleaseActionReqVO().setServiceId(9L).setVersion(4));
         verify(releaseService).disable(9L, 4);
+
+        controller.rollback(new AiServiceReleaseActionReqVO().setReleaseId(21L).setVersion(5));
+        verify(releaseService).rollback(21L, 5);
+    }
+
+    @Test
+    void resolveExposesPinnedVersionsOnly() {
+        AiServiceReleaseDO release = release();
+        AiServiceResourceDO binding = new AiServiceResourceDO()
+                .setId(11L)
+                .setServiceId(9L)
+                .setReleaseId(21L)
+                .setResourceType("REPORT")
+                .setResourceKey("report-1")
+                .setActions("READ")
+                .setStatus(AiServiceResourceDO.STATUS_ACTIVE)
+                .setVersion(2);
+        when(releaseService.resolveForNewRun(9L))
+                .thenReturn(new AiServiceRunSnapshotDTO()
+                        .setRelease(release)
+                        .setBindings(List.of(binding))
+                        .setPin(AiRunSnapshot.of(release, List.of(binding)))
+                        .setPinned(false));
+
+        AiServiceRunSnapshotRespVO respVO = controller.resolve(9L).getData();
+        assertThat(respVO.getReleaseId()).isEqualTo(21L);
+        assertThat(respVO.getReleaseVersion()).isEqualTo(3);
+        assertThat(respVO.getContentHash()).isEqualTo("a".repeat(64));
+        assertThat(respVO.getModelRevision()).isEqualTo(7);
+        assertThat(respVO.isPinned()).isFalse();
+        assertThat(respVO.getResources()).singleElement().satisfies(resource -> {
+            assertThat(resource.getId()).isEqualTo(11L);
+            assertThat(resource.getResourceKey()).isEqualTo("report-1");
+            assertThat(resource.getVersion()).isEqualTo(2);
+        });
     }
 
     @Test
@@ -125,6 +163,8 @@ class AiServiceReleaseControllerTest {
         assertThat(permissionOf("evaluate", AiServiceEvaluationSaveReqVO.class)).isEqualTo("ai:service:evaluate");
         assertThat(permissionOf("publish", AiServiceReleaseActionReqVO.class)).isEqualTo("ai:service:activate");
         assertThat(permissionOf("disable", AiServiceReleaseActionReqVO.class)).isEqualTo("ai:service:activate");
+        assertThat(permissionOf("rollback", AiServiceReleaseActionReqVO.class)).isEqualTo("ai:service:activate");
+        assertThat(permissionOf("resolve", Long.class)).isEqualTo("ai:service:query");
         assertThat(permissionOf("checkPublish", Long.class)).isEqualTo("ai:service:query");
         assertThat(permissionOf("listReleases", Long.class)).isEqualTo("ai:service:query");
         assertThat(permissionOf("listBindings", Long.class)).isEqualTo("ai:service:query");

@@ -9,10 +9,14 @@ import com.basicframework.module.ai.controller.admin.serviceconfig.vo.AiServiceR
 import com.basicframework.module.ai.controller.admin.serviceconfig.vo.AiServiceReleaseCreateReqVO;
 import com.basicframework.module.ai.controller.admin.serviceconfig.vo.AiServiceReleaseRespVO;
 import com.basicframework.module.ai.controller.admin.serviceconfig.vo.AiServiceResourceRespVO;
+import com.basicframework.module.ai.controller.admin.serviceconfig.vo.AiServiceRunResourceRespVO;
+import com.basicframework.module.ai.controller.admin.serviceconfig.vo.AiServiceRunSnapshotRespVO;
 import com.basicframework.module.ai.dal.dataobject.serviceconfig.AiServiceReleaseDO;
 import com.basicframework.module.ai.dal.dataobject.serviceconfig.AiServiceReleaseEvaluationDO;
+import com.basicframework.module.ai.domain.runtime.AiRunSnapshot;
 import com.basicframework.module.ai.service.serviceconfig.AiServiceReleaseService;
 import com.basicframework.module.ai.service.serviceconfig.dto.AiServiceEvaluationSaveDTO;
+import com.basicframework.module.ai.service.serviceconfig.dto.AiServiceRunSnapshotDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -33,10 +37,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * AI 服务发布与评测接口（S02）。
+ * AI 服务发布与评测接口（S02 发布，S03 回退与运行解析）。
  *
  * <p>权限码与 V57 迁移的菜单种子一一对应：创建候选 {@code ai:service:release}、
- * 切换发布/停用 {@code ai:service:activate}、记录评测 {@code ai:service:evaluate}；
+ * 切换发布/停用/回退 {@code ai:service:activate}、记录评测 {@code ai:service:evaluate}；
  * 查询类接口复用 {@code ai:service:query}。发布版本内容只读，接口不提供任何修改入口。
  */
 @Tag(name = "管理后台 - AI 服务发布")
@@ -80,6 +84,23 @@ public class AiServiceReleaseController {
     public CommonResult<Boolean> disable(@Valid @RequestBody AiServiceReleaseActionReqVO reqVO) {
         releaseService.disable(reqVO.getServiceId(), reqVO.getVersion());
         return success(true);
+    }
+
+    @PostMapping("/rollback")
+    @Operation(summary = "回退（把别名切回历史版本；只影响后续运行，已固定版本的会话不受影响）")
+    @PreAuthorize("@ss.hasPermission('ai:service:activate')")
+    public CommonResult<Boolean> rollback(@Valid @RequestBody AiServiceReleaseActionReqVO reqVO) {
+        releaseService.rollback(reqVO.getReleaseId(), reqVO.getVersion());
+        return success(true);
+    }
+
+    @GetMapping("/resolve")
+    @Operation(summary = "运行解析（新运行按别名解析到生效版本，返回本次运行的版本固定值）")
+    @Parameter(name = "serviceId", description = "服务编号", required = true)
+    @PreAuthorize("@ss.hasPermission('ai:service:query')")
+    public CommonResult<AiServiceRunSnapshotRespVO> resolve(
+            @RequestParam("serviceId") @NotNull @Positive Long serviceId) {
+        return success(toRunSnapshotRespVO(releaseService.resolveForNewRun(serviceId)));
     }
 
     @GetMapping("/check-publish")
@@ -148,6 +169,27 @@ public class AiServiceReleaseController {
                 .setStatus(release.getStatus())
                 .setVersion(release.getVersion())
                 .setCreateTime(release.getCreateTime());
+    }
+
+    /** 运行解析结果：只暴露版本固定值，不含提示词正文、授权结论与凭据。 */
+    private static AiServiceRunSnapshotRespVO toRunSnapshotRespVO(AiServiceRunSnapshotDTO snapshot) {
+        AiRunSnapshot pin = snapshot.getPin();
+        return new AiServiceRunSnapshotRespVO()
+                .setServiceId(pin.getServiceId())
+                .setReleaseId(pin.getReleaseId())
+                .setReleaseVersion(pin.getReleaseVersion())
+                .setStatus(snapshot.getRelease().getStatus())
+                .setContentHash(pin.getContentHash())
+                .setModelEndpointId(pin.getModelEndpointId())
+                .setModelRevision(pin.getModelRevision())
+                .setPinned(snapshot.isPinned())
+                .setResources(pin.getResources().stream()
+                        .map(resource -> new AiServiceRunResourceRespVO()
+                                .setId(resource.getId())
+                                .setResourceType(resource.getResourceType())
+                                .setResourceKey(resource.getResourceKey())
+                                .setVersion(resource.getVersion()))
+                        .collect(Collectors.toList()));
     }
 
     private static AiServiceEvaluationRespVO toEvaluationRespVO(AiServiceReleaseEvaluationDO evaluation) {

@@ -107,4 +107,10 @@ public interface AiErrorCodeConstants {
 
     /** 端点配置版本已变化（409）：冻结候选与当前配置不一致，需重建候选并重新评测。 */
     ErrorCode AI_SERVICE_ENDPOINT_CONFIG_CHANGED = new ErrorCode(1_003_008_005, "模型端点配置版本已变化，需重建发布候选");
+
+    /** 发布版本尚未发布（409）：候选从未对运行开放，既不能用于运行解析也不能作为回退目标。 */
+    ErrorCode AI_SERVICE_RELEASE_NOT_PUBLISHED = new ErrorCode(1_003_008_006, "该发布版本尚未发布，不能用于运行或回退");
+
+    /** 会话固定的发布内容已不一致（409）：固定值失效时必须显式迁移会话，不得静默换版本。 */
+    ErrorCode AI_SERVICE_RELEASE_PIN_STALE = new ErrorCode(1_003_008_007, "会话固定的发布版本与当前内容不一致，需要显式迁移会话");
 }

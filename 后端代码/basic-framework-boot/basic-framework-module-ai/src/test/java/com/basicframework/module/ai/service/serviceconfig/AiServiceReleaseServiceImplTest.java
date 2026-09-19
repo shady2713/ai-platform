@@ -22,13 +22,17 @@ import com.basicframework.module.ai.dal.mysql.serviceconfig.AiServiceMapper;
 import com.basicframework.module.ai.dal.mysql.serviceconfig.AiServiceReleaseEvaluationMapper;
 import com.basicframework.module.ai.dal.mysql.serviceconfig.AiServiceReleaseMapper;
 import com.basicframework.module.ai.dal.mysql.serviceconfig.AiServiceResourceMapper;
+import com.basicframework.module.ai.domain.runtime.AiRunSnapshot;
 import com.basicframework.module.ai.domain.serviceconfig.AiServiceContentHash;
 import com.basicframework.module.ai.enums.AiErrorCodeConstants;
 import com.basicframework.module.ai.service.authorization.AiAuthorizationService;
 import com.basicframework.module.ai.service.authorization.dto.AiAuthorizationDecisionDTO;
+import com.basicframework.module.ai.service.model.AiModelCapabilityProbeService;
 import com.basicframework.module.ai.service.model.AiModelEndpointService;
+import com.basicframework.module.ai.service.model.dto.AiModelCapabilityOverviewDTO;
 import com.basicframework.module.ai.service.serviceconfig.dto.AiServiceCapabilityDTO;
 import com.basicframework.module.ai.service.serviceconfig.dto.AiServiceEvaluationSaveDTO;
+import com.basicframework.module.ai.service.serviceconfig.dto.AiServiceRunSnapshotDTO;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,6 +64,8 @@ class AiServiceReleaseServiceImplTest {
 
     private final AiModelEndpointService endpointService = mock(AiModelEndpointService.class);
 
+    private final AiModelCapabilityProbeService capabilityProbeService = mock(AiModelCapabilityProbeService.class);
+
     private final AiServiceService serviceService = mock(AiServiceService.class);
 
     private final AiServiceReleaseServiceImpl service = new AiServiceReleaseServiceImpl(
@@ -69,6 +75,7 @@ class AiServiceReleaseServiceImplTest {
             evaluationMapper,
             authorizationService,
             endpointService,
+            capabilityProbeService,
             serviceService);
 
     @BeforeEach
@@ -81,6 +88,12 @@ class AiServiceReleaseServiceImplTest {
         when(serviceMapper.updateWithVersion(any(), anyInt())).thenReturn(1);
         when(releaseMapper.updateWithVersion(any(), anyInt())).thenReturn(1);
         when(endpointService.getEndpoint(ENDPOINT_ID)).thenReturn(endpoint(7));
+        when(capabilityProbeService.getCapabilityOverview(ENDPOINT_ID))
+                .thenReturn(new AiModelCapabilityOverviewDTO()
+                        .setEndpointId(ENDPOINT_ID)
+                        .setDeclared(List.of("TEXT"))
+                        .setSupported(List.of("TEXT"))
+                        .setPublishable(List.of("TEXT")));
         when(authorizationService.authorize(any(), anyString(), anyString(), any(), anyString(), any(), anyList()))
                 .thenReturn(new AiAuthorizationDecisionDTO().setAllowed(true));
     }
@@ -90,6 +103,7 @@ class AiServiceReleaseServiceImplTest {
                 .setId(ENDPOINT_ID)
                 .setName("it-endpoint")
                 .setConfigRevision(configRevision)
+                .setEnabled(true)
                 .setVersion(4);
     }
 
@@ -357,15 +371,15 @@ class AiServiceReleaseServiceImplTest {
         assertThat(service.checkPublishReadiness(RELEASE_ID))
                 .containsExactly(AiErrorCodeConstants.AI_AUTHORIZATION_DENIED.getMsg());
 
-        // 能力不再满足（探测结论变化）
+        // 能力不再满足（探测结论变化）：按发布版本自己冻结的能力判定，而不是当前草稿
         when(authorizationService.authorize(any(), anyString(), anyString(), any(), anyString(), any(), anyList()))
                 .thenReturn(new AiAuthorizationDecisionDTO().setAllowed(true));
-        when(serviceService.checkCapabilities(SERVICE_ID))
-                .thenReturn(new AiServiceCapabilityDTO()
-                        .setRequired(List.of("TEXT"))
-                        .setPublishable(List.of())
-                        .setMissing(List.of("TEXT"))
-                        .setSatisfied(false));
+        when(capabilityProbeService.getCapabilityOverview(ENDPOINT_ID))
+                .thenReturn(new AiModelCapabilityOverviewDTO()
+                        .setEndpointId(ENDPOINT_ID)
+                        .setDeclared(List.of("TEXT"))
+                        .setSupported(List.of())
+                        .setPublishable(List.of()));
         assertThat(service.checkPublishReadiness(RELEASE_ID))
                 .containsExactly(AiErrorCodeConstants.AI_MODEL_CAPABILITY_UNSUPPORTED.getMsg());
     }
@@ -435,6 +449,205 @@ class AiServiceReleaseServiceImplTest {
 
         when(endpointService.getEndpoint(ENDPOINT_ID)).thenReturn(endpoint(9));
         assertThatThrownBy(() -> service.resolveForNewRun(SERVICE_ID))
+                .satisfies(exception -> assertCode(exception, AiErrorCodeConstants.AI_SERVICE_ENDPOINT_CONFIG_CHANGED));
+    }
+
+    @Test
+    void resolveForNewRunRejectsDisabledEndpointWithStableError() {
+        when(serviceMapper.selectById(SERVICE_ID)).thenReturn(readyService(0));
+        when(releaseMapper.selectActiveByService(SERVICE_ID))
+                .thenReturn(release(7, 0, List.of()).setStatus(AiServiceReleaseDO.STATUS_ACTIVE));
+        when(endpointService.getEndpoint(ENDPOINT_ID)).thenReturn(endpoint(7).setEnabled(false));
+
+        assertThatThrownBy(() -> service.resolveForNewRun(SERVICE_ID))
+                .as("失效模型给稳定错误：停用端点不接受任何运行")
+                .satisfies(exception -> assertCode(exception, AiErrorCodeConstants.AI_MODEL_ENDPOINT_DISABLED));
+    }
+
+    @Test
+    void resolveForNewRunRechecksAuthorizationAgainstCurrentGrants() {
+        AiServiceReleaseDO active = stubRelease(7, 0, binding(11L, AiServiceResourceDO.STATUS_ACTIVE));
+        active.setStatus(AiServiceReleaseDO.STATUS_ACTIVE);
+        when(serviceMapper.selectById(SERVICE_ID)).thenReturn(readyService(0));
+        when(releaseMapper.selectActiveByService(SERVICE_ID)).thenReturn(active);
+
+        assertThat(service.resolveForNewRun(SERVICE_ID).isPinned()).isFalse();
+        assertThat(service.resolveForNewRun(SERVICE_ID).getPin().getModelRevision())
+                .isEqualTo(7);
+        assertThat(service.resolveForNewRun(SERVICE_ID).getPin().resourceBindingIds())
+                .containsExactly(11L);
+
+        when(authorizationService.authorize(any(), anyString(), anyString(), any(), anyString(), any(), anyList()))
+                .thenReturn(new AiAuthorizationDecisionDTO().setAllowed(false).setDenyReason("REVOKED"));
+        assertThatThrownBy(() -> service.resolveForNewRun(SERVICE_ID))
+                .as("当前授权变化始终优先于已冻结的发布版本")
+                .satisfies(exception -> assertCode(exception, AiErrorCodeConstants.AI_AUTHORIZATION_DENIED));
+    }
+
+    @Test
+    void rollbackSwitchesAliasBackToHistoricalVersion() {
+        AiServiceReleaseDO target = stubRelease(7, 0, binding(11L, AiServiceResourceDO.STATUS_ACTIVE));
+        target.setStatus(AiServiceReleaseDO.STATUS_RETIRED);
+        when(serviceMapper.selectById(SERVICE_ID)).thenReturn(readyService(0));
+        when(evaluationMapper.selectLatest(RELEASE_ID)).thenReturn(evaluation(target.getContentHash(), 7, 90, 0));
+        when(releaseMapper.retireActive(SERVICE_ID)).thenReturn(1);
+
+        service.rollback(RELEASE_ID, 0);
+
+        verify(releaseMapper).retireActive(SERVICE_ID);
+        ArgumentCaptor<AiServiceReleaseDO> captor = ArgumentCaptor.forClass(AiServiceReleaseDO.class);
+        verify(releaseMapper).updateWithVersion(captor.capture(), eq(0));
+        assertThat(captor.getValue().getStatus()).isEqualTo(AiServiceReleaseDO.STATUS_ACTIVE);
+        assertThat(captor.getValue().getPromptTemplate())
+                .as("回退只切状态：历史版本内容一字不改")
+                .isNull();
+    }
+
+    @Test
+    void rollbackRejectsCandidateAndAlreadyActiveTargets() {
+        when(releaseMapper.selectById(RELEASE_ID))
+                .thenReturn(release(7, 0, List.of()).setStatus(AiServiceReleaseDO.STATUS_CANDIDATE));
+        assertThatThrownBy(() -> service.rollback(RELEASE_ID, 0))
+                .as("从未发布的候选不能作为回退目标")
+                .satisfies(exception -> assertCode(exception, AiErrorCodeConstants.AI_SERVICE_RELEASE_NOT_PUBLISHED));
+
+        when(releaseMapper.selectById(RELEASE_ID))
+                .thenReturn(release(7, 0, List.of()).setStatus(AiServiceReleaseDO.STATUS_ACTIVE));
+        assertThatThrownBy(() -> service.rollback(RELEASE_ID, 0))
+                .as("目标已是当前生效版本：回退必须是版本切换")
+                .satisfies(exception -> assertCode(exception, AiErrorCodeConstants.AI_STATE_CONFLICT));
+        verify(releaseMapper, never()).retireActive(any());
+    }
+
+    @Test
+    void rollbackRunsSamePreChecksAsPublish() {
+        AiServiceReleaseDO target = stubRelease(7, 80, binding(11L, AiServiceResourceDO.STATUS_ACTIVE));
+        target.setStatus(AiServiceReleaseDO.STATUS_RETIRED);
+        when(serviceMapper.selectById(SERVICE_ID)).thenReturn(readyService(80));
+        when(evaluationMapper.selectLatest(RELEASE_ID)).thenReturn(evaluation(target.getContentHash(), 7, 10, 80));
+
+        assertThatThrownBy(() -> service.rollback(RELEASE_ID, 0))
+                .as("回退方向的评测证据不足时不切换别名")
+                .satisfies(exception -> assertCode(exception, AiErrorCodeConstants.AI_SERVICE_EVAL_BELOW_THRESHOLD));
+        verify(releaseMapper, never()).retireActive(any());
+    }
+
+    @Test
+    void resolvePinnedRunRequiresReleaseIdAndContentHash() {
+        assertThatThrownBy(() -> service.resolvePinnedRun(null))
+                .satisfies(exception -> assertCode(exception, AiErrorCodeConstants.AI_REQUEST_INVALID));
+        assertThatThrownBy(() -> service.resolvePinnedRun(
+                        AiRunSnapshot.of(release(7, 0, List.of()).setId(null), List.of())))
+                .as("缺少版本编号的固定值不可用")
+                .satisfies(exception -> assertCode(exception, AiErrorCodeConstants.AI_REQUEST_INVALID));
+        assertThatThrownBy(() -> service.resolvePinnedRun(
+                        AiRunSnapshot.of(release(7, 0, List.of()).setContentHash(""), List.of())))
+                .as("缺少内容摘要的固定值不可用")
+                .satisfies(exception -> assertCode(exception, AiErrorCodeConstants.AI_REQUEST_INVALID));
+    }
+
+    @Test
+    void publishDoesNotRequireCapabilitiesWhenTheReleaseDeclaresNone() {
+        // 不声明能力的版本：摘要必须由同一份"不含能力"的内容算出，否则完整性守卫先拒绝
+        AiServiceReleaseDO release = release(7, 0, List.of()).setRequiredCapabilities("");
+        release.setContentHash(
+                AiServiceContentHash.compute(ENDPOINT_ID, 7, PROMPT, INPUT_SCHEMA, null, "", 0, List.of()));
+        release.setStatus(AiServiceReleaseDO.STATUS_RETIRED);
+        when(releaseMapper.selectById(RELEASE_ID)).thenReturn(release);
+        when(resourceMapper.selectReleaseBindings(RELEASE_ID)).thenReturn(List.of());
+        when(resourceMapper.selectActiveReleaseBindings(RELEASE_ID)).thenReturn(List.of());
+        when(serviceMapper.selectById(SERVICE_ID)).thenReturn(readyService(0));
+        when(evaluationMapper.selectLatest(RELEASE_ID)).thenReturn(evaluation(release.getContentHash(), 7, 90, 0));
+        when(releaseMapper.retireActive(SERVICE_ID)).thenReturn(1);
+
+        // 不声明能力的版本不因探测结论变化被阻塞；能力检查只覆盖它自己冻结的能力集合
+        assertThat(service.checkPublishReadiness(RELEASE_ID)).isEmpty();
+        service.rollback(RELEASE_ID, 0);
+        verify(releaseMapper).retireActive(SERVICE_ID);
+    }
+
+    @Test
+    void pinnedRunKeepsPinnedVersionWhileAliasMovesOn() {
+        AiServiceReleaseDO first = stubRelease(7, 0, binding(11L, AiServiceResourceDO.STATUS_ACTIVE));
+        first.setStatus(AiServiceReleaseDO.STATUS_RETIRED);
+        when(serviceMapper.selectById(SERVICE_ID)).thenReturn(readyService(0));
+        // 别名已经切到第二版：新运行按别名解析，固定会话仍解析回第一版
+        AiServiceReleaseDO second = release(7, 0, List.of()).setId(22L).setReleaseVersion(2);
+        second.setStatus(AiServiceReleaseDO.STATUS_ACTIVE);
+        when(releaseMapper.selectActiveByService(SERVICE_ID)).thenReturn(second);
+        when(releaseMapper.selectById(22L)).thenReturn(second);
+
+        AiRunSnapshot pin = AiRunSnapshot.of(first, resourceMapper.selectReleaseBindings(RELEASE_ID));
+        AiServiceRunSnapshotDTO pinned = service.resolvePinnedRun(pin);
+        assertThat(pinned.isPinned()).isTrue();
+        assertThat(pinned.getRelease().getId()).as("版本固定：别名切换不改变已固定会话的版本").isEqualTo(RELEASE_ID);
+        assertThat(pinned.getPin().getReleaseVersion()).isEqualTo(1);
+        assertThat(service.resolveForNewRun(SERVICE_ID).getRelease().getId())
+                .as("新运行按别名解析到最新版本")
+                .isEqualTo(22L);
+    }
+
+    @Test
+    void pinnedRunRejectsTamperedPinAndOfflineService() {
+        AiServiceReleaseDO stored = stubRelease(7, 0, binding(11L, AiServiceResourceDO.STATUS_ACTIVE));
+        stored.setStatus(AiServiceReleaseDO.STATUS_RETIRED);
+        when(serviceMapper.selectById(SERVICE_ID)).thenReturn(readyService(0));
+
+        // 固定值与库中版本的内容摘要不一致（例如会话记录被改写）：拒绝而不是换一个版本执行
+        AiRunSnapshot tampered = AiRunSnapshot.of(release(7, 0, List.of()).setContentHash("b".repeat(64)), List.of());
+        when(releaseMapper.selectById(RELEASE_ID)).thenReturn(stored);
+        assertThatThrownBy(() -> service.resolvePinnedRun(tampered))
+                .satisfies(exception -> assertCode(exception, AiErrorCodeConstants.AI_SERVICE_RELEASE_PIN_STALE));
+
+        // 跨服务固定：固定值不能被用来解析其它服务的版本（与"版本不存在"同语义）
+        AiServiceReleaseDO foreign = release(7, 0, List.of()).setId(RELEASE_ID).setServiceId(77L);
+        when(serviceMapper.selectById(77L)).thenReturn(readyService(0).setId(77L));
+        assertThatThrownBy(() -> service.resolvePinnedRun(AiRunSnapshot.of(foreign, List.of())))
+                .satisfies(exception -> assertCode(exception, AiErrorCodeConstants.AI_RESOURCE_NOT_FOUND));
+
+        AiRunSnapshot pin = AiRunSnapshot.of(stored, List.of());
+        when(releaseMapper.selectById(RELEASE_ID)).thenReturn(stored.setStatus(AiServiceReleaseDO.STATUS_CANDIDATE));
+        assertThatThrownBy(() -> service.resolvePinnedRun(pin))
+                .as("候选从未对运行开放，不可能被固定")
+                .satisfies(exception -> assertCode(exception, AiErrorCodeConstants.AI_SERVICE_RELEASE_NOT_PUBLISHED));
+
+        when(releaseMapper.selectById(RELEASE_ID)).thenReturn(stored.setStatus(AiServiceReleaseDO.STATUS_RETIRED));
+        when(releaseMapper.selectActiveByService(SERVICE_ID)).thenReturn(null);
+        assertThatThrownBy(() -> service.resolvePinnedRun(pin))
+                .as("服务被显式停用后固定会话同样停止")
+                .satisfies(exception -> assertCode(exception, AiErrorCodeConstants.AI_SERVICE_NOT_PUBLISHED));
+    }
+
+    @Test
+    void pinnedRunRejectsChangedBindingVersionAndRevokedGrant() {
+        AiServiceReleaseDO first = stubRelease(7, 0, binding(11L, AiServiceResourceDO.STATUS_ACTIVE));
+        first.setStatus(AiServiceReleaseDO.STATUS_RETIRED);
+        when(releaseMapper.selectById(RELEASE_ID)).thenReturn(first);
+        when(serviceMapper.selectById(SERVICE_ID)).thenReturn(readyService(0));
+        when(releaseMapper.selectActiveByService(SERVICE_ID))
+                .thenReturn(first.setStatus(AiServiceReleaseDO.STATUS_ACTIVE).setId(RELEASE_ID));
+        AiRunSnapshot pin = AiRunSnapshot.of(first, resourceMapper.selectReleaseBindings(RELEASE_ID));
+
+        // 绑定被解绑（版本推进）：固定运行不能静默改用新绑定
+        when(resourceMapper.selectReleaseBindings(RELEASE_ID))
+                .thenReturn(List.of(
+                        binding(11L, AiServiceResourceDO.STATUS_RELEASED).setVersion(1)));
+        assertThatThrownBy(() -> service.resolvePinnedRun(pin))
+                .satisfies(exception -> assertCode(exception, AiErrorCodeConstants.AI_SERVICE_RESOURCE_UNAVAILABLE));
+
+        // 绑定仍在但当前授权被撤销：固定版本不保留旧权限
+        when(resourceMapper.selectReleaseBindings(RELEASE_ID))
+                .thenReturn(List.of(binding(11L, AiServiceResourceDO.STATUS_ACTIVE)));
+        when(authorizationService.authorize(any(), anyString(), anyString(), any(), anyString(), any(), anyList()))
+                .thenReturn(new AiAuthorizationDecisionDTO().setAllowed(false).setDenyReason("REVOKED"));
+        assertThatThrownBy(() -> service.resolvePinnedRun(pin))
+                .satisfies(exception -> assertCode(exception, AiErrorCodeConstants.AI_AUTHORIZATION_DENIED));
+
+        // 端点配置漂移：固定运行不静默改用新配置
+        when(authorizationService.authorize(any(), anyString(), anyString(), any(), anyString(), any(), anyList()))
+                .thenReturn(new AiAuthorizationDecisionDTO().setAllowed(true));
+        when(endpointService.getEndpoint(ENDPOINT_ID)).thenReturn(endpoint(8));
+        assertThatThrownBy(() -> service.resolvePinnedRun(pin))
                 .satisfies(exception -> assertCode(exception, AiErrorCodeConstants.AI_SERVICE_ENDPOINT_CONFIG_CHANGED));
     }
 }

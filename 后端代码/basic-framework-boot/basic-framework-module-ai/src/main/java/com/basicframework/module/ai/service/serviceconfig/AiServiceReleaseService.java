@@ -3,6 +3,7 @@ package com.basicframework.module.ai.service.serviceconfig;
 import com.basicframework.module.ai.dal.dataobject.serviceconfig.AiServiceReleaseDO;
 import com.basicframework.module.ai.dal.dataobject.serviceconfig.AiServiceReleaseEvaluationDO;
 import com.basicframework.module.ai.dal.dataobject.serviceconfig.AiServiceResourceDO;
+import com.basicframework.module.ai.domain.runtime.AiRunSnapshot;
 import com.basicframework.module.ai.service.serviceconfig.dto.AiServiceEvaluationSaveDTO;
 import com.basicframework.module.ai.service.serviceconfig.dto.AiServiceRunSnapshotDTO;
 import java.util.List;
@@ -20,6 +21,8 @@ import java.util.List;
  *       失败不改变当前 active；同一服务最多一条 ACTIVE；</li>
  *   <li><b>运行解析</b>：新运行解析到唯一 ACTIVE 版本，若依赖的绑定已解除或端点配置已变化则拒绝
  *       （旧版本不保留旧权限）。</li>
+ *   <li><b>版本固定</b>（S03）：运行开始时固定 releaseId、内容摘要、端点配置版本与资源版本；
+ *       会话沿用固定版本解析，别名切换（含回退）只改变后续新运行的解析结果。</li>
  * </ul>
  */
 public interface AiServiceReleaseService {
@@ -54,9 +57,31 @@ public interface AiServiceReleaseService {
     List<AiServiceReleaseDO> listReleases(Long serviceId);
 
     /**
-     * 新运行解析：返回唯一 ACTIVE 版本及其生效绑定。
+     * 新运行解析：返回唯一 ACTIVE 版本、其生效绑定与本运行的版本固定值。
      *
-     * <p>任一条依赖绑定已解除、或端点当前配置版本与冻结值不一致时拒绝，绝不回退到草稿。
+     * <p>任一条依赖绑定已解除、当前授权已失效、端点已停用或端点配置版本与冻结值不一致时拒绝，
+     * 绝不回退到草稿，也不把固定版本当作权限副本。
      */
     AiServiceRunSnapshotDTO resolveForNewRun(Long serviceId);
+
+    /**
+     * 会话沿用版本解析（S03）：按运行开始时固定的 {@link AiRunSnapshot} 解析回同一发布版本。
+     *
+     * <p>固定值不因别名切换（发布/回退）而改变，但以下检查始终按**当前值**进行，任一条不满足即拒绝：
+     * 服务仍有生效版本、固定内容与库中版本一致、端点可用且配置版本未漂移、
+     * 冻结绑定仍生效且与固定版本逐条一致、当前授权仍允许绑定上的动作。
+     * 这就是"旧 release 不能恢复旧权限"的落点。
+     *
+     * @param pin 运行开始时固定的发布版本、内容摘要、端点配置版本与资源版本
+     */
+    AiServiceRunSnapshotDTO resolvePinnedRun(AiRunSnapshot pin);
+
+    /**
+     * 回退：把发布别名切回历史版本，只影响后续新运行。
+     *
+     * <p>回退目标是曾经发布过的版本（ACTIVE/RETIRED），必须重跑同一套发布预检查；
+     * 切换在同一事务内以乐观锁完成（退役旧 ACTIVE → 激活目标），失败不改变当前 active。
+     * 已固定版本的会话不受影响：它们的解析结果仍指向原来的版本。
+     */
+    void rollback(Long releaseId, Integer releaseVersion);
 }
