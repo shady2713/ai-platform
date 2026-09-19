@@ -515,6 +515,57 @@
           ]
         }
       ]
+    },
+    {
+      "id": "ai-run-data",
+      "reason": "AI 运行、幂等记录与运行任务是主体自有的执行数据：归属由服务端会话身份（应用 + 主体类型 + 外部用户标识）决定，受理、读取与分页都按当前主体过滤，越权与不存在同语义；幂等记录只保存请求摘要与运行引用，不保存正文。管理端没有跨主体读取运行正文的入口，因此不登记部门/用户数据权限列，改为按主体绑定（subject-bound）控制。",
+      "tables": [
+        "ai_run",
+        "ai_run_idempotency",
+        "ai_run_task"
+      ],
+      "controls": [
+        {
+          "kind": "subject-bound",
+          "tables": [
+            "ai_run",
+            "ai_run_idempotency",
+            "ai_run_task"
+          ],
+          "evidence": [
+            {
+              "table": "ai_run",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/run/AiRunMapper.java",
+              "contains": ".eq(AiRunDO::getExternalUserId, externalUserId == null ? \"\" : externalUserId)"
+            },
+            {
+              "table": "ai_run",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/run/AiRunServiceImpl.java",
+              "contains": "runMapper.selectOwned("
+            },
+            {
+              "table": "ai_run_idempotency",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/run/AiRunIdempotencyMapper.java",
+              "contains": ".eq(AiRunIdempotencyDO::getIdempotencyKey, idempotencyKey)"
+            },
+            {
+              "table": "ai_run_idempotency",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/run/AiRunServiceImpl.java",
+              "contains": "idempotencyMapper.selectByKey("
+            },
+            {
+              "table": "ai_run_task",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/run/AiRunAcceptanceWriter.java",
+              "contains": "taskMapper.insert(new AiRunTaskDO()"
+            },
+            {
+              "table": "ai_run_task",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/app/v1/run/AiRunController.java",
+              "contains": "@AuthenticatedOnly"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

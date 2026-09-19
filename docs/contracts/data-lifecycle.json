@@ -32,7 +32,10 @@
         "ai_service_resource",
         "ai_service_release_evaluation",
         "ai_conversation",
-        "ai_conversation_message"
+        "ai_conversation_message",
+        "ai_run",
+        "ai_run_idempotency",
+        "ai_run_task"
       ]
     },
     {
@@ -105,6 +108,13 @@
     "fk_ai_conversation_app",
     "fk_ai_conversation_service",
     "fk_ai_conversation_release",
-    "fk_ai_conversation_message_conversation"
+    "fk_ai_conversation_message_conversation",
+    "fk_ai_run_app",
+    "fk_ai_run_service",
+    "fk_ai_run_release",
+    "fk_ai_run_conversation",
+    "fk_ai_run_idempotency_app",
+    "fk_ai_run_idempotency_run",
+    "fk_ai_run_task_run"
   ]
 }

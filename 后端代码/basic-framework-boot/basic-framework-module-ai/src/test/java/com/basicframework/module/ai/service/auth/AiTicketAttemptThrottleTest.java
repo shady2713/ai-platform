@@ -37,12 +37,14 @@ class AiTicketAttemptThrottleTest {
 
     @Test
     void windowExpiryRestoresAccess() throws InterruptedException {
-        AiTicketAttemptThrottle throttle = new AiTicketAttemptThrottle(1, Duration.ofMillis(50));
+        // 窗口取 2 秒：窗口内"仍然拦截"的断言不再依赖线程调度抖动（原 50ms 窗口在门禁满载时会被调度延迟吃掉），
+        // 过期仍用真实等待验证，语义不变
+        AiTicketAttemptThrottle throttle = new AiTicketAttemptThrottle(1, Duration.ofSeconds(2));
         throttle.checkAllowed("ip|app");
         throttle.recordFailure("ip|app");
         assertThatThrownBy(() -> throttle.checkAllowed("ip|app")).isInstanceOf(ServiceException.class);
 
-        Thread.sleep(80);
+        Thread.sleep(2_100);
         assertThatCode(() -> throttle.checkAllowed("ip|app")).doesNotThrowAnyException();
     }
 

@@ -54,7 +54,11 @@ class AiAppEndpointScopeContractTest {
             "com.basicframework.module.ai.controller.app.v1.conversation.AiConversationController#bindService",
             "com.basicframework.module.ai.controller.app.v1.conversation.AiConversationController#bindRelease",
             "com.basicframework.module.ai.controller.app.v1.conversation.AiConversationController#appendMessage",
-            "com.basicframework.module.ai.controller.app.v1.conversation.AiConversationController#messages");
+            "com.basicframework.module.ai.controller.app.v1.conversation.AiConversationController#messages",
+            // O02：运行受理与查询按 ai_run 归属判定（应用 + 主体 + 外部用户标识）
+            "com.basicframework.module.ai.controller.app.v1.run.AiRunController#accept",
+            "com.basicframework.module.ai.controller.app.v1.run.AiRunController#get",
+            "com.basicframework.module.ai.controller.app.v1.run.AiRunController#page");
 
     private static final String AI_APP_PACKAGE = "com.basicframework.module.ai.controller.app";
 

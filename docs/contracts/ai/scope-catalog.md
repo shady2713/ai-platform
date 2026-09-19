@@ -44,6 +44,9 @@
 | `AiConversationController#bindRelease` | 同上：版本只固定一次，必须是该服务已发布过的版本 |
 | `AiConversationController#appendMessage` | 同上：消息按会话归属写入，序号在会话内递增 |
 | `AiConversationController#messages` | 同上：按序号升序读取，越权与不存在同语义 |
+| `AiRunController#accept` | `ai_run`：归属由服务端会话身份决定；幂等键与请求摘要决定复用或 409 |
+| `AiRunController#get` | 同上：越权与不存在同语义（404） |
+| `AiRunController#page` | 同上：只返回当前主体的运行（按编号倒序） |
 
 ## 会话身份（MEMBER 用户类型）
 
