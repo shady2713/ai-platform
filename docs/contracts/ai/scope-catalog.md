@@ -35,6 +35,15 @@
 | `AiFileController#upload` | `ai_file_binding`：报表/知识库按 A03 授权目录，会话附件仅本人 |
 | `AiFileController#read` | 同上，且每次都按当前状态重新判定（无缓存） |
 | `AiFileController#release` | 仅所有者可解除引用；无其他有效引用时才删除文件 |
+| `AiConversationController#create` | `ai_conversation`：归属由服务端会话身份（应用 + 主体 + 外部用户标识）决定，请求体不能自报 |
+| `AiConversationController#page` | 同上：只返回当前主体的会话（按编号倒序，翻页稳定） |
+| `AiConversationController#get` | 同上：越权与不存在同语义（404） |
+| `AiConversationController#rename` | 同上：仅本人会话可改名（乐观锁） |
+| `AiConversationController#delete` | 同上：先关闭访问（会话状态 + 全部消息），正文由保留策略清理 |
+| `AiConversationController#bindService` | 同上：服务必须属于同一应用；已固定发布版本后需显式新建或迁移会话 |
+| `AiConversationController#bindRelease` | 同上：版本只固定一次，必须是该服务已发布过的版本 |
+| `AiConversationController#appendMessage` | 同上：消息按会话归属写入，序号在会话内递增 |
+| `AiConversationController#messages` | 同上：按序号升序读取，越权与不存在同语义 |
 
 ## 会话身份（MEMBER 用户类型）
 

@@ -4,8 +4,8 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V58.
--- Only the 27 soft-delete tables retain a deleted column; hard-delete and
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V59.
+-- Only the 29 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
 
@@ -1783,6 +1783,66 @@ CREATE TABLE `ai_service_release_evaluation` (
   CONSTRAINT `fk_ai_service_eval_release` FOREIGN KEY (`release_id`) REFERENCES `ai_service_release` (`id`) ON DELETE RESTRICT,
   CONSTRAINT `fk_ai_service_eval_service` FOREIGN KEY (`service_id`) REFERENCES `ai_service` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 服务发布评测（绑定内容摘要与端点配置版本，S02）';
+
+--
+-- AI 会话与消息（V59）
+--
+
+DROP TABLE IF EXISTS `ai_conversation`;
+
+CREATE TABLE `ai_conversation` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '会话编号',
+  `application_id` bigint NOT NULL COMMENT '应用编号',
+  `subject_type` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '主体类型（APP/USER）',
+  `external_user_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '可信外部用户标识（APP 主体为空串）',
+  `conversation_key` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '会话业务键（conv_ 前缀，应用+主体内唯一）',
+  `title` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '会话标题',
+  `service_id` bigint DEFAULT NULL COMMENT '绑定的 AI 服务编号',
+  `release_id` bigint DEFAULT NULL COMMENT '固定的发布版本编号（首个 run 解析后写入）',
+  `business_context` varchar(4000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '{}' COMMENT '业务上下文（已注册字段的 JSON 对象文本）',
+  `message_count` int NOT NULL DEFAULT '0' COMMENT '消息条数（逻辑删除后递减）',
+  `last_message_time` datetime DEFAULT NULL COMMENT '最后一条消息时间',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'ACTIVE' COMMENT '状态（ACTIVE/DELETED）',
+  `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `uk_ai_conversation_key` (`application_id`,`subject_type`,`external_user_id`,`conversation_key`,`deleted`),
+  KEY `idx_ai_conversation_subject` (`application_id`,`subject_type`,`external_user_id`,`id`),
+  KEY `idx_ai_conversation_service` (`service_id`,`id`),
+  CONSTRAINT `fk_ai_conversation_app` FOREIGN KEY (`application_id`) REFERENCES `ai_application` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_ai_conversation_service` FOREIGN KEY (`service_id`) REFERENCES `ai_service` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_ai_conversation_release` FOREIGN KEY (`release_id`) REFERENCES `ai_service_release` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 会话（归属由服务端身份决定，绑定服务与发布版本，O01）';
+
+DROP TABLE IF EXISTS `ai_conversation_message`;
+
+CREATE TABLE `ai_conversation_message` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '消息编号',
+  `conversation_id` bigint NOT NULL COMMENT '会话编号',
+  `application_id` bigint NOT NULL COMMENT '应用编号（冗余自会话，用于主体过滤）',
+  `subject_type` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '主体类型（冗余自会话，用于主体过滤）',
+  `external_user_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '外部用户标识（冗余自会话，用于主体过滤）',
+  `sequence_no` int NOT NULL COMMENT '会话内序号（从 1 递增，分页稳定）',
+  `role` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '角色（user/assistant/system）',
+  `content` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '消息正文（受控业务数据，不进日志）',
+  `content_hash` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '正文 SHA-256（审计与去重；摘要不等于正文）',
+  `source_run_id` bigint DEFAULT NULL COMMENT '产生该消息的运行编号（O02 起写入）',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'ACTIVE' COMMENT '状态（ACTIVE/DELETED）',
+  `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `uk_ai_conversation_message_seq` (`conversation_id`,`sequence_no`,`deleted`),
+  KEY `idx_ai_conversation_message_subject` (`application_id`,`subject_type`,`external_user_id`,`conversation_id`,`id`),
+  CONSTRAINT `fk_ai_conversation_message_conversation` FOREIGN KEY (`conversation_id`) REFERENCES `ai_conversation` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 会话消息（受控业务数据，按主体过滤，O01）';
 
 -- AI 服务菜单与权限点（V56）
 INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES

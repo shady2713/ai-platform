@@ -45,6 +45,7 @@
 | 1_003_003_010 | AI_TICKET_INVALID | 401 | 访问票据无效或已过期（不存在/撤销/过期/应用或主体不可用同语义） |
 | 1_003_004_000 | AI_RUN_NOT_FOUND | 404 | 运行不存在或无权访问 |
 | 1_003_004_001 | AI_RUN_ALREADY_TERMINAL | 409 | 运行已终态 |
+| 1_003_004_002 | AI_CONVERSATION_KEY_DUPLICATE | 409 | 会话业务键重复（同一应用+主体内唯一） |
 | 1_003_008_000 | AI_SERVICE_NOT_READY | 409 | 服务未标记可发布，不能创建发布候选 |
 | 1_003_008_001 | AI_SERVICE_EVAL_MISSING | 409 | 缺少与候选内容匹配的评测结果（内容/端点配置变化后必须重新评测） |
 | 1_003_008_002 | AI_SERVICE_EVAL_BELOW_THRESHOLD | 409 | 评测得分未达发布门槛 |

@@ -30,7 +30,9 @@
         "ai_service",
         "ai_service_release",
         "ai_service_resource",
-        "ai_service_release_evaluation"
+        "ai_service_release_evaluation",
+        "ai_conversation",
+        "ai_conversation_message"
       ]
     },
     {
@@ -99,6 +101,10 @@
     "fk_ai_service_release_service",
     "fk_ai_service_resource_service",
     "fk_ai_service_eval_release",
-    "fk_ai_service_eval_service"
+    "fk_ai_service_eval_service",
+    "fk_ai_conversation_app",
+    "fk_ai_conversation_service",
+    "fk_ai_conversation_release",
+    "fk_ai_conversation_message_conversation"
   ]
 }

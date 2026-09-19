@@ -44,7 +44,17 @@ class AiAppEndpointScopeContractTest {
     private static final Set<String> REVIEWED_AUTHENTICATED_ENDPOINTS = Set.of(
             "com.basicframework.module.ai.controller.app.v1.file.AiFileController#upload",
             "com.basicframework.module.ai.controller.app.v1.file.AiFileController#read",
-            "com.basicframework.module.ai.controller.app.v1.file.AiFileController#release");
+            "com.basicframework.module.ai.controller.app.v1.file.AiFileController#release",
+            // O01：会话与消息按 ai_conversation 归属判定（应用 + 主体 + 外部用户标识），与 scope 目录同为登记制
+            "com.basicframework.module.ai.controller.app.v1.conversation.AiConversationController#create",
+            "com.basicframework.module.ai.controller.app.v1.conversation.AiConversationController#page",
+            "com.basicframework.module.ai.controller.app.v1.conversation.AiConversationController#get",
+            "com.basicframework.module.ai.controller.app.v1.conversation.AiConversationController#rename",
+            "com.basicframework.module.ai.controller.app.v1.conversation.AiConversationController#delete",
+            "com.basicframework.module.ai.controller.app.v1.conversation.AiConversationController#bindService",
+            "com.basicframework.module.ai.controller.app.v1.conversation.AiConversationController#bindRelease",
+            "com.basicframework.module.ai.controller.app.v1.conversation.AiConversationController#appendMessage",
+            "com.basicframework.module.ai.controller.app.v1.conversation.AiConversationController#messages");
 
     private static final String AI_APP_PACKAGE = "com.basicframework.module.ai.controller.app";
 

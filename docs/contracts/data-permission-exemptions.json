@@ -466,6 +466,55 @@
           ]
         }
       ]
+    },
+    {
+      "id": "ai-conversation-data",
+      "reason": "AI 会话与消息是主体自有业务数据（L3）：归属由服务端会话身份（应用 + 主体类型 + 外部用户标识）决定，所有读写都按当前主体过滤，越权访问与不存在同语义；管理端没有跨主体读取会话正文的入口，因此不登记部门/用户数据权限列，改为按主体绑定（subject-bound）控制。",
+      "tables": [
+        "ai_conversation",
+        "ai_conversation_message"
+      ],
+      "controls": [
+        {
+          "kind": "subject-bound",
+          "tables": [
+            "ai_conversation",
+            "ai_conversation_message"
+          ],
+          "evidence": [
+            {
+              "table": "ai_conversation",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/conversation/AiConversationMapper.java",
+              "contains": ".eq(AiConversationDO::getExternalUserId, externalUserId == null ? \"\" : externalUserId)"
+            },
+            {
+              "table": "ai_conversation",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/conversation/AiConversationServiceImpl.java",
+              "contains": "conversationMapper.selectOwned("
+            },
+            {
+              "table": "ai_conversation",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/conversation/AiConversationSubjectResolver.java",
+              "contains": "AiUserSessionCommonApi.INFO_KEY_APPLICATION_ID"
+            },
+            {
+              "table": "ai_conversation_message",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/conversation/AiConversationServiceImpl.java",
+              "contains": ".setApplicationId(conversation.getApplicationId())"
+            },
+            {
+              "table": "ai_conversation_message",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/conversation/AiConversationMessageMapper.java",
+              "contains": ".eq(AiConversationMessageDO::getConversationId, conversationId)"
+            },
+            {
+              "table": "ai_conversation_message",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/app/v1/conversation/AiConversationController.java",
+              "contains": "@AuthenticatedOnly"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

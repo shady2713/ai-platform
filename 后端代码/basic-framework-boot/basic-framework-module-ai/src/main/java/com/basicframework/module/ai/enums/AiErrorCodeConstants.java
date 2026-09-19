@@ -88,6 +88,9 @@ public interface AiErrorCodeConstants {
     /** 运行已进入终态，不能再取消或改写（409）。 */
     ErrorCode AI_RUN_ALREADY_TERMINAL = new ErrorCode(1_003_004_001, "运行已结束，不能再变更");
 
+    /** 会话业务键重复（409）：同一应用+主体内会话业务键唯一。 */
+    ErrorCode AI_CONVERSATION_KEY_DUPLICATE = new ErrorCode(1_003_004_002, "会话业务键({}) 已存在");
+
     // ========== 服务配置 1_003_008_xxx ==========
 
     /** 服务未标记可发布（409）：草稿必须先通过能力校验才能创建发布候选。 */
