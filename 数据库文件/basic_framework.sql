@@ -4,7 +4,7 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V55.
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V56.
 -- Only the 14 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
@@ -1673,6 +1673,93 @@ CREATE TABLE `ai_file_binding` (
   KEY `idx_ai_file_binding_file` (`file_id`,`status`),
   KEY `idx_ai_file_binding_subject` (`application_id`,`subject_type`,`external_user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 业务文件绑定（业务 ACL）';
+
+--
+-- AI 服务草稿与资源绑定（V56）
+--
+
+DROP TABLE IF EXISTS `ai_service_resource`;
+DROP TABLE IF EXISTS `ai_service_release`;
+DROP TABLE IF EXISTS `ai_service`;
+
+CREATE TABLE `ai_service` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '服务编号',
+  `app_id` bigint NOT NULL COMMENT '所属应用编号（服务归属与绑定越权校验的基准）',
+  `code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '服务标识（应用内唯一）',
+  `name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '服务名称',
+  `description` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '服务说明',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '状态（DRAFT/READY/ARCHIVED）',
+  `model_endpoint_id` bigint NOT NULL COMMENT '模型端点编号',
+  `prompt_template` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '提示词模板',
+  `input_schema` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '输入 JSON Schema（平台校验后注入）',
+  `output_schema` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT '输出 JSON Schema（结构化输出时必填）',
+  `required_capabilities` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '所需能力（逗号分隔：TEXT,STRUCTURED_OUTPUT）',
+  `run_subject_type` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '运行主体类型（APP/USER）',
+  `draft_revision` int NOT NULL DEFAULT '1' COMMENT '草稿修订号：配置变更递增',
+  `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `uk_ai_service_code` (`app_id`,`code`,`deleted`),
+  KEY `idx_ai_service_endpoint` (`model_endpoint_id`),
+  CONSTRAINT `fk_ai_service_app` FOREIGN KEY (`app_id`) REFERENCES `ai_application` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 服务（草稿）';
+
+CREATE TABLE `ai_service_release` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '发布版本编号',
+  `service_id` bigint NOT NULL COMMENT '服务编号',
+  `release_version` int NOT NULL COMMENT '发布版本号（从 1 递增，写入后不可变）',
+  `model_endpoint_id` bigint NOT NULL COMMENT '发布时固定的模型端点编号',
+  `endpoint_config_revision` int NOT NULL COMMENT '发布时固定的端点配置版本',
+  `prompt_template` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '发布时固定的提示词模板',
+  `input_schema` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '发布时固定的输入 Schema',
+  `output_schema` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT '发布时固定的输出 Schema',
+  `required_capabilities` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '发布时固定的能力集合',
+  `content_hash` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '发布内容摘要（评测与回退的稳定标识）',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '状态（CANDIDATE/ACTIVE/RETIRED）',
+  `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `uk_ai_service_release_version` (`service_id`,`release_version`,`deleted`),
+  CONSTRAINT `fk_ai_service_release_service` FOREIGN KEY (`service_id`) REFERENCES `ai_service` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 服务发布版本（不可变，S02）';
+
+CREATE TABLE `ai_service_resource` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '绑定编号',
+  `service_id` bigint NOT NULL COMMENT '服务编号',
+  `release_id` bigint DEFAULT NULL COMMENT '发布版本编号（空表示草稿绑定）',
+  `resource_type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '资源类型（REPORT/KNOWLEDGE_BASE/FILE/TOOL/DATASET）',
+  `resource_key` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '资源标识',
+  `actions` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '需要的动作（逗号分隔：READ,EXECUTE,EXPORT）',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '状态（ACTIVE/RELEASED）',
+  `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `uk_ai_service_resource` (`service_id`,`resource_type`,`resource_key`,`release_id`,`deleted`),
+  KEY `idx_ai_service_resource_draft` (`service_id`,`release_id`,`status`),
+  CONSTRAINT `fk_ai_service_resource_service` FOREIGN KEY (`service_id`) REFERENCES `ai_service` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 服务资源绑定（草稿/发布版本）';
+
+-- AI 服务菜单与权限点（V56）
+INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
+(4030, 'AI 服务', 'ai:service:query', 2, 4, 4000, 'service', 'ep:document', 'ai/service/index', 'AiService', 0, b'1', b'1', b'1', '1', '2026-09-19 10:00:00', '1', '2026-09-19 10:00:00', b'0'),
+(4031, '服务新增', 'ai:service:create', 3, 1, 4030, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-19 10:00:00', '1', '2026-09-19 10:00:00', b'0'),
+(4032, '服务修改', 'ai:service:update', 3, 2, 4030, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-19 10:00:00', '1', '2026-09-19 10:00:00', b'0'),
+(4033, '服务删除', 'ai:service:delete', 3, 3, 4030, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-19 10:00:00', '1', '2026-09-19 10:00:00', b'0'),
+(4034, '资源绑定', 'ai:service:bind', 3, 4, 4030, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-19 10:00:00', '1', '2026-09-19 10:00:00', b'0'),
+(4035, '标记可发布', 'ai:service:publish', 3, 5, 4030, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-19 10:00:00', '1', '2026-09-19 10:00:00', b'0');
+
 
 -- AI 中台菜单与权限点（V48/V49/V50，与 AiModelEndpointController / AiModelCapabilityProbeController / AiApplicationController 的 @PreAuthorize 一一对应）
 INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES

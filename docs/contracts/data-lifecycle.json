@@ -26,7 +26,10 @@
         "ai_subject",
         "ai_resource_grant",
         "ai_access_ticket",
-        "ai_file_binding"
+        "ai_file_binding",
+        "ai_service",
+        "ai_service_release",
+        "ai_service_resource"
       ]
     },
     {
@@ -90,6 +93,9 @@
     "fk_ai_application_credential",
     "fk_ai_subject_application",
     "fk_ai_resource_grant_application",
-    "fk_ai_access_ticket_application"
+    "fk_ai_access_ticket_application",
+    "fk_ai_service_app",
+    "fk_ai_service_release_service",
+    "fk_ai_service_resource_service"
   ]
 }

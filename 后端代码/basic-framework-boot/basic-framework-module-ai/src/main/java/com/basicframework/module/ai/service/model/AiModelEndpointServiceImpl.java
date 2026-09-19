@@ -44,7 +44,15 @@ public class AiModelEndpointServiceImpl implements AiModelEndpointService {
     /** 凭据加密的上下文（AAD）：与端点强绑定，密文不可跨端点搬移。 */
     private static final String CREDENTIAL_CONTEXT_PREFIX = "ai_model_endpoint:";
 
-    private static final List<String> SUPPORTED_CAPABILITIES = List.of("TEXT", "EMBEDDING");
+    /** 可声明能力以接缝的 {@code ModelCapability} 词汇为准：新增能力不需要再改这里（S01 修正）。
+     *
+     * <p>历史上这里是硬编码的 {@code List.of("TEXT", "EMBEDDING")}，导致 M03/M04 新增的
+     * {@code TEXT_STREAM}/{@code STRUCTURED_OUTPUT}/{@code TOOL_CALLING} 无法配置到端点上。
+     */
+    private static final java.util.Set<String> SUPPORTED_CAPABILITIES = java.util.Arrays.stream(
+                    com.basicframework.framework.ai.core.model.ModelCapability.values())
+            .map(Enum::name)
+            .collect(java.util.stream.Collectors.toUnmodifiableSet());
 
     private final AiModelEndpointMapper endpointMapper;
 
