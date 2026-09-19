@@ -49,6 +49,9 @@
 | `AiRunController#page` | 同上：只返回当前主体的运行（按编号倒序） |
 | `AiRunController#events` | `ai_run_event`：订阅前按当前主体判定归属；开流后的错误以终态事件表达，心跳是注释 |
 | `AiRunController#cancel` | `ai_run`：取消是显式动作，写入终态事件并终止任务；越权与不存在同语义 |
+| `AiTaskController#progress` | `ai_run`：按当前主体过滤运行，只返回状态与结果引用（标识 + 摘要） |
+| `AiTaskController#page` | 同上：只返回当前主体的运行进度（按编号倒序） |
+| `AiTaskController#retry` | 同上：人工重试先按当前权限重建身份，再校验任务可重试性（UNKNOWN 拒绝普通重试） |
 
 ## 会话身份（MEMBER 用户类型）
 

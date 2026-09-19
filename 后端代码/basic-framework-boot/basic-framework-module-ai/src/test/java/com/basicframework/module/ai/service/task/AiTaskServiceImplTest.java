@@ -40,7 +40,15 @@ class AiTaskServiceImplTest {
 
     private final AiExecutionContextFactory executionContextFactory = mock(AiExecutionContextFactory.class);
 
-    private final AiTaskServiceImpl service = new AiTaskServiceImpl(claimMapper, runMapper, executionContextFactory);
+    private final AiTaskServiceImpl service = new AiTaskServiceImpl(
+            claimMapper,
+            mock(com.basicframework.module.ai.dal.mysql.task.AiRetentionCleanupMapper.class),
+            runMapper,
+            mock(com.basicframework.module.ai.dal.mysql.run.AiRunTaskMapper.class),
+            mock(com.basicframework.module.ai.dal.mysql.event.AiRunEventMapper.class),
+            mock(com.basicframework.module.ai.dal.mysql.conversation.AiConversationMessageMapper.class),
+            executionContextFactory,
+            mock(com.basicframework.module.ai.service.conversation.AiConversationSubjectResolver.class));
 
     private static AiRunTaskDO task(int epoch, int attempt) {
         return new AiRunTaskDO()

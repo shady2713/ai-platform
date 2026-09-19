@@ -50,6 +50,7 @@
 | 1_003_004_004 | AI_RUN_BUDGET_EXCEEDED | 429 | 超出运行预算（步数/耗时/工具次数） |
 | 1_003_004_005 | AI_TOOL_UNSUPPORTED | 400 | 当前不支持工具调用（没有受控工具实现） |
 | 1_003_004_006 | AI_RUN_EVENT_WINDOW_EXPIRED | 409 | 事件重放窗口已过期，请读取运行快照而不是重新发起运行 |
+| 1_003_004_007 | AI_TASK_NOT_RETRYABLE | 409 | 任务当前状态不允许重试（含结果未知 UNKNOWN） |
 | 1_003_008_000 | AI_SERVICE_NOT_READY | 409 | 服务未标记可发布，不能创建发布候选 |
 | 1_003_008_001 | AI_SERVICE_EVAL_MISSING | 409 | 缺少与候选内容匹配的评测结果（内容/端点配置变化后必须重新评测） |
 | 1_003_008_002 | AI_SERVICE_EVAL_BELOW_THRESHOLD | 409 | 评测得分未达发布门槛 |

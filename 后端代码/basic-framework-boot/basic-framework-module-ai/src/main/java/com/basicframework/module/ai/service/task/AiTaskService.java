@@ -1,7 +1,12 @@
 package com.basicframework.module.ai.service.task;
 
+import com.basicframework.framework.common.pojo.PageParam;
+import com.basicframework.framework.common.pojo.PageResult;
 import com.basicframework.module.ai.domain.identity.AiExecutionContext;
+import com.basicframework.module.ai.service.task.dto.AiRetentionCleanupResultDTO;
+import com.basicframework.module.ai.service.task.dto.AiRunProgressDTO;
 import com.basicframework.module.ai.service.task.dto.AiTaskLeaseDTO;
+import java.time.Duration;
 import java.util.List;
 
 /**
@@ -38,4 +43,23 @@ public interface AiTaskService {
 
     /** 按运行重建执行身份与范围（撤销、范围收窄、应用停用都会在这里失败）。 */
     AiExecutionContext rebuildIdentity(Long runId);
+
+    /** 运行进度与结果引用（按当前主体过滤；越权与不存在同语义）。 */
+    AiRunProgressDTO progress(Long runId);
+
+    /** 当前主体的运行进度分页（按编号倒序，翻页稳定）。 */
+    PageResult<AiRunProgressDTO> pageProgress(PageParam pageParam);
+
+    /**
+     * 人工重试（显式动作）：
+     * <ol>
+     *   <li>按当前主体与当前授权重建身份，失权直接拒绝；</li>
+     *   <li>只有可重试的失败任务能被重试：{@code UNKNOWN}（结果未知）与仍在执行/已成功的任务都拒绝；</li>
+     *   <li>重试把任务放回待领取队列并重置尝试计数（人工决定，重新获得重试预算）。</li>
+     * </ol>
+     */
+    void retry(Long runId, Integer version);
+
+    /** 保留期清理：按批次清理终态运行的过期事件/任务/运行与已关闭会话的过期消息/会话。 */
+    AiRetentionCleanupResultDTO cleanup(Duration retention, int batchSize, int maxBatches);
 }

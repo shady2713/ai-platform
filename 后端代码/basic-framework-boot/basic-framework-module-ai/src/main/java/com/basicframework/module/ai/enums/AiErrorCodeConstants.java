@@ -103,6 +103,9 @@ public interface AiErrorCodeConstants {
     /** 事件重放窗口已过期（409）：请读取运行快照，不要重新发起运行。 */
     ErrorCode AI_RUN_EVENT_WINDOW_EXPIRED = new ErrorCode(1_003_004_006, "事件重放窗口已过期，请读取运行快照");
 
+    /** 任务不可重试（409）：结果未知或状态不允许重试，重复执行可能产生第二份副作用。 */
+    ErrorCode AI_TASK_NOT_RETRYABLE = new ErrorCode(1_003_004_007, "任务当前状态不允许重试：{}");
+
     // ========== 服务配置 1_003_008_xxx ==========
 
     /** 服务未标记可发布（409）：草稿必须先通过能力校验才能创建发布候选。 */

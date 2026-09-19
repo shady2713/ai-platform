@@ -4,7 +4,7 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V63.
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V64.
 -- Only the 33 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
@@ -641,7 +641,7 @@ CREATE TABLE `infra_job` (
 
 LOCK TABLES `infra_job` WRITE;
 /*!40000 ALTER TABLE `infra_job` DISABLE KEYS */;
-INSERT INTO `infra_job` VALUES (25,'访问日志清理 Job',1,'accessLogCleanJob','','0 0 0 * * ?',3,0,0,'1','2023-10-03 10:59:41','1','2026-08-23 00:00:00',_binary '\0'),(26,'错误日志清理 Job',1,'errorLogCleanJob','','0 0 0 * * ?',3,0,0,'1','2023-10-03 11:00:43','1','2026-08-23 00:00:00',_binary '\0'),(27,'任务日志清理 Job',1,'jobLogCleanJob','','0 0 0 * * ?',3,0,0,'1','2023-10-03 11:01:33','1','2026-08-23 00:00:00',_binary '\0'),(28,'system 数据保留清理 Job',1,'systemDataRetentionCleanJob','','0 0 1 * * ?',3,0,0,'1','2026-08-23 00:00:00','1','2026-08-23 00:00:00',_binary '\0'),(29,'system 数据完整性审计 Job',1,'systemDataIntegrityAuditJob','','0 30 2 * * ?',0,0,0,'1','2026-08-23 00:00:00','1','2026-08-23 00:00:00',_binary '\0'),(30,'infra 数据完整性审计 Job',1,'infraDataIntegrityAuditJob','','0 45 2 * * ?',0,0,0,'1','2026-08-24 00:00:00','1','2026-08-24 00:00:00',_binary '\0'),(31,'文件外部存储清理重试 Job',1,'fileDeletionRetryJob','','0 * * * * ?',0,0,0,'1','2026-08-29 00:00:00','1','2026-08-29 00:00:00',_binary '\0'),(32,'AI 任务恢复 Job',1,'aiTaskRecoveryJob','','0 * * * * ?',0,0,0,'1','2026-09-19 22:00:00','1','2026-09-19 22:00:00',_binary '\0');
+INSERT INTO `infra_job` VALUES (25,'访问日志清理 Job',1,'accessLogCleanJob','','0 0 0 * * ?',3,0,0,'1','2023-10-03 10:59:41','1','2026-08-23 00:00:00',_binary '\0'),(26,'错误日志清理 Job',1,'errorLogCleanJob','','0 0 0 * * ?',3,0,0,'1','2023-10-03 11:00:43','1','2026-08-23 00:00:00',_binary '\0'),(27,'任务日志清理 Job',1,'jobLogCleanJob','','0 0 0 * * ?',3,0,0,'1','2023-10-03 11:01:33','1','2026-08-23 00:00:00',_binary '\0'),(28,'system 数据保留清理 Job',1,'systemDataRetentionCleanJob','','0 0 1 * * ?',3,0,0,'1','2026-08-23 00:00:00','1','2026-08-23 00:00:00',_binary '\0'),(29,'system 数据完整性审计 Job',1,'systemDataIntegrityAuditJob','','0 30 2 * * ?',0,0,0,'1','2026-08-23 00:00:00','1','2026-08-23 00:00:00',_binary '\0'),(30,'infra 数据完整性审计 Job',1,'infraDataIntegrityAuditJob','','0 45 2 * * ?',0,0,0,'1','2026-08-24 00:00:00','1','2026-08-24 00:00:00',_binary '\0'),(31,'文件外部存储清理重试 Job',1,'fileDeletionRetryJob','','0 * * * * ?',0,0,0,'1','2026-08-29 00:00:00','1','2026-08-29 00:00:00',_binary '\0'),(32,'AI 任务恢复 Job',1,'aiTaskRecoveryJob','','0 * * * * ?',0,0,0,'1','2026-09-19 22:00:00','1','2026-09-19 22:00:00',_binary '\0'),(33,'AI 保留期清理 Job',1,'aiRetentionCleanupJob','','0 15 * * * ?',0,0,0,'1','2026-09-20 09:00:00','1','2026-09-20 09:00:00',_binary '\0');
 /*!40000 ALTER TABLE `infra_job` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1813,6 +1813,7 @@ CREATE TABLE `ai_conversation` (
   UNIQUE KEY `uk_ai_conversation_key` (`application_id`,`subject_type`,`external_user_id`,`conversation_key`,`deleted`),
   KEY `idx_ai_conversation_subject` (`application_id`,`subject_type`,`external_user_id`,`id`),
   KEY `idx_ai_conversation_service` (`service_id`,`id`),
+  KEY `idx_ai_conversation_status_updated` (`status`,`update_time`),
   CONSTRAINT `fk_ai_conversation_app` FOREIGN KEY (`application_id`) REFERENCES `ai_application` (`id`) ON DELETE RESTRICT,
   CONSTRAINT `fk_ai_conversation_service` FOREIGN KEY (`service_id`) REFERENCES `ai_service` (`id`) ON DELETE RESTRICT,
   CONSTRAINT `fk_ai_conversation_release` FOREIGN KEY (`release_id`) REFERENCES `ai_service_release` (`id`) ON DELETE RESTRICT
@@ -1878,6 +1879,7 @@ CREATE TABLE `ai_run` (
   KEY `idx_ai_run_subject` (`application_id`,`subject_type`,`external_user_id`,`id`),
   KEY `idx_ai_run_conversation` (`conversation_id`,`id`),
   KEY `idx_ai_run_release` (`release_id`,`id`),
+  KEY `idx_ai_run_status_updated` (`status`,`update_time`),
   CONSTRAINT `fk_ai_run_app` FOREIGN KEY (`application_id`) REFERENCES `ai_application` (`id`) ON DELETE RESTRICT,
   CONSTRAINT `fk_ai_run_service` FOREIGN KEY (`service_id`) REFERENCES `ai_service` (`id`) ON DELETE RESTRICT,
   CONSTRAINT `fk_ai_run_release` FOREIGN KEY (`release_id`) REFERENCES `ai_service_release` (`id`) ON DELETE RESTRICT,
