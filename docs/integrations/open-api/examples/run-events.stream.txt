@@ -1,0 +1,9 @@
+id: 1
+event: run
+data: {"schemaVersion":"1.0","seq":1,"runId":"run_0123456789abcdef01234567","status":"RUNNING","createdAt":"2026-09-20T10:00:00"}
+
+: heartbeat
+
+id: 2
+event: run
+data: {"schemaVersion":"1.0","seq":2,"runId":"run_0123456789abcdef01234567","status":"SUCCEEDED","createdAt":"2026-09-20T10:00:05"}

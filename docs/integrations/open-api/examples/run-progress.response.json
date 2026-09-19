@@ -1,0 +1,21 @@
+{
+  "code": 0,
+  "data": {
+    "runId": 41,
+    "runKey": "run_0123456789abcdef01234567",
+    "status": "FAILED",
+    "stepCount": 1,
+    "latestSeq": 3,
+    "conversationId": 31,
+    "resultMessageId": null,
+    "resultDigest": null,
+    "taskStatus": "FAILED",
+    "attemptCount": 3,
+    "nextAttemptTime": null,
+    "lastErrorCode": "502",
+    "retryable": true,
+    "retryBlockedReason": null,
+    "createTime": "2026-09-20T10:00:00"
+  },
+  "msg": ""
+}

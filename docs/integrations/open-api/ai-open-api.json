@@ -1,0 +1,2589 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AI 中台开放 API（应用端）",
+    "version": "1.0.0",
+    "description": "AI 中台**开放端点**（`/app-api/ai/**`）的正式规范（O07 冻结已实现核心接口）。\n\n- 只包含面向应用/最终用户的开放能力；**不包含任何管理端接口**（`/admin-api/**`）。\n- 认证：应用客户端凭据换取访问票据（`POST /app-api/ai/auth/ticket`），后续请求使用 `Authorization: Bearer <ticket>`。\n- 归属：会话、运行与任务都按**票据解析出的主体**过滤；越权与不存在同语义（404）。\n- 错误响应统一为 `{code, data, msg}`；`code` 见 `docs/contracts/ai/error-code-map.md`。\n- 响应不包含凭据、令牌摘要、连接串或模型输入正文；换票响应中的 `token` 只在签发时返回一次。",
+    "contact": {
+      "name": "AI 中台"
+    }
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "与宿主同源部署（前缀 /app-api）"
+    }
+  ],
+  "tags": [
+    {
+      "name": "认证",
+      "description": "应用客户端凭据换取访问票据"
+    },
+    {
+      "name": "会话",
+      "description": "会话与消息（按主体归属）"
+    },
+    {
+      "name": "运行",
+      "description": "运行受理、事件订阅与取消"
+    },
+    {
+      "name": "任务",
+      "description": "运行进度查询与人工重试"
+    },
+    {
+      "name": "文件",
+      "description": "业务文件上传、读取与解除引用"
+    }
+  ],
+  "paths": {
+    "/app-api/ai/auth/ticket": {
+      "post": {
+        "tags": [
+          "认证"
+        ],
+        "summary": "换取访问票据（应用客户端凭据 + 失败节流）",
+        "description": "以 appCode + appSecret 换取短期票据；**token 只在本次响应返回一次**。同一客户端连续失败会触发 429 节流。",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "description": "客户端凭据与外部主体标识",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiTicketReq"
+              },
+              "example": {
+                "appCode": "crm-portal",
+                "appSecret": "aiapp_xxx",
+                "subjectType": "USER",
+                "externalUserId": "u-1001"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "票据签发成功（token 仅此一次）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultAiTicketResp"
+                },
+                "example": {
+                  "code": 0,
+                  "data": {
+                    "token": "aitkt_xxx",
+                    "expiresTime": "2026-09-20T10:00:00",
+                    "applicationId": 5,
+                    "subjectType": "USER",
+                    "externalUserId": "u-1001"
+                  },
+                  "msg": ""
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或票据无效（不存在/撤销/过期/应用或主体不可用同语义）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "已认证但缺少范围或权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "超出配额或触发限流",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/conversation/create": {
+      "post": {
+        "tags": [
+          "会话"
+        ],
+        "summary": "创建会话（业务键在同一应用+主体内唯一）",
+        "requestBody": {
+          "required": true,
+          "description": "会话业务键、标题、可选服务与业务上下文",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiConversationCreateReq"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "会话编号",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultLong"
+                },
+                "example": {
+                  "code": 0,
+                  "data": 31,
+                  "msg": ""
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "入参不合法（业务键格式、上下文长度等）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "会话业务键已存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或票据无效（不存在/撤销/过期/应用或主体不可用同语义）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "已认证但缺少范围或权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "超出配额或触发限流",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/conversation/page": {
+      "get": {
+        "tags": [
+          "会话"
+        ],
+        "summary": "当前主体的会话分页（按编号倒序）",
+        "parameters": [
+          {
+            "name": "pageNo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "页码"
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "description": "每页条数"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "会话分页",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultPageResultAiConversation"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或票据无效（不存在/撤销/过期/应用或主体不可用同语义）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "已认证但缺少范围或权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "超出配额或触发限流",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/conversation/get": {
+      "get": {
+        "tags": [
+          "会话"
+        ],
+        "summary": "读取会话（越权与不存在同语义）",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "会话编号"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "会话",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultAiConversation"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "会话不存在或不属于当前主体",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或票据无效（不存在/撤销/过期/应用或主体不可用同语义）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "已认证但缺少范围或权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "超出配额或触发限流",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/conversation/rename": {
+      "put": {
+        "tags": [
+          "会话"
+        ],
+        "summary": "重命名会话（乐观锁）",
+        "requestBody": {
+          "required": true,
+          "description": "会话编号、新标题与乐观锁版本",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiConversationRenameReq"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "是否成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultBoolean"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "乐观锁版本冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或票据无效（不存在/撤销/过期/应用或主体不可用同语义）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "已认证但缺少范围或权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "超出配额或触发限流",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/conversation/delete": {
+      "delete": {
+        "tags": [
+          "会话"
+        ],
+        "summary": "删除会话（先关闭访问：会话与消息立即不可读，正文由保留策略清理）",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "会话编号"
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "description": "乐观锁版本"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "是否成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultBoolean"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或票据无效（不存在/撤销/过期/应用或主体不可用同语义）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "已认证但缺少范围或权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "超出配额或触发限流",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/conversation/bind-service": {
+      "put": {
+        "tags": [
+          "会话"
+        ],
+        "summary": "绑定服务（已固定发布版本后需显式新建或迁移会话）",
+        "requestBody": {
+          "required": true,
+          "description": "会话编号、服务编号与乐观锁版本",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiConversationBindReq"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "是否成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultBoolean"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "会话已固定发布版本，不能改绑服务",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或票据无效（不存在/撤销/过期/应用或主体不可用同语义）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "已认证但缺少范围或权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "超出配额或触发限流",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/conversation/bind-release": {
+      "put": {
+        "tags": [
+          "会话"
+        ],
+        "summary": "固定发布版本（首个运行解析后写入，后续消息沿用该版本）",
+        "requestBody": {
+          "required": true,
+          "description": "会话编号、发布版本编号与乐观锁版本",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiConversationBindReleaseReq"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "是否成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultBoolean"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "版本只固定一次；目标版本尚未发布",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或票据无效（不存在/撤销/过期/应用或主体不可用同语义）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "已认证但缺少范围或权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "超出配额或触发限流",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/conversation/message": {
+      "post": {
+        "tags": [
+          "会话"
+        ],
+        "summary": "追加消息（角色与长度校验；序号在会话内递增）",
+        "requestBody": {
+          "required": true,
+          "description": "会话编号、角色与正文",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiConversationMessageReq"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "消息编号",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultLong"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或票据无效（不存在/撤销/过期/应用或主体不可用同语义）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "已认证但缺少范围或权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "超出配额或触发限流",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/conversation/messages": {
+      "get": {
+        "tags": [
+          "会话"
+        ],
+        "summary": "会话消息（按序号升序）",
+        "parameters": [
+          {
+            "name": "conversationId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "会话编号"
+          },
+          {
+            "name": "afterSequence",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "description": "起始序号（不含）"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "description": "条数上限（1-100）"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "消息列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultListAiConversationMessage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或票据无效（不存在/撤销/过期/应用或主体不可用同语义）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "已认证但缺少范围或权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "超出配额或触发限流",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/run/accept": {
+      "post": {
+        "tags": [
+          "运行"
+        ],
+        "summary": "受理运行（幂等：同键同请求复用原运行，异请求 409）",
+        "description": "受理是幂等的：`reused=true` 表示命中幂等、复用首次受理的运行，平台不会重新发起模型调用。\n\n受理成功返回 **202 语义**（已受理，尚未执行）；执行结果通过事件流（SSE）或任务进度查询获取。",
+        "requestBody": {
+          "required": true,
+          "description": "服务、会话、幂等键、消息、附件与数据分级",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiRunAcceptReq"
+              },
+              "example": {
+                "serviceId": 9,
+                "conversationId": 31,
+                "idempotencyKey": "idem-0123456789abcdef",
+                "message": "帮我查订单 A-1",
+                "attachmentKeys": [
+                  "file-a"
+                ],
+                "businessContext": "{\"page\":\"order\"}",
+                "dataLevel": "L2_INTERNAL"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "受理结果（reused=true 表示复用原运行）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultAiRunAcceptResp"
+                },
+                "example": {
+                  "code": 0,
+                  "data": {
+                    "runId": 41,
+                    "runKey": "run_0123456789abcdef01234567",
+                    "status": "ACCEPTED",
+                    "releaseId": 21,
+                    "releaseVersion": 2,
+                    "reused": false
+                  },
+                  "msg": ""
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "入参不合法（幂等键长度、消息长度、附件数量、数据分级等）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "幂等键冲突（同键不同请求）或状态冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "模型调用失败（上游不可用/未启用；不返回假成功）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "模型能力未启用或依赖不可用（与 502 同为稳定错误，可重试）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "上游超时（可重试）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或票据无效（不存在/撤销/过期/应用或主体不可用同语义）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "已认证但缺少范围或权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "超出配额或触发限流",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/run/get": {
+      "get": {
+        "tags": [
+          "运行"
+        ],
+        "summary": "读取运行（越权与不存在同语义）",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "运行编号"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "运行",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultAiRun"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "运行不存在或不属于当前主体",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或票据无效（不存在/撤销/过期/应用或主体不可用同语义）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "已认证但缺少范围或权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "超出配额或触发限流",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/run/page": {
+      "get": {
+        "tags": [
+          "运行"
+        ],
+        "summary": "当前主体的运行分页（按编号倒序）",
+        "parameters": [
+          {
+            "name": "pageNo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "页码"
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "description": "每页条数"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "运行分页",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultPageResultAiRun"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或票据无效（不存在/撤销/过期/应用或主体不可用同语义）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "已认证但缺少范围或权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "超出配额或触发限流",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/run/events": {
+      "get": {
+        "tags": [
+          "运行"
+        ],
+        "summary": "订阅运行事件（SSE）",
+        "description": "SSE 事件源（`text/event-stream`）：\n\n- **先鉴权再开流**：归属判定失败按普通 HTTP 错误返回，不会开出匿名流；\n- `afterSeq` 之后的事件按 `seq` 升序补发（重放窗口过期时返回 409，请改用运行进度/快照续读）；\n- 心跳是 SSE 注释（`:heartbeat`），**不推进 seq**；\n- 连接到期只关闭订阅（运行状态不变），客户端换票后按 `afterSeq` 续读；\n- 事件正文与 `docs/contracts/ai/run-event.schema.json`（RunEvent v1）一致。",
+        "parameters": [
+          {
+            "name": "runId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "运行编号"
+          },
+          {
+            "name": "afterSeq",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "description": "起始序号（不含）"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SSE 事件流（text/event-stream）",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "id: 1\nevent: run\ndata: {\"schemaVersion\":\"1.0\",\"seq\":1,\"runId\":\"run_0123456789abcdef01234567\",\"status\":\"RUNNING\",\"createdAt\":\"2026-09-20T10:00:00\"}\n\n: heartbeat\n\n"
+              }
+            }
+          },
+          "409": {
+            "description": "事件重放窗口已过期（请读取运行进度与快照）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或票据无效（不存在/撤销/过期/应用或主体不可用同语义）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "已认证但缺少范围或权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "超出配额或触发限流",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/run/cancel": {
+      "post": {
+        "tags": [
+          "运行"
+        ],
+        "summary": "取消运行（显式动作：写入终态事件并终止任务）",
+        "requestBody": {
+          "required": true,
+          "description": "运行编号与乐观锁版本",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiRunCancelReq"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "是否成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultBoolean"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "运行已进入终态",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或票据无效（不存在/撤销/过期/应用或主体不可用同语义）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "已认证但缺少范围或权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "超出配额或触发限流",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/task/progress": {
+      "get": {
+        "tags": [
+          "任务"
+        ],
+        "summary": "运行进度与结果引用（只给标识与摘要）",
+        "description": "返回运行状态、步数、最新事件序号、任务状态与**结果引用**（助手消息编号 + 正文摘要）。结果正文请通过会话消息接口读取，并按当前授权判定。",
+        "parameters": [
+          {
+            "name": "runId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "运行编号"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "进度与结果引用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultAiTaskProgress"
+                },
+                "example": {
+                  "code": 0,
+                  "data": {
+                    "runId": 41,
+                    "runKey": "run_0123456789abcdef01234567",
+                    "status": "FAILED",
+                    "stepCount": 1,
+                    "latestSeq": 3,
+                    "conversationId": 31,
+                    "resultMessageId": null,
+                    "resultDigest": null,
+                    "taskStatus": "FAILED",
+                    "attemptCount": 3,
+                    "nextAttemptTime": null,
+                    "lastErrorCode": "502",
+                    "retryable": true,
+                    "retryBlockedReason": null
+                  },
+                  "msg": ""
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "运行不存在或不属于当前主体",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或票据无效（不存在/撤销/过期/应用或主体不可用同语义）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "已认证但缺少范围或权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "超出配额或触发限流",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/task/page": {
+      "get": {
+        "tags": [
+          "任务"
+        ],
+        "summary": "当前主体的运行进度分页（按编号倒序）",
+        "parameters": [
+          {
+            "name": "pageNo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "页码"
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "description": "每页条数"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "进度分页",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultPageResultAiTaskProgress"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或票据无效（不存在/撤销/过期/应用或主体不可用同语义）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "已认证但缺少范围或权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "超出配额或触发限流",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/task/retry": {
+      "post": {
+        "tags": [
+          "任务"
+        ],
+        "summary": "人工重试（校验当前权限与可重试性）",
+        "description": "重试前按**当前**权限重建身份；结果未知（UNKNOWN）的任务拒绝普通重试（重复执行可能产生第二份副作用），请核对后新建运行。",
+        "requestBody": {
+          "required": true,
+          "description": "运行编号与乐观锁版本",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiTaskRetryReq"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "是否成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultBoolean"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "任务当前状态不允许重试（含结果未知 UNKNOWN）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或票据无效（不存在/撤销/过期/应用或主体不可用同语义）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "已认证但缺少范围或权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "超出配额或触发限流",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/file/upload": {
+      "post": {
+        "tags": [
+          "文件"
+        ],
+        "summary": "上传并绑定到业务对象（内容与归档安全由框架校验）",
+        "requestBody": {
+          "required": true,
+          "description": "multipart/form-data",
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "businessType",
+                  "businessKey",
+                  "file"
+                ],
+                "properties": {
+                  "businessType": {
+                    "type": "string",
+                    "enum": [
+                      "ai_report",
+                      "ai_knowledge_document",
+                      "ai_chat_session"
+                    ]
+                  },
+                  "businessKey": {
+                    "type": "string",
+                    "maxLength": 128
+                  },
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "文件编号与绑定信息",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultAiFileUpload"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "业务对象不存在或无权绑定",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或票据无效（不存在/撤销/过期/应用或主体不可用同语义）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "已认证但缺少范围或权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "超出配额或触发限流",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/file/{fileId}": {
+      "get": {
+        "tags": [
+          "文件"
+        ],
+        "summary": "按当前归属读取文件内容",
+        "parameters": [
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "文件编号"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "文件内容（application/octet-stream）",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "文件不存在或不属于当前主体",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或票据无效（不存在/撤销/过期/应用或主体不可用同语义）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "已认证但缺少范围或权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "超出配额或触发限流",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "文件"
+        ],
+        "summary": "解除当前主体对该文件的引用（无其他引用时删除文件）",
+        "parameters": [
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "文件编号"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "是否成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultBoolean"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或票据无效（不存在/撤销/过期/应用或主体不可用同语义）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "已认证但缺少范围或权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "超出配额或触发限流",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerTicket": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "ai-ticket",
+        "description": "AI 访问票据（A04）：由 POST /app-api/ai/auth/ticket 签发"
+      }
+    },
+    "schemas": {
+      "CommonResultError": {
+        "type": "object",
+        "required": [
+          "code",
+          "msg"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "description": "业务错误码（见 docs/contracts/ai/error-code-map.md）"
+          },
+          "data": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "msg": {
+            "type": "string"
+          }
+        },
+        "example": {
+          "code": 1003001004,
+          "data": null,
+          "msg": "没有执行该操作的权限"
+        }
+      },
+      "CommonResultLong": {
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "data": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "msg": {
+            "type": "string"
+          }
+        },
+        "example": {
+          "code": 0,
+          "data": 31,
+          "msg": ""
+        }
+      },
+      "CommonResultBoolean": {
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "data": {
+            "type": "boolean"
+          },
+          "msg": {
+            "type": "string"
+          }
+        },
+        "example": {
+          "code": 0,
+          "data": true,
+          "msg": ""
+        }
+      },
+      "CommonResultAiTicketResp": {
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AiTicketResp"
+          },
+          "msg": {
+            "type": "string"
+          }
+        }
+      },
+      "CommonResultAiConversation": {
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AiConversation"
+          },
+          "msg": {
+            "type": "string"
+          }
+        }
+      },
+      "CommonResultPageResultAiConversation": {
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageResultAiConversation"
+          },
+          "msg": {
+            "type": "string"
+          }
+        }
+      },
+      "CommonResultListAiConversationMessage": {
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiConversationMessage"
+            }
+          },
+          "msg": {
+            "type": "string"
+          }
+        }
+      },
+      "CommonResultAiRunAcceptResp": {
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AiRunAcceptResp"
+          },
+          "msg": {
+            "type": "string"
+          }
+        }
+      },
+      "CommonResultAiRun": {
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AiRun"
+          },
+          "msg": {
+            "type": "string"
+          }
+        }
+      },
+      "CommonResultPageResultAiRun": {
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageResultAiRun"
+          },
+          "msg": {
+            "type": "string"
+          }
+        }
+      },
+      "CommonResultAiTaskProgress": {
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AiTaskProgress"
+          },
+          "msg": {
+            "type": "string"
+          }
+        }
+      },
+      "CommonResultPageResultAiTaskProgress": {
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageResultAiTaskProgress"
+          },
+          "msg": {
+            "type": "string"
+          }
+        }
+      },
+      "CommonResultAiFileUpload": {
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AiFileUpload"
+          },
+          "msg": {
+            "type": "string"
+          }
+        }
+      },
+      "PageResultAiConversation": {
+        "type": "object",
+        "required": [
+          "list",
+          "total"
+        ],
+        "properties": {
+          "list": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiConversation"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "PageResultAiRun": {
+        "type": "object",
+        "required": [
+          "list",
+          "total"
+        ],
+        "properties": {
+          "list": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiRun"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "PageResultAiTaskProgress": {
+        "type": "object",
+        "required": [
+          "list",
+          "total"
+        ],
+        "properties": {
+          "list": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiTaskProgress"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "AiTicketReq": {
+        "type": "object",
+        "required": [
+          "appCode",
+          "appSecret",
+          "subjectType"
+        ],
+        "properties": {
+          "appCode": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "appSecret": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "subjectType": {
+            "type": "string",
+            "enum": [
+              "USER",
+              "APP"
+            ]
+          },
+          "externalUserId": {
+            "type": "string",
+            "maxLength": 64
+          }
+        }
+      },
+      "AiTicketResp": {
+        "type": "object",
+        "required": [
+          "token",
+          "expiresTime"
+        ],
+        "description": "换票响应：**token 只在本次响应返回一次**，平台只保存摘要。",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "访问票据（唯一一次返回的凭据）"
+          },
+          "expiresTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "applicationId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "subjectType": {
+            "type": "string",
+            "enum": [
+              "USER",
+              "APP"
+            ]
+          },
+          "externalUserId": {
+            "type": "string"
+          }
+        }
+      },
+      "AiConversationCreateReq": {
+        "type": "object",
+        "required": [
+          "conversationKey"
+        ],
+        "properties": {
+          "conversationKey": {
+            "type": "string",
+            "pattern": "^conv_[A-Za-z0-9_-]{3,35}$"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "serviceId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "businessContext": {
+            "type": "string",
+            "maxLength": 4000
+          }
+        }
+      },
+      "AiConversation": {
+        "type": "object",
+        "required": [
+          "id",
+          "conversationKey",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "conversationKey": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "serviceId": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "releaseId": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "businessContext": {
+            "type": "string"
+          },
+          "messageCount": {
+            "type": "integer"
+          },
+          "lastMessageTime": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "DELETED"
+            ]
+          },
+          "version": {
+            "type": "integer"
+          },
+          "createTime": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AiConversationRenameReq": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "AiConversationBindReq": {
+        "type": "object",
+        "required": [
+          "id",
+          "serviceId",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "serviceId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "AiConversationBindReleaseReq": {
+        "type": "object",
+        "required": [
+          "id",
+          "releaseId",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "releaseId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "AiConversationMessageReq": {
+        "type": "object",
+        "required": [
+          "conversationId",
+          "role",
+          "content"
+        ],
+        "properties": {
+          "conversationId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant",
+              "system"
+            ]
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 16000
+          },
+          "sourceRunId": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        }
+      },
+      "AiConversationMessage": {
+        "type": "object",
+        "required": [
+          "id",
+          "conversationId",
+          "sequenceNo",
+          "role",
+          "content"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "conversationId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sequenceNo": {
+            "type": "integer"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant",
+              "system"
+            ]
+          },
+          "content": {
+            "type": "string"
+          },
+          "contentHash": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "sourceRunId": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "createTime": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AiRunAcceptReq": {
+        "type": "object",
+        "required": [
+          "serviceId",
+          "idempotencyKey",
+          "message",
+          "dataLevel"
+        ],
+        "properties": {
+          "serviceId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "conversationId": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 128
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 16000
+          },
+          "attachmentKeys": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "string",
+              "maxLength": 128
+            }
+          },
+          "businessContext": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "dataLevel": {
+            "type": "string",
+            "enum": [
+              "L1_PUBLIC",
+              "L2_INTERNAL",
+              "L3_PERSONAL",
+              "L4_SECRET"
+            ]
+          }
+        }
+      },
+      "AiRunAcceptResp": {
+        "type": "object",
+        "required": [
+          "runId",
+          "runKey",
+          "status",
+          "reused"
+        ],
+        "properties": {
+          "runId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "runKey": {
+            "type": "string",
+            "pattern": "^run_[A-Za-z0-9_-]{3,35}$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACCEPTED",
+              "RUNNING",
+              "SUCCEEDED",
+              "FAILED",
+              "CANCELLED"
+            ]
+          },
+          "releaseId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "releaseVersion": {
+            "type": "integer"
+          },
+          "reused": {
+            "type": "boolean",
+            "description": "是否命中幂等（复用首次受理的运行）"
+          }
+        }
+      },
+      "AiRun": {
+        "type": "object",
+        "required": [
+          "id",
+          "runKey",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "runKey": {
+            "type": "string"
+          },
+          "conversationId": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "serviceId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "releaseId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "contentHash": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "endpointConfigRevision": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACCEPTED",
+              "RUNNING",
+              "SUCCEEDED",
+              "FAILED",
+              "CANCELLED"
+            ]
+          },
+          "stepCount": {
+            "type": "integer"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "createTime": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AiRunCancelReq": {
+        "type": "object",
+        "required": [
+          "runId",
+          "version"
+        ],
+        "properties": {
+          "runId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "AiTaskProgress": {
+        "type": "object",
+        "required": [
+          "runId",
+          "runKey",
+          "status",
+          "taskStatus",
+          "retryable"
+        ],
+        "properties": {
+          "runId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "runKey": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACCEPTED",
+              "RUNNING",
+              "SUCCEEDED",
+              "FAILED",
+              "CANCELLED"
+            ]
+          },
+          "stepCount": {
+            "type": "integer"
+          },
+          "latestSeq": {
+            "type": "integer"
+          },
+          "conversationId": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "resultMessageId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "结果引用：助手消息编号"
+          },
+          "resultDigest": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "结果引用：助手消息正文摘要（不复制正文）"
+          },
+          "taskStatus": {
+            "type": "string",
+            "enum": [
+              "QUEUED",
+              "RUNNING",
+              "SUCCEEDED",
+              "FAILED",
+              "UNKNOWN"
+            ]
+          },
+          "attemptCount": {
+            "type": "integer"
+          },
+          "nextAttemptTime": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "lastErrorCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "retryBlockedReason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createTime": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AiTaskRetryReq": {
+        "type": "object",
+        "required": [
+          "runId",
+          "version"
+        ],
+        "properties": {
+          "runId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "AiFileUpload": {
+        "type": "object",
+        "required": [
+          "fileId",
+          "businessType",
+          "businessKey"
+        ],
+        "properties": {
+          "fileId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "businessType": {
+            "type": "string"
+          },
+          "businessKey": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "serviceId": 9,
+  "conversationId": 31,
+  "idempotencyKey": "idem-0123456789abcdef",
+  "message": "帮我查订单 A-1",
+  "attachmentKeys": ["file-a", "file-b"],
+  "businessContext": "{\"page\":\"order\",\"objectId\":\"A-1\"}",
+  "dataLevel": "L2_INTERNAL"
+}
