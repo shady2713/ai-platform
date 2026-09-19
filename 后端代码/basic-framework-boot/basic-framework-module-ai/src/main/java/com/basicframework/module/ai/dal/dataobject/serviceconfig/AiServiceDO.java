@@ -66,6 +66,9 @@ public class AiServiceDO extends SoftDeletableDO {
     /** 运行主体类型（APP/USER） */
     private String runSubjectType;
 
+    /** 发布要求的评测得分门槛（0-100，0 表示只要求"评测通过"） */
+    private Integer evalThreshold;
+
     /** 草稿修订号：配置变更递增 */
     private Integer draftRevision;
 

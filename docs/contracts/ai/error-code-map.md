@@ -14,6 +14,7 @@
 | `1_003_005_xxx` | 知识库 | 文档、解析、索引、检索授权 |
 | `1_003_006_xxx` | 数据与工具 | 连接器、查询计划、工具执行 |
 | `1_003_007_xxx` | 报表与 Chat | 报表、主题、嵌入会话 |
+| `1_003_008_xxx` | 服务配置 | 服务发布、评测门槛、运行快照 |
 
 框架与基础设施占用 `1_001_xxx_xxx`，system 模块占用 `1_002_xxx_xxx`；AI 中台独占 `1_003`，不与既有区间交叉。
 
@@ -44,6 +45,12 @@
 | 1_003_003_010 | AI_TICKET_INVALID | 401 | 访问票据无效或已过期（不存在/撤销/过期/应用或主体不可用同语义） |
 | 1_003_004_000 | AI_RUN_NOT_FOUND | 404 | 运行不存在或无权访问 |
 | 1_003_004_001 | AI_RUN_ALREADY_TERMINAL | 409 | 运行已终态 |
+| 1_003_008_000 | AI_SERVICE_NOT_READY | 409 | 服务未标记可发布，不能创建发布候选 |
+| 1_003_008_001 | AI_SERVICE_EVAL_MISSING | 409 | 缺少与候选内容匹配的评测结果（内容/端点配置变化后必须重新评测） |
+| 1_003_008_002 | AI_SERVICE_EVAL_BELOW_THRESHOLD | 409 | 评测得分未达发布门槛 |
+| 1_003_008_003 | AI_SERVICE_NOT_PUBLISHED | 409 | 服务没有生效的发布版本，新运行拒绝 |
+| 1_003_008_004 | AI_SERVICE_RESOURCE_UNAVAILABLE | 409 | 发布版本依赖的资源绑定已解除或不可用，新运行拒绝 |
+| 1_003_008_005 | AI_SERVICE_ENDPOINT_CONFIG_CHANGED | 409 | 端点配置版本已变化，需重建候选并重新评测 |
 
 HTTP 语义遵循 [ADR 0003](../../adr/0003-http-status-semantics.md)；认证与授权边界见
 [ADR 0049](../../adr/0049-ai-open-identity-and-security-extension-boundaries.md)。

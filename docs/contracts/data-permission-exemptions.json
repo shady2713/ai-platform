@@ -3,7 +3,7 @@
   "exemptions": [
     {
       "id": "ai-control-plane-config",
-      "reason": "AI 控制面配置（模型端点及其不可变版本）由功能权限 ai:model-endpoint:* 管理，不具有部门或用户行级归属。 应用与客户端凭据（ai_application / ai_application_credential）同属控制面配置，凭据只存摘要，由 ai:application:* 权限管理。 AI 服务草稿与发布版本（ai_service/ai_service_release/ai_service_resource）同属控制面配置，由 ai:service:* 权限管理。",
+      "reason": "AI 控制面配置（模型端点及其不可变版本）由功能权限 ai:model-endpoint:* 管理，不具有部门或用户行级归属。 应用与客户端凭据（ai_application / ai_application_credential）同属控制面配置，凭据只存摘要，由 ai:application:* 权限管理。 AI 服务草稿与发布版本（ai_service/ai_service_release/ai_service_resource/ai_service_release_evaluation）同属控制面配置，由 ai:service:* 权限管理。",
       "tables": [
         "ai_model_endpoint",
         "ai_model_endpoint_revision",
@@ -13,7 +13,8 @@
         "ai_resource_grant",
         "ai_service",
         "ai_service_release",
-        "ai_service_resource"
+        "ai_service_resource",
+        "ai_service_release_evaluation"
       ],
       "controls": [
         {
@@ -27,7 +28,8 @@
             "ai_resource_grant",
             "ai_service",
             "ai_service_release",
-            "ai_service_resource"
+            "ai_service_resource",
+            "ai_service_release_evaluation"
           ],
           "evidence": [
             {
@@ -74,6 +76,11 @@
               "table": "ai_service_resource",
               "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/serviceconfig/AiServiceController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('ai:service:query')\")"
+            },
+            {
+              "table": "ai_service_release_evaluation",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/serviceconfig/AiServiceReleaseController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('ai:service:evaluate')\")"
             }
           ]
         }

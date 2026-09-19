@@ -4,8 +4,8 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V56.
--- Only the 14 soft-delete tables retain a deleted column; hard-delete and
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V57.
+-- Only the 27 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
 
@@ -1695,6 +1695,7 @@ CREATE TABLE `ai_service` (
   `output_schema` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT '输出 JSON Schema（结构化输出时必填）',
   `required_capabilities` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '所需能力（逗号分隔：TEXT,STRUCTURED_OUTPUT）',
   `run_subject_type` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '运行主体类型（APP/USER）',
+  `eval_threshold` int NOT NULL DEFAULT '0' COMMENT '发布要求的评测得分门槛（0-100）',
   `draft_revision` int NOT NULL DEFAULT '1' COMMENT '草稿修订号：配置变更递增',
   `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
   `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
@@ -1718,6 +1719,7 @@ CREATE TABLE `ai_service_release` (
   `input_schema` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '发布时固定的输入 Schema',
   `output_schema` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT '发布时固定的输出 Schema',
   `required_capabilities` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '发布时固定的能力集合',
+  `eval_threshold` int NOT NULL DEFAULT '0' COMMENT '发布时冻结的评测得分门槛（0-100）',
   `content_hash` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '发布内容摘要（评测与回退的稳定标识）',
   `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '状态（CANDIDATE/ACTIVE/RETIRED）',
   `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
@@ -1751,6 +1753,37 @@ CREATE TABLE `ai_service_resource` (
   CONSTRAINT `fk_ai_service_resource_service` FOREIGN KEY (`service_id`) REFERENCES `ai_service` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 服务资源绑定（草稿/发布版本）';
 
+--
+-- AI 服务发布评测（V57）
+--
+
+DROP TABLE IF EXISTS `ai_service_release_evaluation`;
+
+CREATE TABLE `ai_service_release_evaluation` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '评测记录编号',
+  `service_id` bigint NOT NULL COMMENT '服务编号（冗余自发布版本，便于按服务追溯）',
+  `release_id` bigint NOT NULL COMMENT '发布版本编号',
+  `content_hash` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '被评测内容摘要：与发布版本内容摘要一致才是有效证据',
+  `model_endpoint_id` bigint NOT NULL COMMENT '评测所用的模型端点编号',
+  `endpoint_config_revision` int NOT NULL COMMENT '评测所用的端点配置版本',
+  `score` int NOT NULL COMMENT '评测得分（0-100）',
+  `threshold` int NOT NULL COMMENT '评测时冻结的门槛（得分 >= 门槛 才判定通过）',
+  `passed` bit(1) NOT NULL COMMENT '是否通过（平台按门槛判定，调用方不能直接提交结论）',
+  `case_count` int NOT NULL COMMENT '评测用例数（至少 1）',
+  `notes` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '备注（不得写入提示词、响应正文或凭据）',
+  `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  KEY `idx_ai_service_eval_release` (`release_id`,`id`),
+  KEY `idx_ai_service_eval_service` (`service_id`,`id`),
+  CONSTRAINT `fk_ai_service_eval_release` FOREIGN KEY (`release_id`) REFERENCES `ai_service_release` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_ai_service_eval_service` FOREIGN KEY (`service_id`) REFERENCES `ai_service` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 服务发布评测（绑定内容摘要与端点配置版本，S02）';
+
 -- AI 服务菜单与权限点（V56）
 INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
 (4030, 'AI 服务', 'ai:service:query', 2, 4, 4000, 'service', 'ep:document', 'ai/service/index', 'AiService', 0, b'1', b'1', b'1', '1', '2026-09-19 10:00:00', '1', '2026-09-19 10:00:00', b'0'),
@@ -1759,6 +1792,12 @@ INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_i
 (4033, '服务删除', 'ai:service:delete', 3, 3, 4030, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-19 10:00:00', '1', '2026-09-19 10:00:00', b'0'),
 (4034, '资源绑定', 'ai:service:bind', 3, 4, 4030, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-19 10:00:00', '1', '2026-09-19 10:00:00', b'0'),
 (4035, '标记可发布', 'ai:service:publish', 3, 5, 4030, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-19 10:00:00', '1', '2026-09-19 10:00:00', b'0');
+
+-- AI 服务发布与评测菜单与权限点（V57）
+INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
+(4036, '创建发布候选', 'ai:service:release', 3, 6, 4030, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-19 16:00:00', '1', '2026-09-19 16:00:00', b'0'),
+(4037, '切换发布版本', 'ai:service:activate', 3, 7, 4030, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-19 16:00:00', '1', '2026-09-19 16:00:00', b'0'),
+(4038, '记录评测结果', 'ai:service:evaluate', 3, 8, 4030, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-19 16:00:00', '1', '2026-09-19 16:00:00', b'0');
 
 
 -- AI 中台菜单与权限点（V48/V49/V50，与 AiModelEndpointController / AiModelCapabilityProbeController / AiApplicationController 的 @PreAuthorize 一一对应）

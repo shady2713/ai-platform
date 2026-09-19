@@ -161,6 +161,7 @@ public class AiServiceController {
                 .setOutputSchema(reqVO.getOutputSchema())
                 .setRequiredCapabilities(reqVO.getRequiredCapabilities())
                 .setRunSubjectType(reqVO.getRunSubjectType())
+                .setEvalThreshold(reqVO.getEvalThreshold())
                 .setVersion(reqVO.getVersion());
     }
 
@@ -193,6 +194,7 @@ public class AiServiceController {
                                         .filter(value -> !value.isEmpty())
                                         .collect(Collectors.toList()))
                 .setRunSubjectType(service.getRunSubjectType())
+                .setEvalThreshold(service.getEvalThreshold())
                 .setDraftRevision(service.getDraftRevision())
                 .setVersion(service.getVersion())
                 .setCreateTime(service.getCreateTime());

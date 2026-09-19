@@ -264,6 +264,7 @@ class PersistenceLifecycleIT extends AbstractPersistenceIntegrationTest {
                         "ai_resource_grant",
                         "ai_service",
                         "ai_service_release",
+                        "ai_service_release_evaluation",
                         "ai_service_resource",
                         "ai_subject",
                         "infra_config",

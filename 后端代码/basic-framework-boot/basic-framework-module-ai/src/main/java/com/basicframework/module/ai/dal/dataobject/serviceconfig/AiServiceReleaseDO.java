@@ -58,6 +58,9 @@ public class AiServiceReleaseDO extends SoftDeletableDO {
     /** 发布时固定的能力集合 */
     private String requiredCapabilities;
 
+    /** 发布时冻结的评测得分门槛（0-100） */
+    private Integer evalThreshold;
+
     /** 发布内容摘要 */
     private String contentHash;
 

@@ -48,6 +48,9 @@ public class AiServiceRespVO {
     @Schema(description = "运行主体类型")
     private String runSubjectType;
 
+    @Schema(description = "发布要求的评测得分门槛（0-100）")
+    private Integer evalThreshold;
+
     @Schema(description = "草稿修订号")
     private Integer draftRevision;
 

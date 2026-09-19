@@ -18,6 +18,9 @@ public class AiServiceResourceRespVO {
     @Schema(description = "服务编号")
     private Long serviceId;
 
+    @Schema(description = "发布版本编号（空表示草稿绑定）")
+    private Long releaseId;
+
     @Schema(description = "资源类型")
     private String resourceType;
 

@@ -29,7 +29,8 @@
         "ai_file_binding",
         "ai_service",
         "ai_service_release",
-        "ai_service_resource"
+        "ai_service_resource",
+        "ai_service_release_evaluation"
       ]
     },
     {
@@ -96,6 +97,8 @@
     "fk_ai_access_ticket_application",
     "fk_ai_service_app",
     "fk_ai_service_release_service",
-    "fk_ai_service_resource_service"
+    "fk_ai_service_resource_service",
+    "fk_ai_service_eval_release",
+    "fk_ai_service_eval_service"
   ]
 }

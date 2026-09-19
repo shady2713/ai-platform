@@ -42,6 +42,9 @@ public class AiServiceSaveDTO {
     /** 运行主体类型（APP/USER） */
     private String runSubjectType;
 
+    /** 发布要求的评测得分门槛（0-100，缺省 0） */
+    private Integer evalThreshold;
+
     /** 乐观锁版本（修改时必填） */
     private Integer version;
 }

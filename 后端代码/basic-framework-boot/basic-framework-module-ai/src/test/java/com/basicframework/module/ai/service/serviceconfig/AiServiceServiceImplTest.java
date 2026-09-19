@@ -229,7 +229,7 @@ class AiServiceServiceImplTest {
                         any(AiAction.class),
                         any()))
                 .thenReturn(new AiAuthorizationDecisionDTO().setAllowed(true));
-        when(resourceMapper.selectBinding(9L, null, "REPORT", "report-1")).thenReturn(null);
+        when(resourceMapper.selectDraftBinding(9L, "REPORT", "report-1")).thenReturn(null);
         when(resourceMapper.insert(any(AiServiceResourceDO.class))).thenAnswer(invocation -> {
             ((AiServiceResourceDO) invocation.getArgument(0)).setId(11L);
             return 1;
@@ -247,7 +247,7 @@ class AiServiceServiceImplTest {
         assertThat(captor.getValue().getActions()).isEqualTo("READ,EXECUTE");
         assertThat(captor.getValue().getStatus()).isEqualTo(AiServiceResourceDO.STATUS_ACTIVE);
 
-        when(resourceMapper.selectBinding(9L, null, "REPORT", "report-1"))
+        when(resourceMapper.selectDraftBinding(9L, "REPORT", "report-1"))
                 .thenReturn(new AiServiceResourceDO().setId(11L));
         assertCode(
                 () -> service.bindResource(new AiServiceResourceSaveDTO()

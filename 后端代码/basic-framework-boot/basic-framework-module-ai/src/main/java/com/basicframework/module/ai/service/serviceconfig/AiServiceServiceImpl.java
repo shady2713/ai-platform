@@ -78,6 +78,7 @@ public class AiServiceServiceImpl implements AiServiceService {
                 .setOutputSchema(saveDTO.getOutputSchema())
                 .setRequiredCapabilities(joinCapabilities(saveDTO.getRequiredCapabilities()))
                 .setRunSubjectType(saveDTO.getRunSubjectType())
+                .setEvalThreshold(normalizeThreshold(saveDTO.getEvalThreshold()))
                 .setDraftRevision(1)
                 .setVersion(0);
         serviceMapper.insert(service);
@@ -104,6 +105,7 @@ public class AiServiceServiceImpl implements AiServiceService {
                 .setOutputSchema(saveDTO.getOutputSchema())
                 .setRequiredCapabilities(joinCapabilities(saveDTO.getRequiredCapabilities()))
                 .setRunSubjectType(saveDTO.getRunSubjectType())
+                .setEvalThreshold(normalizeThreshold(saveDTO.getEvalThreshold()))
                 // 配置变更：修订号递增（发布时据此固定版本）；配置一变，READY 需要重新确认
                 .setDraftRevision(existing.getDraftRevision() + 1)
                 .setStatus(AiServiceDO.STATUS_DRAFT)
@@ -206,8 +208,8 @@ public class AiServiceServiceImpl implements AiServiceService {
                 throw exception(AI_AUTHORIZATION_DENIED);
             }
         }
-        if (resourceMapper.selectBinding(service.getId(), null, resourceType.name(), saveDTO.getResourceKey())
-                != null) {
+        if (resourceMapper.selectDraftBinding(service.getId(), resourceType.name(), saveDTO.getResourceKey()) != null) {
+            // 只与草稿绑定比较：发布版本快照不参与草稿的重复判定
             throw exception(AI_STATE_CONFLICT);
         }
         AiServiceResourceDO binding = new AiServiceResourceDO()
@@ -344,5 +346,16 @@ public class AiServiceServiceImpl implements AiServiceService {
         if (version == null || version < 0) {
             throw exception(AI_REQUEST_INVALID);
         }
+    }
+
+    /** 评测门槛：百分制，缺省 0（只要求评测通过）。 */
+    private static Integer normalizeThreshold(Integer threshold) {
+        if (threshold == null) {
+            return 0;
+        }
+        if (threshold < 0 || threshold > 100) {
+            throw exception(AI_REQUEST_INVALID);
+        }
+        return threshold;
     }
 }

@@ -87,4 +87,24 @@ public interface AiErrorCodeConstants {
 
     /** 运行已进入终态，不能再取消或改写（409）。 */
     ErrorCode AI_RUN_ALREADY_TERMINAL = new ErrorCode(1_003_004_001, "运行已结束，不能再变更");
+
+    // ========== 服务配置 1_003_008_xxx ==========
+
+    /** 服务未标记可发布（409）：草稿必须先通过能力校验才能创建发布候选。 */
+    ErrorCode AI_SERVICE_NOT_READY = new ErrorCode(1_003_008_000, "服务未标记可发布，不能创建发布候选");
+
+    /** 缺少与候选内容匹配的评测结果（409）：内容或端点配置变化后必须重新评测，旧报告不能用于新内容。 */
+    ErrorCode AI_SERVICE_EVAL_MISSING = new ErrorCode(1_003_008_001, "缺少与候选内容匹配的评测结果");
+
+    /** 评测得分未达发布门槛（409）。 */
+    ErrorCode AI_SERVICE_EVAL_BELOW_THRESHOLD = new ErrorCode(1_003_008_002, "评测得分未达发布门槛");
+
+    /** 服务没有生效的发布版本（409）：新运行必须解析到唯一 ACTIVE 版本。 */
+    ErrorCode AI_SERVICE_NOT_PUBLISHED = new ErrorCode(1_003_008_003, "服务没有生效的发布版本");
+
+    /** 发布版本依赖的资源绑定已解除或不可用（409）：新运行拒绝，旧版本不保留旧权限。 */
+    ErrorCode AI_SERVICE_RESOURCE_UNAVAILABLE = new ErrorCode(1_003_008_004, "发布版本依赖的资源绑定已解除或不可用");
+
+    /** 端点配置版本已变化（409）：冻结候选与当前配置不一致，需重建候选并重新评测。 */
+    ErrorCode AI_SERVICE_ENDPOINT_CONFIG_CHANGED = new ErrorCode(1_003_008_005, "模型端点配置版本已变化，需重建发布候选");
 }

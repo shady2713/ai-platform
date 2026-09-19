@@ -14,6 +14,7 @@ package com.basicframework.module.ai.enums;
  *   1_003_005_xxx  知识库（文档、解析、索引、检索授权）
  *   1_003_006_xxx  数据与工具（连接器、查询计划、工具执行）
  *   1_003_007_xxx  报表与 Chat（报表、主题、嵌入）
+ *   1_003_008_xxx  服务配置（服务发布、评测门槛、运行快照）
  * </pre>
  *
  * <p>HTTP 映射遵循 [ADR 0003](http-status-semantics) 与 [ADR 0049](identity-boundaries)：
@@ -46,6 +47,9 @@ public final class AiErrorCodeRanges {
 
     /** 报表与 Chat 子区间。 */
     public static final int DOMAIN_REPORT = 1_003_007;
+
+    /** 服务配置子区间。 */
+    public static final int DOMAIN_SERVICE = 1_003_008;
 
     private AiErrorCodeRanges() {}
 }

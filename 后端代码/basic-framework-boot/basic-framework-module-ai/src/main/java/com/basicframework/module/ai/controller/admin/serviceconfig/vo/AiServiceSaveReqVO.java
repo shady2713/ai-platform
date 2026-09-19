@@ -1,6 +1,8 @@
 package com.basicframework.module.ai.controller.admin.serviceconfig.vo;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -60,6 +62,11 @@ public class AiServiceSaveReqVO {
     @Schema(description = "运行主体类型（APP/USER）", requiredMode = Schema.RequiredMode.REQUIRED)
     @Pattern(regexp = "^(APP|USER)$", message = "运行主体类型只能是 APP 或 USER")
     private String runSubjectType;
+
+    @Schema(description = "发布要求的评测得分门槛（0-100，缺省 0 表示只要求评测通过）")
+    @Min(value = 0, message = "评测门槛不能小于 0")
+    @Max(value = 100, message = "评测门槛不能大于 100")
+    private Integer evalThreshold;
 
     @Schema(description = "乐观锁版本（修改时必填）")
     private Integer version;
