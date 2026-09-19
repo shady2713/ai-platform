@@ -53,6 +53,8 @@
 | 1_003_008_005 | AI_SERVICE_ENDPOINT_CONFIG_CHANGED | 409 | 端点配置版本已变化，需重建候选并重新评测 |
 | 1_003_008_006 | AI_SERVICE_RELEASE_NOT_PUBLISHED | 409 | 发布版本尚未发布，不能用于运行解析或作为回退目标 |
 | 1_003_008_007 | AI_SERVICE_RELEASE_PIN_STALE | 409 | 会话固定的发布内容已不一致，需要显式迁移会话 |
+| 1_003_008_008 | AI_CONTEXT_BUDGET_EXCEEDED | 409 | 上下文超出输入预算：强制分区无法完整容纳 |
+| 1_003_008_009 | AI_CONTEXT_SCHEMA_INVALID | 400 | 业务上下文不合规：不是 JSON 对象或含未注册字段 |
 
 HTTP 语义遵循 [ADR 0003](../../adr/0003-http-status-semantics.md)；认证与授权边界见
 [ADR 0049](../../adr/0049-ai-open-identity-and-security-extension-boundaries.md)。

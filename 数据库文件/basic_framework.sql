@@ -4,7 +4,7 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V57.
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V58.
 -- Only the 27 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
@@ -1793,11 +1793,12 @@ INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_i
 (4034, '资源绑定', 'ai:service:bind', 3, 4, 4030, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-19 10:00:00', '1', '2026-09-19 10:00:00', b'0'),
 (4035, '标记可发布', 'ai:service:publish', 3, 5, 4030, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-19 10:00:00', '1', '2026-09-19 10:00:00', b'0');
 
--- AI 服务发布与评测菜单与权限点（V57）
+-- AI 服务发布、评测与调试菜单与权限点（V57-V58）
 INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
 (4036, '创建发布候选', 'ai:service:release', 3, 6, 4030, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-19 16:00:00', '1', '2026-09-19 16:00:00', b'0'),
 (4037, '切换发布版本', 'ai:service:activate', 3, 7, 4030, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-19 16:00:00', '1', '2026-09-19 16:00:00', b'0'),
-(4038, '记录评测结果', 'ai:service:evaluate', 3, 8, 4030, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-19 16:00:00', '1', '2026-09-19 16:00:00', b'0');
+(4038, '记录评测结果', 'ai:service:evaluate', 3, 8, 4030, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-19 16:00:00', '1', '2026-09-19 16:00:00', b'0'),
+(4039, '服务调试', 'ai:service:debug', 3, 9, 4030, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-19 17:00:00', '1', '2026-09-19 17:00:00', b'0');
 
 
 -- AI 中台菜单与权限点（V48/V49/V50，与 AiModelEndpointController / AiModelCapabilityProbeController / AiApplicationController 的 @PreAuthorize 一一对应）

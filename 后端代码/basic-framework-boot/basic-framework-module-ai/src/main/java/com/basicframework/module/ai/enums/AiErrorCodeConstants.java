@@ -113,4 +113,10 @@ public interface AiErrorCodeConstants {
 
     /** 会话固定的发布内容已不一致（409）：固定值失效时必须显式迁移会话，不得静默换版本。 */
     ErrorCode AI_SERVICE_RELEASE_PIN_STALE = new ErrorCode(1_003_008_007, "会话固定的发布版本与当前内容不一致，需要显式迁移会话");
+
+    /** 上下文超出输入预算（409）：强制分区无法完整容纳，必须由调用方缩小输入或提高预算。 */
+    ErrorCode AI_CONTEXT_BUDGET_EXCEEDED = new ErrorCode(1_003_008_008, "上下文超出输入预算：{} 分区无法完整容纳");
+
+    /** 业务上下文不合规（400）：不是 JSON 对象，或包含未注册字段。 */
+    ErrorCode AI_CONTEXT_SCHEMA_INVALID = new ErrorCode(1_003_008_009, "业务上下文不合规：{}");
 }
