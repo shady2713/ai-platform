@@ -4,8 +4,8 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V65.
--- Only the 33 soft-delete tables retain a deleted column; hard-delete and
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V66.
+-- Only the 35 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
 
@@ -1964,6 +1964,53 @@ CREATE TABLE `ai_run_event` (
   CONSTRAINT `fk_ai_run_event_run` FOREIGN KEY (`run_id`) REFERENCES `ai_run` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 运行事件（SSE 事件源，seq 由运行行分配，O05）';
 
+--
+-- AI 连接器与探测结论（V66）
+--
+
+DROP TABLE IF EXISTS `ai_connector`;
+
+CREATE TABLE `ai_connector` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '连接器编号',
+  `code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '连接器标识（全局唯一，创建后不可修改）',
+  `name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '连接器名称',
+  `connector_type` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '类型（HTTP/MYSQL）',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'ENABLED' COMMENT '状态（ENABLED/DISABLED）',
+  `config_json` varchar(2000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '声明式配置（结构化字段，不含秘密）',
+  `credential_ciphertext` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '秘密密文（AES-GCM，含版本前缀；查询接口永不返回）',
+  `credential_revision` int NOT NULL DEFAULT '0' COMMENT '秘密版本（0 表示未配置）',
+  `referenced` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否被数据集/工具引用（引用后不可删除）',
+  `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `uk_ai_connector_code` ((if(`deleted` = b'1',NULL,`code`))),
+  KEY `idx_ai_connector_type` (`connector_type`,`status`,`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 连接器配置（声明式字段 + 加密秘密，D01）';
+
+DROP TABLE IF EXISTS `ai_connector_probe`;
+
+CREATE TABLE `ai_connector_probe` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '探测记录编号',
+  `connector_id` bigint NOT NULL COMMENT '连接器编号',
+  `probe_kind` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '探测类型（HTTP_CONNECTIVITY/MYSQL_CONNECTIVITY）',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '结论（SUPPORTED/FAILED）',
+  `detail_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '失败原因码（稳定词表；成功为空）',
+  `latency_ms` int NOT NULL DEFAULT '0' COMMENT '耗时（毫秒）',
+  `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  KEY `idx_ai_connector_probe` (`connector_id`,`id`),
+  CONSTRAINT `fk_ai_connector_probe_connector` FOREIGN KEY (`connector_id`) REFERENCES `ai_connector` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 连接器探测结论（只记稳定原因码，D01）';
+
 -- AI 服务菜单与权限点（V56）
 INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
 (4030, 'AI 服务', 'ai:service:query', 2, 4, 4000, 'service', 'ep:document', 'ai/service/index', 'AiService', 0, b'1', b'1', b'1', '1', '2026-09-19 10:00:00', '1', '2026-09-19 10:00:00', b'0'),
@@ -1983,6 +2030,14 @@ INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_i
 -- AI 开放平台菜单（V65）
 INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
 (4040, 'AI 开放平台', 'ai:open-platform:query', 2, 5, 4000, 'open-platform', 'ep:link', 'ai/open-platform/index', 'AiOpenPlatform', 0, b'1', b'1', b'1', '1', '2026-09-20 09:00:00', '1', '2026-09-20 09:00:00', b'0');
+
+-- AI 连接器菜单与权限点（V66）
+INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
+(4050, 'AI 连接器', 'ai:connector:query', 2, 6, 4000, 'connector', 'ep:connection', 'ai/connector/index', 'AiConnector', 0, b'1', b'1', b'1', '1', '2026-09-20 11:00:00', '1', '2026-09-20 11:00:00', b'0'),
+(4051, '连接器新增', 'ai:connector:create', 3, 1, 4050, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-20 11:00:00', '1', '2026-09-20 11:00:00', b'0'),
+(4052, '连接器修改', 'ai:connector:update', 3, 2, 4050, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-20 11:00:00', '1', '2026-09-20 11:00:00', b'0'),
+(4053, '连接器删除', 'ai:connector:delete', 3, 3, 4050, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-20 11:00:00', '1', '2026-09-20 11:00:00', b'0'),
+(4054, '连接测试', 'ai:connector:probe', 3, 4, 4050, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-20 11:00:00', '1', '2026-09-20 11:00:00', b'0');
 
 
 -- AI 中台菜单与权限点（V48/V49/V50，与 AiModelEndpointController / AiModelCapabilityProbeController / AiApplicationController 的 @PreAuthorize 一一对应）

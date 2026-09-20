@@ -53,6 +53,23 @@ public interface AiErrorCodeConstants {
     /** 资源等级不允许外发到该端点（403）：策略拒绝发生在任何网络调用之前。 */
     ErrorCode AI_MODEL_OUTBOUND_BLOCKED = new ErrorCode(1_003_002_006, "该资源等级不允许外发到所选模型端点");
 
+    // ========== 数据与工具 1_003_006_xxx ==========
+
+    /** 连接器不存在（404）。 */
+    ErrorCode AI_CONNECTOR_NOT_FOUND = new ErrorCode(1_003_006_000, "连接器不存在");
+
+    /** 连接器标识重复（409）：code 全局唯一且创建后不可修改。 */
+    ErrorCode AI_CONNECTOR_CODE_DUPLICATE = new ErrorCode(1_003_006_001, "连接器标识({}) 已存在");
+
+    /** 连接器配置不合规（400）：只接受声明式白名单字段，整段连接串与未知参数一律拒绝。 */
+    ErrorCode AI_CONNECTOR_CONFIG_INVALID = new ErrorCode(1_003_006_002, "连接器配置不合规");
+
+    /** 连接器被引用（409）：被数据集或工具引用时不能删除。 */
+    ErrorCode AI_CONNECTOR_REFERENCED = new ErrorCode(1_003_006_003, "连接器已被引用，不能删除");
+
+    /** 连接器已停用（409）：停用后不允许探测或发起连接。 */
+    ErrorCode AI_CONNECTOR_DISABLED = new ErrorCode(1_003_006_004, "连接器已停用");
+
     // ========== 应用与授权 1_003_003_xxx ==========
 
     /** 应用不存在（404）。 */

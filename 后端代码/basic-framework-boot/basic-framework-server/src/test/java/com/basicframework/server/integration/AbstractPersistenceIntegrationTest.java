@@ -68,6 +68,16 @@ abstract class AbstractPersistenceIntegrationTest {
         registry.add("spring.data.redis.password", () -> REDIS_PASSWORD);
     }
 
+    /** MySQL 容器的映射端口（连接器探测等需要以真实地址连接时使用）。 */
+    protected static int mysqlMappedPort() {
+        return MYSQL.getMappedPort(3306);
+    }
+
+    /** MySQL 容器的 root 密码（连接器探测等需要以真实凭据连接时使用）。 */
+    protected static String mysqlRootPassword() {
+        return MYSQL.getPassword();
+    }
+
     protected void assertServiceException(Integer expectedCode, ThrowingOperation operation) {
         assertThatThrownBy(operation::run)
                 .isInstanceOfSatisfying(ServiceException.class, exception -> assertThat(exception.getCode())

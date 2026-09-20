@@ -259,6 +259,8 @@ class PersistenceLifecycleIT extends AbstractPersistenceIntegrationTest {
                         "ai_access_ticket",
                         "ai_application",
                         "ai_application_credential",
+                        "ai_connector",
+                        "ai_connector_probe",
                         "ai_conversation",
                         "ai_conversation_message",
                         "ai_file_binding",
