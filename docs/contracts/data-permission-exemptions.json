@@ -644,6 +644,35 @@
           ]
         }
       ]
+    },
+    {
+      "id": "ai-dataset-config",
+      "reason": "语义数据集与其版本是控制面配置（来源对象 + 语义定义快照），由功能权限 ai:dataset:* 管理，不具有部门或用户行级归属。版本行是不可变引用快照，被报表引用时删除会被拒绝（引用保护），因此不适用行级数据权限。",
+      "tables": [
+        "ai_dataset",
+        "ai_dataset_version"
+      ],
+      "controls": [
+        {
+          "kind": "function-permission",
+          "tables": [
+            "ai_dataset",
+            "ai_dataset_version"
+          ],
+          "evidence": [
+            {
+              "table": "ai_dataset",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/dataset/AiDatasetController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('ai:dataset:query')\")"
+            },
+            {
+              "table": "ai_dataset_version",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/dataset/AiDatasetController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('ai:dataset:version:publish')\")"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

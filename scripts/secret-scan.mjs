@@ -210,6 +210,11 @@ const publicFixtures = new Map([
     `${server}test/java/com/basicframework/server/integration/AiMysqlReadOnlyConnectorIT.java`,
     new Set(["d03-it-readonly-password"]),
   ],
+  // D04：数据集集成测试里的一次性只读账号口令（仅集成容器内使用）
+  [
+    `${server}test/java/com/basicframework/server/integration/AiDatasetVersionIT.java`,
+    new Set(["d04-it-readonly-password"]),
+  ],
 ]);
 
 export function hasSecretAssignment(path, line) {

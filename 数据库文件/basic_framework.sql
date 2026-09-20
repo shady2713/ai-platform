@@ -4,8 +4,8 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V67.
--- Only the 36 soft-delete tables retain a deleted column; hard-delete and
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V68.
+-- Only the 38 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
 
@@ -2040,6 +2040,60 @@ CREATE TABLE `ai_connector_operation` (
   CONSTRAINT `fk_ai_connector_operation_connector` FOREIGN KEY (`connector_id`) REFERENCES `ai_connector` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 连接器操作（声明式导入草稿与发布，D02）';
 
+--
+-- AI 语义数据集与版本（V68）
+--
+
+DROP TABLE IF EXISTS `ai_dataset`;
+
+CREATE TABLE `ai_dataset` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '数据集编号',
+  `code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '数据集标识（全局唯一且创建后不可修改）',
+  `name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '数据集名称',
+  `description` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '说明',
+  `connector_id` bigint NOT NULL COMMENT '连接器编号（只读数据来源）',
+  `source_object` varchar(129) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '来源对象（schema.table，必须在该连接器授权白名单内）',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'ENABLED' COMMENT '状态（ENABLED/DISABLED）',
+  `latest_version_no` int NOT NULL DEFAULT '0' COMMENT '最新语义版本号（0 表示尚无版本）',
+  `published_version_no` int NOT NULL DEFAULT '0' COMMENT '最近发布的语义版本号（0 表示未发布）',
+  `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `uk_ai_dataset_code` ((if(`deleted` = b'1',NULL,`code`))),
+  KEY `idx_ai_dataset_connector` (`connector_id`,`status`,`id`),
+  CONSTRAINT `fk_ai_dataset_connector` FOREIGN KEY (`connector_id`) REFERENCES `ai_connector` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 语义数据集（来源对象 + 语义版本，D04）';
+
+DROP TABLE IF EXISTS `ai_dataset_version`;
+
+CREATE TABLE `ai_dataset_version` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '版本编号',
+  `dataset_id` bigint NOT NULL COMMENT '数据集编号',
+  `version_no` int NOT NULL COMMENT '语义版本号（数据集内递增，发布后不可变）',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'DRAFT' COMMENT '状态（DRAFT/PUBLISHED）',
+  `definition_json` varchar(8000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '语义定义（粒度/时间/字段/指标/维度/单位/枚举/权限策略）',
+  `schema_hash` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '定义内容哈希（去重、漂移判定与引用追踪）',
+  `source_schema_hash` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '验证通过时的上游结构哈希（漂移基线）',
+  `verification_status` varchar(24) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'UNVERIFIED' COMMENT '验证状态（UNVERIFIED/VERIFIED/DRIFTED）',
+  `drift_json` varchar(2000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '最近一次漂移结论（新增/缺失/类型变化列）',
+  `verified_at` datetime DEFAULT NULL COMMENT '最近一次验证时间',
+  `published_at` datetime DEFAULT NULL COMMENT '发布时间',
+  `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `uk_ai_dataset_version_no` ((if(`deleted` = b'1',NULL,concat(`dataset_id`,_utf8mb4':',`version_no`)))),
+  KEY `idx_ai_dataset_version` (`dataset_id`,`status`,`id`),
+  CONSTRAINT `fk_ai_dataset_version_dataset` FOREIGN KEY (`dataset_id`) REFERENCES `ai_dataset` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 语义数据集版本（不可变语义快照，D04）';
+
 -- AI 服务菜单与权限点（V56）
 INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
 (4030, 'AI 服务', 'ai:service:query', 2, 4, 4000, 'service', 'ep:document', 'ai/service/index', 'AiService', 0, b'1', b'1', b'1', '1', '2026-09-19 10:00:00', '1', '2026-09-19 10:00:00', b'0'),
@@ -2118,6 +2172,16 @@ INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_i
 (4013, '应用删除', 'ai:application:delete', 3, 3, 4010, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-17 21:00:00', '1', '2026-09-17 21:00:00', b'0'),
 (4014, '凭据轮换', 'ai:application:rotate', 3, 4, 4010, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-17 21:00:00', '1', '2026-09-17 21:00:00', b'0'),
 (4015, '凭据吊销', 'ai:application:revoke', 3, 5, 4010, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-17 21:00:00', '1', '2026-09-17 21:00:00', b'0');
+
+-- 数据集菜单与权限点（V68）
+INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
+(4060, 'AI 数据集', 'ai:dataset:query', 2, 7, 4000, 'dataset', 'ep:data-analysis', 'ai/dataset/index', 'AiDataset', 0, b'1', b'1', b'1', '1', '2026-09-20 18:00:00', '1', '2026-09-20 18:00:00', b'0'),
+(4061, '数据集新增', 'ai:dataset:create', 3, 1, 4060, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-20 18:00:00', '1', '2026-09-20 18:00:00', b'0'),
+(4062, '数据集修改', 'ai:dataset:update', 3, 2, 4060, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-20 18:00:00', '1', '2026-09-20 18:00:00', b'0'),
+(4063, '数据集删除', 'ai:dataset:delete', 3, 3, 4060, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-20 18:00:00', '1', '2026-09-20 18:00:00', b'0'),
+(4064, '创建语义版本', 'ai:dataset:version:create', 3, 4, 4060, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-20 18:00:00', '1', '2026-09-20 18:00:00', b'0'),
+(4065, '验证语义版本', 'ai:dataset:version:verify', 3, 5, 4060, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-20 18:00:00', '1', '2026-09-20 18:00:00', b'0'),
+(4066, '发布语义版本', 'ai:dataset:version:publish', 3, 6, 4060, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-20 18:00:00', '1', '2026-09-20 18:00:00', b'0');
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;

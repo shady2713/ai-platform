@@ -109,6 +109,42 @@ public interface AiErrorCodeConstants {
     /** 上游查询失败（502）：语法、权限或上游错误（只回稳定原因码，不回上游正文）。 */
     ErrorCode AI_CONNECTOR_QUERY_FAILED = new ErrorCode(1_003_006_017, "连接器查询失败");
 
+    /** 数据集不存在（404）。 */
+    ErrorCode AI_DATASET_NOT_FOUND = new ErrorCode(1_003_006_018, "数据集不存在");
+
+    /** 数据集标识重复（409）：code 全局唯一且创建后不可修改。 */
+    ErrorCode AI_DATASET_CODE_DUPLICATE = new ErrorCode(1_003_006_019, "数据集标识({}) 已存在");
+
+    /** 来源对象未授权（403）：不在连接器声明的白名单内。 */
+    ErrorCode AI_DATASET_SOURCE_NOT_AUTHORIZED = new ErrorCode(1_003_006_020, "来源对象不在连接器授权范围内");
+
+    /** 语义定义不合规（400）：未知键、枚举外取值、越界或缺少权限策略。 */
+    ErrorCode AI_DATASET_DEFINITION_INVALID = new ErrorCode(1_003_006_021, "数据集语义定义不合规");
+
+    /** 别名有歧义（400）：别名重复或与字段/指标/维度名冲突。 */
+    ErrorCode AI_DATASET_ALIAS_AMBIGUOUS = new ErrorCode(1_003_006_022, "数据集字段别名有歧义");
+
+    /** 数据集版本不存在（404）。 */
+    ErrorCode AI_DATASET_VERSION_NOT_FOUND = new ErrorCode(1_003_006_023, "数据集版本不存在");
+
+    /** 版本不可修改（409）：已发布版本是引用快照，只能新建版本。 */
+    ErrorCode AI_DATASET_VERSION_IMMUTABLE = new ErrorCode(1_003_006_024, "已发布版本不可修改，请新建版本");
+
+    /** 版本结构漂移（409）：上游结构与定义不一致，必须重新验证后再发布。 */
+    ErrorCode AI_DATASET_VERSION_DRIFTED = new ErrorCode(1_003_006_025, "上游结构已漂移，必须重新验证");
+
+    /** 版本未验证（409）：未通过验证的版本不能发布。 */
+    ErrorCode AI_DATASET_VERSION_NOT_VERIFIED = new ErrorCode(1_003_006_026, "版本尚未验证，不能发布");
+
+    /** 字段在上游不存在（400）：定义引用了未知列。 */
+    ErrorCode AI_DATASET_FIELD_UNKNOWN = new ErrorCode(1_003_006_027, "定义引用了上游不存在的列");
+
+    /** 数据集被引用（409）：被报表等引用时不能删除。 */
+    ErrorCode AI_DATASET_REFERENCED = new ErrorCode(1_003_006_028, "数据集已被引用，不能删除");
+
+    /** 数据集已停用（409）：停用后不允许新建/验证/发布版本。 */
+    ErrorCode AI_DATASET_DISABLED = new ErrorCode(1_003_006_029, "数据集已停用");
+
     // ========== 应用与授权 1_003_003_xxx ==========
 
     /** 应用不存在（404）。 */

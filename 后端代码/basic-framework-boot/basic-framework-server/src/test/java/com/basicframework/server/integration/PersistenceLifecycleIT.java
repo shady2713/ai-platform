@@ -264,6 +264,8 @@ class PersistenceLifecycleIT extends AbstractPersistenceIntegrationTest {
                         "ai_connector_probe",
                         "ai_conversation",
                         "ai_conversation_message",
+                        "ai_dataset",
+                        "ai_dataset_version",
                         "ai_file_binding",
                         "ai_model_endpoint",
                         "ai_model_endpoint_revision",

@@ -69,6 +69,18 @@
 | 1_003_006_015 | AI_CONNECTOR_MYSQL_UNAVAILABLE | 502 | 只读连接不可用（建池/取连接/连接中断） |
 | 1_003_006_016 | AI_CONNECTOR_MYSQL_VERSION_UNSUPPORTED | 409 | 上游不是受支持的 MySQL 8 |
 | 1_003_006_017 | AI_CONNECTOR_QUERY_FAILED | 502 | 上游查询失败（语法/权限/上游错误，不回上游正文） |
+| 1_003_006_018 | AI_DATASET_NOT_FOUND | 404 | 数据集不存在 |
+| 1_003_006_019 | AI_DATASET_CODE_DUPLICATE | 409 | 数据集标识重复（code 唯一且不可改） |
+| 1_003_006_020 | AI_DATASET_SOURCE_NOT_AUTHORIZED | 403 | 来源对象不在连接器授权白名单内 |
+| 1_003_006_021 | AI_DATASET_DEFINITION_INVALID | 400 | 语义定义不合规（未知键/枚举外取值/越界/缺权限策略） |
+| 1_003_006_022 | AI_DATASET_ALIAS_AMBIGUOUS | 400 | 字段别名有歧义（重复或与字段/指标/维度名冲突） |
+| 1_003_006_023 | AI_DATASET_VERSION_NOT_FOUND | 404 | 数据集版本不存在 |
+| 1_003_006_024 | AI_DATASET_VERSION_IMMUTABLE | 409 | 已发布版本不可修改，只能新建版本 |
+| 1_003_006_025 | AI_DATASET_VERSION_DRIFTED | 409 | 上游结构已漂移，必须重新验证 |
+| 1_003_006_026 | AI_DATASET_VERSION_NOT_VERIFIED | 409 | 版本未通过验证，不能发布 |
+| 1_003_006_027 | AI_DATASET_FIELD_UNKNOWN | 400 | 定义引用了上游不存在的列 |
+| 1_003_006_028 | AI_DATASET_REFERENCED | 409 | 数据集被报表等引用，不能删除 |
+| 1_003_006_029 | AI_DATASET_DISABLED | 409 | 数据集已停用 |
 | 1_003_008_000 | AI_SERVICE_NOT_READY | 409 | 服务未标记可发布，不能创建发布候选 |
 | 1_003_008_001 | AI_SERVICE_EVAL_MISSING | 409 | 缺少与候选内容匹配的评测结果（内容/端点配置变化后必须重新评测） |
 | 1_003_008_002 | AI_SERVICE_EVAL_BELOW_THRESHOLD | 409 | 评测得分未达发布门槛 |
