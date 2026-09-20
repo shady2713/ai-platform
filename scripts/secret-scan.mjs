@@ -220,6 +220,15 @@ const publicFixtures = new Map([
     `${server}test/java/com/basicframework/server/integration/AiQueryPlanIT.java`,
     new Set(["d05-it-readonly-password"]),
   ],
+  // D06：SQL 编译执行/权限集成测试里的一次性只读账号口令（仅集成容器内使用）
+  [
+    `${server}test/java/com/basicframework/server/integration/AiMysqlQueryExecutionIT.java`,
+    new Set(["d06-it-readonly-password"]),
+  ],
+  [
+    `${server}test/java/com/basicframework/server/integration/AiQueryPermissionIT.java`,
+    new Set(["d06-it-permission-password"]),
+  ],
 ]);
 
 export function hasSecretAssignment(path, line) {

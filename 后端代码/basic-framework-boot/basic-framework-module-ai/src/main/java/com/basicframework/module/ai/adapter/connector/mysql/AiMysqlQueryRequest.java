@@ -39,7 +39,10 @@ public record AiMysqlQueryRequest(String sql, List<Object> parameters, Integer m
             if (value != null
                     && !(value instanceof String)
                     && !(value instanceof Number)
-                    && !(value instanceof Boolean)) {
+                    && !(value instanceof Boolean)
+                    // 时间窗口按数据集声明的时区换算后以本地时间绑定（列是 DATETIME）
+                    && !(value instanceof java.time.LocalDateTime)
+                    && !(value instanceof java.time.LocalDate)) {
                 throw exception(AI_CONNECTOR_ARGUMENT_INVALID);
             }
         }

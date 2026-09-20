@@ -88,6 +88,8 @@
 | 1_003_006_034 | AI_QUERY_REPAIR_EXHAUSTED | 409 | 计划修复次数已用尽 |
 | 1_003_006_035 | AI_QUERY_MODEL_OUTPUT_INVALID | 502 | 模型输出不是可用的 PLAN/CLARIFICATION |
 | 1_003_006_036 | AI_DATASET_VERSION_NOT_PUBLISHED | 409 | 数据集版本未发布，不能用于查询 |
+| 1_003_006_037 | AI_QUERY_COMPILE_FAILED | 400 | 查询计划无法编译（字段映射缺失/结构不支持） |
+| 1_003_006_038 | AI_QUERY_SCOPE_REQUIRED | 403 | 缺少行范围授权，拒绝生成查询（不退回全库） |
 | 1_003_008_000 | AI_SERVICE_NOT_READY | 409 | 服务未标记可发布，不能创建发布候选 |
 | 1_003_008_001 | AI_SERVICE_EVAL_MISSING | 409 | 缺少与候选内容匹配的评测结果（内容/端点配置变化后必须重新评测） |
 | 1_003_008_002 | AI_SERVICE_EVAL_BELOW_THRESHOLD | 409 | 评测得分未达发布门槛 |

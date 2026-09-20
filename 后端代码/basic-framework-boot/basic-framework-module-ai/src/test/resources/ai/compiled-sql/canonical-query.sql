@@ -1,0 +1,1 @@
+SELECT customer_id AS customer_name, SUM(amount) AS net_amount FROM it_query.orders WHERE customer_id IN (?, ?) AND region = ? AND created_at >= ? AND created_at < ? GROUP BY customer_id ORDER BY net_amount DESC, customer_name ASC LIMIT ?

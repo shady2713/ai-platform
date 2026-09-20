@@ -166,6 +166,12 @@ public interface AiErrorCodeConstants {
     /** 数据集版本未发布（409）：只有已发布且已验证的版本可用于查询计划。 */
     ErrorCode AI_DATASET_VERSION_NOT_PUBLISHED = new ErrorCode(1_003_006_036, "数据集版本未发布，不能用于查询");
 
+    /** 编译失败（400）：计划与数据集组合无法编译（字段映射缺失或结构不支持）。 */
+    ErrorCode AI_QUERY_COMPILE_FAILED = new ErrorCode(1_003_006_037, "查询计划无法编译");
+
+    /** 缺少行范围授权域（403）：没有行级约束时拒绝生成可执行 SQL（不退回全库）。 */
+    ErrorCode AI_QUERY_SCOPE_REQUIRED = new ErrorCode(1_003_006_038, "缺少行范围授权，拒绝生成查询");
+
     // ========== 应用与授权 1_003_003_xxx ==========
 
     /** 应用不存在（404）。 */
