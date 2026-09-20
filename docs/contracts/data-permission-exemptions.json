@@ -604,14 +604,16 @@
       "reason": "AI 连接器与探测结论是控制面配置：连接器由功能权限 ai:connector:* 管理，没有部门或用户行级归属；秘密只以 CredentialCipher 密文保存，查询接口只回\"是否已配置\"，探测结论只记录稳定原因码。因此不登记部门/用户数据权限列，改为功能权限控制。",
       "tables": [
         "ai_connector",
-        "ai_connector_probe"
+        "ai_connector_probe",
+        "ai_connector_operation"
       ],
       "controls": [
         {
           "kind": "function-permission",
           "tables": [
             "ai_connector",
-            "ai_connector_probe"
+            "ai_connector_probe",
+            "ai_connector_operation"
           ],
           "evidence": [
             {
@@ -633,6 +635,11 @@
               "table": "ai_connector_probe",
               "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/connector/AiConnectorServiceImpl.java",
               "contains": "probeMapper.insert(probe)"
+            },
+            {
+              "table": "ai_connector_operation",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/connector/AiConnectorController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('ai:connector:operation')\")"
             }
           ]
         }

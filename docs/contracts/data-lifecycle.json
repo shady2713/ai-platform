@@ -38,7 +38,8 @@
         "ai_run_task",
         "ai_run_event",
         "ai_connector",
-        "ai_connector_probe"
+        "ai_connector_probe",
+        "ai_connector_operation"
       ]
     },
     {
@@ -120,6 +121,7 @@
     "fk_ai_run_idempotency_run",
     "fk_ai_run_task_run",
     "fk_ai_run_event_run",
-    "fk_ai_connector_probe_connector"
+    "fk_ai_connector_probe_connector",
+    "fk_ai_connector_operation_connector"
   ]
 }

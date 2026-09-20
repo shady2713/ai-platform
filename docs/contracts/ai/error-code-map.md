@@ -56,6 +56,11 @@
 | 1_003_006_002 | AI_CONNECTOR_CONFIG_INVALID | 400 | 连接器配置不合规（只接受声明式白名单字段） |
 | 1_003_006_003 | AI_CONNECTOR_REFERENCED | 409 | 连接器已被数据集/工具引用，不能删除 |
 | 1_003_006_004 | AI_CONNECTOR_DISABLED | 409 | 连接器已停用，不允许探测或发起连接 |
+| 1_003_006_005 | AI_CONNECTOR_OPERATION_NOT_FOUND | 404 | 连接器操作不存在 |
+| 1_003_006_006 | AI_CONNECTOR_OPERATION_NOT_PUBLISHED | 409 | 连接器操作尚未发布，不能执行 |
+| 1_003_006_007 | AI_CONNECTOR_IMPORT_INVALID | 400 | OpenAPI 文档不可导入（格式/上限/无可导入操作） |
+| 1_003_006_008 | AI_CONNECTOR_ORIGIN_MISMATCH | 400 | 目标地址与连接器 Origin 不一致（SSRF 防线） |
+| 1_003_006_009 | AI_CONNECTOR_ARGUMENT_INVALID | 400 | 连接器参数不合法（未声明/必填缺失/含查询语法） |
 | 1_003_008_000 | AI_SERVICE_NOT_READY | 409 | 服务未标记可发布，不能创建发布候选 |
 | 1_003_008_001 | AI_SERVICE_EVAL_MISSING | 409 | 缺少与候选内容匹配的评测结果（内容/端点配置变化后必须重新评测） |
 | 1_003_008_002 | AI_SERVICE_EVAL_BELOW_THRESHOLD | 409 | 评测得分未达发布门槛 |

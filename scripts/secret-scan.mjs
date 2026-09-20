@@ -184,6 +184,11 @@ const publicFixtures = new Map([
     `${server}test/java/com/basicframework/server/integration/AiKnowledgeIndexQdrantIT.java`,
     new Set(["k01-it-api-key", "wrong-key"]),
   ],
+  // D02：请求头构造单测里的解密替身明文（只在本文件内作为被测值，不指向任何真实凭据）
+  [
+    `${moduleAi}test/java/com/basicframework/module/ai/adapter/connector/http/AiConnectorAuthHeadersTest.java`,
+    new Set(["it-connector-secret"]),
+  ],
 ]);
 
 export function hasSecretAssignment(path, line) {

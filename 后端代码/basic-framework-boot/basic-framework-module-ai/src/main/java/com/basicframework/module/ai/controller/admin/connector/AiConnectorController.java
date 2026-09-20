@@ -4,15 +4,28 @@ import static com.basicframework.framework.common.pojo.CommonResult.success;
 
 import com.basicframework.framework.common.pojo.CommonResult;
 import com.basicframework.framework.common.pojo.PageResult;
+import com.basicframework.module.ai.adapter.connector.http.AiHttpConnectorExecutor;
+import com.basicframework.module.ai.adapter.connector.http.dto.AiConnectorExecutionRequestDTO;
+import com.basicframework.module.ai.adapter.connector.http.dto.AiConnectorExecutionResultDTO;
+import com.basicframework.module.ai.controller.admin.connector.vo.AiConnectorExecuteReqVO;
+import com.basicframework.module.ai.controller.admin.connector.vo.AiConnectorExecuteRespVO;
+import com.basicframework.module.ai.controller.admin.connector.vo.AiConnectorImportReqVO;
+import com.basicframework.module.ai.controller.admin.connector.vo.AiConnectorImportRespVO;
+import com.basicframework.module.ai.controller.admin.connector.vo.AiConnectorOperationPublishReqVO;
+import com.basicframework.module.ai.controller.admin.connector.vo.AiConnectorOperationRespVO;
 import com.basicframework.module.ai.controller.admin.connector.vo.AiConnectorPageReqVO;
 import com.basicframework.module.ai.controller.admin.connector.vo.AiConnectorProbeRespVO;
 import com.basicframework.module.ai.controller.admin.connector.vo.AiConnectorRespVO;
 import com.basicframework.module.ai.controller.admin.connector.vo.AiConnectorSaveReqVO;
 import com.basicframework.module.ai.dal.dataobject.connector.AiConnectorDO;
+import com.basicframework.module.ai.dal.dataobject.connector.AiConnectorOperationDO;
 import com.basicframework.module.ai.dal.dataobject.connector.AiConnectorProbeDO;
 import com.basicframework.module.ai.service.connector.AiConnectorService;
 import com.basicframework.module.ai.service.connector.dto.AiConnectorProbeResultDTO;
 import com.basicframework.module.ai.service.connector.dto.AiConnectorSaveDTO;
+import com.basicframework.module.ai.service.connector.importer.AiConnectorOperationService;
+import com.basicframework.module.ai.service.connector.importer.dto.AiConnectorOperationDraftDTO;
+import com.basicframework.module.ai.service.connector.importer.dto.AiOpenApiImportResultDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -51,6 +64,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class AiConnectorController {
 
     private final AiConnectorService connectorService;
+
+    private final AiConnectorOperationService operationService;
+
+    private final AiHttpConnectorExecutor connectorExecutor;
 
     @PostMapping("/create")
     @Operation(summary = "新增连接器（声明式配置 + 秘密加密存储）")
@@ -145,6 +162,70 @@ public class AiConnectorController {
         return success(new PageResult<>(
                 page.getList().stream().map(AiConnectorController::toRespVO).collect(Collectors.toList()),
                 page.getTotal()));
+    }
+
+    @PostMapping("/{id}/import")
+    @Operation(summary = "导入 OpenAPI 操作草稿（只解析本地 $ref；导入结果需发布后才可执行）")
+    @PreAuthorize("@ss.hasPermission('ai:connector:import')")
+    public CommonResult<AiConnectorImportRespVO> importOperations(
+            @org.springframework.web.bind.annotation.PathVariable("id") @NotNull @Positive Long id,
+            @Valid @RequestBody AiConnectorImportReqVO reqVO) {
+        AiOpenApiImportResultDTO imported = operationService.importOperations(id, reqVO.getDocumentJson());
+        return success(new AiConnectorImportRespVO()
+                .setOperationKeys(imported.getOperations().stream()
+                        .map(AiConnectorOperationDraftDTO::getOperationKey)
+                        .collect(Collectors.toList()))
+                .setSkipped(imported.getSkipped()));
+    }
+
+    @GetMapping("/{id}/operations")
+    @Operation(summary = "查询连接器操作（草稿与已发布）")
+    @PreAuthorize("@ss.hasPermission('ai:connector:query')")
+    public CommonResult<List<AiConnectorOperationRespVO>> listOperations(
+            @org.springframework.web.bind.annotation.PathVariable("id") @NotNull @Positive Long id) {
+        return success(operationService.listOperations(id).stream()
+                .map(AiConnectorController::toOperationRespVO)
+                .collect(Collectors.toList()));
+    }
+
+    @PostMapping("/operation/publish")
+    @Operation(summary = "发布连接器操作（草稿才可发布；发布后可执行）")
+    @PreAuthorize("@ss.hasPermission('ai:connector:operation')")
+    public CommonResult<Boolean> publishOperation(@Valid @RequestBody AiConnectorOperationPublishReqVO reqVO) {
+        operationService.publish(reqVO.getId(), reqVO.getVersion());
+        return success(true);
+    }
+
+    @PostMapping("/operation/execute")
+    @Operation(summary = "执行连接器操作（固定 Origin 与请求头，有限分页；超页数返回 PARTIAL）")
+    @PreAuthorize("@ss.hasPermission('ai:connector:query')")
+    public CommonResult<AiConnectorExecuteRespVO> executeOperation(@Valid @RequestBody AiConnectorExecuteReqVO reqVO) {
+        AiConnectorExecutionResultDTO result = connectorExecutor.execute(new AiConnectorExecutionRequestDTO()
+                .setConnectorId(reqVO.getConnectorId())
+                .setOperationKey(reqVO.getOperationKey())
+                .setArguments(reqVO.getArguments()));
+        return success(new AiConnectorExecuteRespVO()
+                .setStatus(result.getStatus())
+                .setPages(result.getPages())
+                .setItemCount(result.getItemCount())
+                .setStoppedReason(result.getStoppedReason())
+                .setDetailCode(result.getDetailCode())
+                .setItems(result.getItems()));
+    }
+
+    private static AiConnectorOperationRespVO toOperationRespVO(AiConnectorOperationDO operation) {
+        return new AiConnectorOperationRespVO()
+                .setId(operation.getId())
+                .setConnectorId(operation.getConnectorId())
+                .setOperationKey(operation.getOperationKey())
+                .setHttpMethod(operation.getHttpMethod())
+                .setPathTemplate(operation.getPathTemplate())
+                .setSummary(operation.getSummary())
+                .setParameterJson(operation.getParameterJson())
+                .setResponseJson(operation.getResponseJson())
+                .setPaginationJson(operation.getPaginationJson())
+                .setStatus(operation.getStatus())
+                .setVersion(operation.getVersion());
     }
 
     private static AiConnectorSaveDTO toSaveDTO(AiConnectorSaveReqVO reqVO) {

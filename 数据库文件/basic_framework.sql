@@ -4,8 +4,8 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V66.
--- Only the 35 soft-delete tables retain a deleted column; hard-delete and
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V67.
+-- Only the 36 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
 
@@ -2011,6 +2011,35 @@ CREATE TABLE `ai_connector_probe` (
   CONSTRAINT `fk_ai_connector_probe_connector` FOREIGN KEY (`connector_id`) REFERENCES `ai_connector` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 连接器探测结论（只记稳定原因码，D01）';
 
+--
+-- AI 连接器操作（V67）
+--
+
+DROP TABLE IF EXISTS `ai_connector_operation`;
+
+CREATE TABLE `ai_connector_operation` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '操作编号',
+  `connector_id` bigint NOT NULL COMMENT '连接器编号',
+  `operation_key` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '操作标识（OpenAPI operationId 或 method+path 派生）',
+  `http_method` varchar(8) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'HTTP 方法（GET/POST）',
+  `path_template` varchar(256) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '路径模板（以 / 开头，占位符形如 {id}）',
+  `summary` varchar(256) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '操作说明',
+  `parameter_json` varchar(2000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '参数声明（名称/位置/是否必填/类型；不含脚本）',
+  `response_json` varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '响应提取规则（JSON 指针列表，限定深度与条数）',
+  `pagination_json` varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '分页规则（NONE/PAGE/CURSOR + 参数名 + 页数上限 + 游标字段）',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'DRAFT' COMMENT '状态（DRAFT/PUBLISHED）',
+  `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `uk_ai_connector_operation_key` ((if(`deleted` = b'1',NULL,concat(`connector_id`,_utf8mb4':',`operation_key`)))),
+  KEY `idx_ai_connector_operation` (`connector_id`,`status`,`id`),
+  CONSTRAINT `fk_ai_connector_operation_connector` FOREIGN KEY (`connector_id`) REFERENCES `ai_connector` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 连接器操作（声明式导入草稿与发布，D02）';
+
 -- AI 服务菜单与权限点（V56）
 INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
 (4030, 'AI 服务', 'ai:service:query', 2, 4, 4000, 'service', 'ep:document', 'ai/service/index', 'AiService', 0, b'1', b'1', b'1', '1', '2026-09-19 10:00:00', '1', '2026-09-19 10:00:00', b'0'),
@@ -2038,6 +2067,11 @@ INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_i
 (4052, '连接器修改', 'ai:connector:update', 3, 2, 4050, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-20 11:00:00', '1', '2026-09-20 11:00:00', b'0'),
 (4053, '连接器删除', 'ai:connector:delete', 3, 3, 4050, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-20 11:00:00', '1', '2026-09-20 11:00:00', b'0'),
 (4054, '连接测试', 'ai:connector:probe', 3, 4, 4050, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-20 11:00:00', '1', '2026-09-20 11:00:00', b'0');
+
+-- 连接器导入与发布权限点（V67）
+INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
+(4055, '导入接口', 'ai:connector:import', 3, 5, 4050, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-20 13:00:00', '1', '2026-09-20 13:00:00', b'0'),
+(4056, '发布接口', 'ai:connector:operation', 3, 6, 4050, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-20 13:00:00', '1', '2026-09-20 13:00:00', b'0');
 
 
 -- AI 中台菜单与权限点（V48/V49/V50，与 AiModelEndpointController / AiModelCapabilityProbeController / AiApplicationController 的 @PreAuthorize 一一对应）

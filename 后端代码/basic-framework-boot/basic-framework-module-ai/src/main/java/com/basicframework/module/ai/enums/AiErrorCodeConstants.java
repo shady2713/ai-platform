@@ -70,6 +70,21 @@ public interface AiErrorCodeConstants {
     /** 连接器已停用（409）：停用后不允许探测或发起连接。 */
     ErrorCode AI_CONNECTOR_DISABLED = new ErrorCode(1_003_006_004, "连接器已停用");
 
+    /** 连接器操作不存在（404）。 */
+    ErrorCode AI_CONNECTOR_OPERATION_NOT_FOUND = new ErrorCode(1_003_006_005, "连接器操作不存在");
+
+    /** 连接器操作尚未发布（409）：草稿不可执行。 */
+    ErrorCode AI_CONNECTOR_OPERATION_NOT_PUBLISHED = new ErrorCode(1_003_006_006, "连接器操作尚未发布，不能执行");
+
+    /** OpenAPI 文档不可导入（400）：格式非法、超出上限或没有可导入的操作。 */
+    ErrorCode AI_CONNECTOR_IMPORT_INVALID = new ErrorCode(1_003_006_007, "OpenAPI 文档不可导入");
+
+    /** 目标地址与连接器 Origin 不一致（400）：只允许访问连接器声明的 Origin。 */
+    ErrorCode AI_CONNECTOR_ORIGIN_MISMATCH = new ErrorCode(1_003_006_008, "目标地址与连接器 Origin 不一致");
+
+    /** 连接器参数不合法（400）：参数未声明、必填缺失或取值含查询语法。 */
+    ErrorCode AI_CONNECTOR_ARGUMENT_INVALID = new ErrorCode(1_003_006_009, "连接器参数不合法");
+
     // ========== 应用与授权 1_003_003_xxx ==========
 
     /** 应用不存在（404）。 */
