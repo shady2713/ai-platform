@@ -172,6 +172,12 @@ public interface AiErrorCodeConstants {
     /** 缺少行范围授权域（403）：没有行级约束时拒绝生成可执行 SQL（不退回全库）。 */
     ErrorCode AI_QUERY_SCOPE_REQUIRED = new ErrorCode(1_003_006_038, "缺少行范围授权，拒绝生成查询");
 
+    /** 上游响应格式漂移（502）：结构与 operation 声明不一致（缺字段/类型不符/列表路径不存在）。 */
+    ErrorCode AI_QUERY_RESULT_FORMAT_DRIFT = new ErrorCode(1_003_006_039, "上游响应格式与声明不一致");
+
+    /** 结果值无法归一（400）：取值无法按声明语义类型解析（例如金额不是十进制数）。 */
+    ErrorCode AI_QUERY_RESULT_INVALID = new ErrorCode(1_003_006_040, "结果值无法归一");
+
     // ========== 应用与授权 1_003_003_xxx ==========
 
     /** 应用不存在（404）。 */

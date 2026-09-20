@@ -174,7 +174,7 @@ class AiHttpConnectorExecutorTest {
                 .thenReturn(json("{\"next\":\"c1\",\"data\":{\"items\":[2]}}"));
 
         AiConnectorExecutionResultDTO repeated = executor.execute(request(Map.of("id", "A-1")));
-        assertThat(repeated.getStatus()).isEqualTo("COMPLETE");
+        assertThat(repeated.getStatus()).as("重复游标意味着没取完：结论必须是 PARTIAL，不能宣称完整").isEqualTo("PARTIAL");
         assertThat(repeated.getStoppedReason()).isEqualTo("repeated-cursor");
         assertThat(repeated.getPages()).isEqualTo(2);
         assertThat(repeated.getItemCount()).isEqualTo(2);

@@ -218,7 +218,8 @@ public class AiHttpConnectorExecutor {
                 break;
             }
             if (!seenCursors.add(next)) {
-                // 重复游标：立即停止（避免无限翻页）
+                // 重复游标：立即停止（避免无限翻页）；**没取完就不是完整结果**
+                status = STATUS_PARTIAL;
                 stoppedReason = "repeated-cursor";
                 break;
             }
