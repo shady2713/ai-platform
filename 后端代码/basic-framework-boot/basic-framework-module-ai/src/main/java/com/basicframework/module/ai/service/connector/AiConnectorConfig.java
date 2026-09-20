@@ -36,10 +36,20 @@ public final class AiConnectorConfig {
     private static final Set<String> HTTP_REQUIRED_KEYS = Set.of("baseUrl", "method");
 
     /** MYSQL 允许的配置键。 */
-    private static final Set<String> MYSQL_KEYS = Set.of("host", "port", "database", "username", "sslMode");
+    private static final Set<String> MYSQL_KEYS =
+            Set.of("host", "port", "database", "username", "sslMode", "allowedObjects");
 
     /** MYSQL 必填键。 */
     private static final Set<String> MYSQL_REQUIRED_KEYS = Set.of("host", "port", "database", "username");
+
+    /**
+     * 授权对象白名单上限（D03）：白名单是"最小授权"声明而不是枚举面；
+     * 条目过多会让 {@code config_json}(2000) 溢出，也让"默认拒绝"失去意义。
+     */
+    private static final int MAX_ALLOWED_OBJECTS = 20;
+
+    /** 授权对象：{@code schema.object}，只允许标识符字符（不接受通配、正则与函数调用）。 */
+    private static final Pattern OBJECT_PATTERN = Pattern.compile("^[A-Za-z0-9_]{1,64}\\.[A-Za-z0-9_]{1,64}$");
 
     private static final Pattern HOST_PATTERN = Pattern.compile("^[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$");
 
@@ -117,11 +127,36 @@ public final class AiConnectorConfig {
         return value == null ? null : Integer.valueOf(String.valueOf(value));
     }
 
-    /** MYSQL 连接的 JDBC 地址（只由已校验字段拼出，禁止外部传入整段连接串）。 */
+    /**
+     * MYSQL 连接的 JDBC 地址（只由已校验字段拼出，禁止外部传入整段连接串）。
+     *
+     * <p>传输模式**直接写 {@code sslMode}**（Connector/J 8+ 的原生属性），不再用 {@code useSSL} 布尔别名：
+     * 声明式配置里的 {@code DISABLED/REQUIRED/VERIFY_IDENTITY} 与驱动取值一一对应，
+     * 既不会把 {@code REQUIRED} 静默降级成明文，也不依赖集合迭代顺序之类的实现细节。
+     */
     public String jdbcUrl() {
+        String sslMode =
+                string("sslMode") == null ? "REQUIRED" : string("sslMode").toUpperCase(java.util.Locale.ROOT);
         return "jdbc:mysql://" + string("host") + ":" + integer("port") + "/" + string("database")
-                + "?useSSL=" + (SSL_MODES.iterator().next().equals(string("sslMode")) ? "false" : "true")
+                + "?sslMode=" + sslMode
                 + "&connectTimeout=5000&socketTimeout=5000&allowLoadLocalInfile=false&autoDeserialize=false";
+    }
+
+    /**
+     * 授权对象白名单（小写规范化的 {@code schema.object}；未声明时为空 = 默认拒绝）。
+     *
+     * <p>D03 的只读连接器与 D06 的 SQL 编译都用它做"目标对象是否被授权"的唯一判据。
+     */
+    public List<String> allowedObjects() {
+        Object value = values.get("allowedObjects");
+        if (!(value instanceof List<?> list)) {
+            return List.of();
+        }
+        List<String> objects = new java.util.ArrayList<>(list.size());
+        for (Object item : list) {
+            objects.add(String.valueOf(item).toLowerCase(java.util.Locale.ROOT));
+        }
+        return List.copyOf(objects);
     }
 
     private static void requireKeys(Map<String, Object> values, Set<String> allowed, Set<String> required) {
@@ -196,6 +231,34 @@ public final class AiConnectorConfig {
         String sslMode = String.valueOf(values.getOrDefault("sslMode", "REQUIRED"));
         if (!SSL_MODES.contains(sslMode.toUpperCase(java.util.Locale.ROOT))) {
             throw exception(AI_CONNECTOR_CONFIG_INVALID);
+        }
+        validateAllowedObjects(values);
+    }
+
+    /**
+     * 授权对象白名单校验（D03）：条目必须是 {@code schema.object}，且 schema 必须等于连接器自己的库。
+     *
+     * <p>为什么强制 schema 等于本连接器的库：跨库授权等于把"一个连接器"变成"一台服务器"，
+     * 与"只读账号 + 单库白名单"的最小授权相矛盾；需要跨库时应当另建连接器（各自独立账号与白名单）。
+     */
+    private static void validateAllowedObjects(Map<String, Object> values) {
+        Object allowed = values.get("allowedObjects");
+        if (allowed == null) {
+            // 未声明 = 什么都不授权（默认拒绝），而不是"授权全部"
+            return;
+        }
+        if (!(allowed instanceof List<?> list) || list.size() > MAX_ALLOWED_OBJECTS) {
+            throw exception(AI_CONNECTOR_CONFIG_INVALID);
+        }
+        String database = String.valueOf(values.get("database"));
+        for (Object item : list) {
+            if (!(item instanceof String text) || !OBJECT_PATTERN.matcher(text).matches()) {
+                throw exception(AI_CONNECTOR_CONFIG_INVALID);
+            }
+            String schema = text.substring(0, text.indexOf('.'));
+            if (!schema.equalsIgnoreCase(database)) {
+                throw exception(AI_CONNECTOR_CONFIG_INVALID);
+            }
         }
     }
 

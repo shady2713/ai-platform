@@ -16,6 +16,7 @@ import com.basicframework.framework.ai.core.http.ExternalHttpResponse;
 import com.basicframework.framework.common.pojo.PageParam;
 import com.basicframework.framework.common.pojo.PageResult;
 import com.basicframework.framework.security.core.crypto.CredentialCipher;
+import com.basicframework.module.ai.adapter.connector.mysql.AiMysqlPoolRegistry;
 import com.basicframework.module.ai.dal.dataobject.connector.AiConnectorDO;
 import com.basicframework.module.ai.dal.dataobject.connector.AiConnectorProbeDO;
 import com.basicframework.module.ai.dal.mysql.connector.AiConnectorMapper;
@@ -72,6 +73,9 @@ public class AiConnectorServiceImpl implements AiConnectorService {
 
     /** 引用检查：数据集/工具在各自卡片里注册实现。 */
     private final List<AiConnectorReferenceChecker> referenceCheckers;
+
+    /** 只读连接池（D03）：停用/删除连接器时释放外部连接。 */
+    private final AiMysqlPoolRegistry poolRegistry;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -175,6 +179,10 @@ public class AiConnectorServiceImpl implements AiConnectorService {
                 == 0) {
             throw exception(AI_STATE_CONFLICT);
         }
+        if (!enabled) {
+            // 停用即释放只读连接（D03）：不保留"停用后仍然可用的外部连接"
+            poolRegistry.closePool(id);
+        }
     }
 
     @Override
@@ -195,6 +203,8 @@ public class AiConnectorServiceImpl implements AiConnectorService {
             throw exception(AI_STATE_CONFLICT);
         }
         connectorMapper.deleteById(id);
+        // 删除即释放只读连接（D03）
+        poolRegistry.closePool(id);
     }
 
     @Override

@@ -189,6 +189,27 @@ const publicFixtures = new Map([
     `${moduleAi}test/java/com/basicframework/module/ai/adapter/connector/http/AiConnectorAuthHeadersTest.java`,
     new Set(["it-connector-secret"]),
   ],
+  // D03：只读连接器单测/集成测试里的一次性替身口令与只读账号口令（仅测试容器内使用）
+  [
+    `${moduleAi}test/java/com/basicframework/module/ai/adapter/connector/mysql/AiMysqlSqlGuardTest.java`,
+    new Set(["secret-value"]),
+  ],
+  [
+    `${moduleAi}test/java/com/basicframework/module/ai/adapter/connector/mysql/AiMysqlReadOnlyExecutorTest.java`,
+    new Set(["secret-value"]),
+  ],
+  [
+    `${moduleAi}test/java/com/basicframework/module/ai/adapter/connector/mysql/AiMysqlPoolRegistryTest.java`,
+    new Set(["secret-value"]),
+  ],
+  [
+    `${moduleAi}test/java/com/basicframework/module/ai/service/connector/AiMysqlConnectorServiceImplTest.java`,
+    new Set(["integration-only-secret"]),
+  ],
+  [
+    `${server}test/java/com/basicframework/server/integration/AiMysqlReadOnlyConnectorIT.java`,
+    new Set(["d03-it-readonly-password"]),
+  ],
 ]);
 
 export function hasSecretAssignment(path, line) {

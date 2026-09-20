@@ -61,6 +61,14 @@
 | 1_003_006_007 | AI_CONNECTOR_IMPORT_INVALID | 400 | OpenAPI 文档不可导入（格式/上限/无可导入操作） |
 | 1_003_006_008 | AI_CONNECTOR_ORIGIN_MISMATCH | 400 | 目标地址与连接器 Origin 不一致（SSRF 防线） |
 | 1_003_006_009 | AI_CONNECTOR_ARGUMENT_INVALID | 400 | 连接器参数不合法（未声明/必填缺失/含查询语法） |
+| 1_003_006_010 | AI_CONNECTOR_OBJECT_NOT_AUTHORIZED | 403 | 目标 schema/表/视图不在连接器授权白名单内（默认拒绝） |
+| 1_003_006_011 | AI_CONNECTOR_SQL_NOT_READ_ONLY | 400 | 只允许单条只读 SELECT/WITH（禁 DML/DDL/文件函数/多语句） |
+| 1_003_006_012 | AI_CONNECTOR_RESULT_TOO_LARGE | 400 | 查询结果超出上限（行数/列数/单值长度） |
+| 1_003_006_013 | AI_CONNECTOR_QUERY_TIMEOUT | 502 | 连接器查询超时（已请求上游中断） |
+| 1_003_006_014 | AI_CONNECTOR_QUERY_CANCELLED | 409 | 连接器查询被调用方取消 |
+| 1_003_006_015 | AI_CONNECTOR_MYSQL_UNAVAILABLE | 502 | 只读连接不可用（建池/取连接/连接中断） |
+| 1_003_006_016 | AI_CONNECTOR_MYSQL_VERSION_UNSUPPORTED | 409 | 上游不是受支持的 MySQL 8 |
+| 1_003_006_017 | AI_CONNECTOR_QUERY_FAILED | 502 | 上游查询失败（语法/权限/上游错误，不回上游正文） |
 | 1_003_008_000 | AI_SERVICE_NOT_READY | 409 | 服务未标记可发布，不能创建发布候选 |
 | 1_003_008_001 | AI_SERVICE_EVAL_MISSING | 409 | 缺少与候选内容匹配的评测结果（内容/端点配置变化后必须重新评测） |
 | 1_003_008_002 | AI_SERVICE_EVAL_BELOW_THRESHOLD | 409 | 评测得分未达发布门槛 |

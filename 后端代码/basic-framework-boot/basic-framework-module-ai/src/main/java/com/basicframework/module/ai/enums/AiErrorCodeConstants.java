@@ -85,6 +85,30 @@ public interface AiErrorCodeConstants {
     /** 连接器参数不合法（400）：参数未声明、必填缺失或取值含查询语法。 */
     ErrorCode AI_CONNECTOR_ARGUMENT_INVALID = new ErrorCode(1_003_006_009, "连接器参数不合法");
 
+    /** 目标对象未授权（403）：schema/表/视图不在连接器声明的白名单内（默认拒绝）。 */
+    ErrorCode AI_CONNECTOR_OBJECT_NOT_AUTHORIZED = new ErrorCode(1_003_006_010, "目标对象不在连接器授权范围内");
+
+    /** SQL 不是单条只读查询（400）：只允许一条 SELECT/WITH，禁止 DML/DDL/文件函数/注释与多语句。 */
+    ErrorCode AI_CONNECTOR_SQL_NOT_READ_ONLY = new ErrorCode(1_003_006_011, "只允许单条只读查询");
+
+    /** 结果超出上限（400）：行数/列数/单值长度越界。 */
+    ErrorCode AI_CONNECTOR_RESULT_TOO_LARGE = new ErrorCode(1_003_006_012, "查询结果超出上限");
+
+    /** 查询超时（502）：超过语句超时上限，已请求上游中断。 */
+    ErrorCode AI_CONNECTOR_QUERY_TIMEOUT = new ErrorCode(1_003_006_013, "连接器查询超时");
+
+    /** 查询被取消（409）：调用方显式取消，未完成的结果不返回。 */
+    ErrorCode AI_CONNECTOR_QUERY_CANCELLED = new ErrorCode(1_003_006_014, "连接器查询已被取消");
+
+    /** 只读连接不可用（502）：建池、取连接或连接中断失败（不含主机与凭据）。 */
+    ErrorCode AI_CONNECTOR_MYSQL_UNAVAILABLE = new ErrorCode(1_003_006_015, "只读连接不可用");
+
+    /** 上游不是受支持的 MySQL 8（409）：只对接 MySQL 8，其他版本/MariaDB 拒绝。 */
+    ErrorCode AI_CONNECTOR_MYSQL_VERSION_UNSUPPORTED = new ErrorCode(1_003_006_016, "只支持 MySQL 8 上游");
+
+    /** 上游查询失败（502）：语法、权限或上游错误（只回稳定原因码，不回上游正文）。 */
+    ErrorCode AI_CONNECTOR_QUERY_FAILED = new ErrorCode(1_003_006_017, "连接器查询失败");
+
     // ========== 应用与授权 1_003_003_xxx ==========
 
     /** 应用不存在（404）。 */

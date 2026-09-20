@@ -107,6 +107,74 @@ class AiConnectorConfigTest {
     }
 
     @Test
+    void acceptsOnlyInDatabaseObjectAllowListAndDefaultsToDeny() {
+        AiConnectorConfig config = AiConnectorConfig.parse(
+                "MYSQL",
+                "{\"host\":\"mysql.internal\",\"port\":3306,\"database\":\"crm\",\"username\":\"ro\","
+                        + "\"allowedObjects\":[\"crm.orders\",\"CRM.Order_View\"]}");
+        assertThat(config.allowedObjects()).as("白名单小写规范化，供授权判定直接比对").containsExactly("crm.orders", "crm.order_view");
+
+        assertThat(AiConnectorConfig.parse(
+                                "MYSQL",
+                                "{\"host\":\"mysql.internal\",\"port\":3306,\"database\":\"crm\",\"username\":\"ro\"}")
+                        .allowedObjects())
+                .as("未声明白名单 = 默认拒绝，而不是授权全部")
+                .isEmpty();
+
+        for (String allowed :
+                List.of("[\"other.orders\"]", "[\"orders\"]", "[\"crm.*\"]", "[\"crm.orders;drop\"]", "[\"crm\"]")) {
+            assertThatThrownBy(() -> AiConnectorConfig.parse(
+                            "MYSQL",
+                            "{\"host\":\"mysql.internal\",\"port\":3306,\"database\":\"crm\",\"username\":\"ro\","
+                                    + "\"allowedObjects\":" + allowed + "}"))
+                    .as("跨库/通配/非法白名单必须被拒绝：%s", allowed)
+                    .satisfies(AiConnectorConfigTest::assertInvalid);
+        }
+
+        StringBuilder tooMany = new StringBuilder("[");
+        for (int index = 0; index < 21; index++) {
+            tooMany.append(index == 0 ? "" : ",")
+                    .append("\"crm.t")
+                    .append(index)
+                    .append("\"");
+        }
+        assertThatThrownBy(() -> AiConnectorConfig.parse(
+                        "MYSQL",
+                        "{\"host\":\"mysql.internal\",\"port\":3306,\"database\":\"crm\",\"username\":\"ro\","
+                                + "\"allowedObjects\":" + tooMany + "]}"))
+                .as("白名单条目数上限")
+                .satisfies(AiConnectorConfigTest::assertInvalid);
+
+        assertThatThrownBy(() -> AiConnectorConfig.parse(
+                        "MYSQL",
+                        "{\"host\":\"mysql.internal\",\"port\":3306,\"database\":\"crm\",\"username\":\"ro\","
+                                + "\"allowedObjects\":\"crm.orders\"}"))
+                .as("白名单必须是数组")
+                .satisfies(AiConnectorConfigTest::assertInvalid);
+    }
+
+    @Test
+    void mapsSslModeDeterministicallyIntoTheJdbcUrl() {
+        // 回归：早期实现用 Set 迭代顺序判断 DISABLED，会把 REQUIRED 静默降级成明文（同一份配置在不同 JVM 上行为不同）
+        for (String sslMode : List.of("DISABLED", "REQUIRED", "VERIFY_IDENTITY")) {
+            AiConnectorConfig config = AiConnectorConfig.parse(
+                    "MYSQL",
+                    "{\"host\":\"mysql.internal\",\"port\":3306,\"database\":\"crm\",\"username\":\"ro\","
+                            + "\"sslMode\":\"" + sslMode + "\"}");
+            assertThat(config.jdbcUrl())
+                    .as("传输模式必须与声明一致：%s", sslMode)
+                    .contains("?sslMode=" + sslMode + "&")
+                    .doesNotContain("useSSL");
+        }
+        assertThat(AiConnectorConfig.parse(
+                                "MYSQL",
+                                "{\"host\":\"mysql.internal\",\"port\":3306,\"database\":\"crm\",\"username\":\"ro\"}")
+                        .jdbcUrl())
+                .as("未声明时默认加密（REQUIRED）")
+                .contains("?sslMode=REQUIRED&");
+    }
+
+    @Test
     void rejectsUnknownTypeMissingKeysAndNonObjectConfig() {
         assertThatThrownBy(() -> AiConnectorConfig.parse("ORACLE", "{\"host\":\"x\"}"))
                 .satisfies(AiConnectorConfigTest::assertInvalid);

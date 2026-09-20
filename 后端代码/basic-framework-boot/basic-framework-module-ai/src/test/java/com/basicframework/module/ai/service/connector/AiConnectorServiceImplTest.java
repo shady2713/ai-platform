@@ -20,6 +20,7 @@ import com.basicframework.framework.common.exception.ServiceException;
 import com.basicframework.framework.common.pojo.PageParam;
 import com.basicframework.framework.common.pojo.PageResult;
 import com.basicframework.framework.security.core.crypto.CredentialCipher;
+import com.basicframework.module.ai.adapter.connector.mysql.AiMysqlPoolRegistry;
 import com.basicframework.module.ai.dal.dataobject.connector.AiConnectorDO;
 import com.basicframework.module.ai.dal.dataobject.connector.AiConnectorProbeDO;
 import com.basicframework.module.ai.dal.mysql.connector.AiConnectorMapper;
@@ -54,7 +55,12 @@ class AiConnectorServiceImplTest {
     private final AiConnectorReferenceChecker referenceChecker = mock(AiConnectorReferenceChecker.class);
 
     private final AiConnectorServiceImpl service = new AiConnectorServiceImpl(
-            connectorMapper, probeMapper, credentialCipher, httpClientProvider, List.of(referenceChecker));
+            connectorMapper,
+            probeMapper,
+            credentialCipher,
+            httpClientProvider,
+            List.of(referenceChecker),
+            new AiMysqlPoolRegistry());
 
     @BeforeEach
     void setUp() {
