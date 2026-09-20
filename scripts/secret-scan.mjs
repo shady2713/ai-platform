@@ -162,6 +162,23 @@ const publicFixtures = new Map([
     `${system}test/java/com/basicframework/module/system/service/session/UserSessionServiceImplTest.java`,
     new Set(["access-token"]),
   ],
+  // O08 开放平台：目录示例里的占位符与调试用例里的假凭据字面量（不是真实凭据）
+  [
+    `${frontend}api/ai/open-platform/index.ts`,
+    new Set(["<APP_SECRET>", "<TICKET>"]),
+  ],
+  [
+    `${frontend}api/ai/open-platform/index.test.ts`,
+    new Set(["aitkt_once", "aiapp_secret"]),
+  ],
+  [
+    `${frontend}views/ai/open-platform/data.test.ts`,
+    new Set(["<APP_SECRET>", "aitkt_abcdefghijkl", "aiapp_realsecret"]),
+  ],
+  [
+    `${frontend}views/ai/open-platform/index.test.ts`,
+    new Set(["aitkt_once", "aiapp_secret"]),
+  ],
 ]);
 
 export function hasSecretAssignment(path, line) {

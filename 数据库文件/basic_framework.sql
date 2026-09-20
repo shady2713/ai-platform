@@ -4,7 +4,7 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V64.
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V65.
 -- Only the 33 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
@@ -1979,6 +1979,10 @@ INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_i
 (4037, '切换发布版本', 'ai:service:activate', 3, 7, 4030, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-19 16:00:00', '1', '2026-09-19 16:00:00', b'0'),
 (4038, '记录评测结果', 'ai:service:evaluate', 3, 8, 4030, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-19 16:00:00', '1', '2026-09-19 16:00:00', b'0'),
 (4039, '服务调试', 'ai:service:debug', 3, 9, 4030, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-19 17:00:00', '1', '2026-09-19 17:00:00', b'0');
+
+-- AI 开放平台菜单（V65）
+INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
+(4040, 'AI 开放平台', 'ai:open-platform:query', 2, 5, 4000, 'open-platform', 'ep:link', 'ai/open-platform/index', 'AiOpenPlatform', 0, b'1', b'1', b'1', '1', '2026-09-20 09:00:00', '1', '2026-09-20 09:00:00', b'0');
 
 
 -- AI 中台菜单与权限点（V48/V49/V50，与 AiModelEndpointController / AiModelCapabilityProbeController / AiApplicationController 的 @PreAuthorize 一一对应）
