@@ -1,0 +1,10 @@
+{
+  "kind": "CLARIFICATION",
+  "clarification": {
+    "question": "“销售额”是指含税金额还是净额？请选择口径。",
+    "candidates": [
+      {"code": "net_amount", "label": "净额（net_amount）"},
+      {"code": "invented_metric", "label": "模型编造的候选"}
+    ]
+  }
+}

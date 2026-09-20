@@ -145,6 +145,27 @@ public interface AiErrorCodeConstants {
     /** 数据集已停用（409）：停用后不允许新建/验证/发布版本。 */
     ErrorCode AI_DATASET_DISABLED = new ErrorCode(1_003_006_029, "数据集已停用");
 
+    /** 查询计划不合规（400）：结构、字段、操作符、时间或参数校验不通过。 */
+    ErrorCode AI_QUERY_PLAN_INVALID = new ErrorCode(1_003_006_030, "查询计划不合规");
+
+    /** 模型返回 SQL 片段（400）：只接受结构化计划，不接受任何 SQL 字符串。 */
+    ErrorCode AI_QUERY_SQL_REJECTED = new ErrorCode(1_003_006_031, "模型返回了 SQL 片段，已拒绝");
+
+    /** 数据集不在本次授权范围（403）：计划引用了授权外的数据集，不允许扩大。 */
+    ErrorCode AI_QUERY_DATASET_NOT_ALLOWED = new ErrorCode(1_003_006_032, "数据集不在本次授权范围内");
+
+    /** 需要澄清（409）：措辞/口径有歧义，必须先追问再执行。 */
+    ErrorCode AI_QUERY_CLARIFICATION_REQUIRED = new ErrorCode(1_003_006_033, "查询口径有歧义，需要澄清");
+
+    /** 修复次数用尽（409）：模型连续给出的计划都不合规，停止修复。 */
+    ErrorCode AI_QUERY_REPAIR_EXHAUSTED = new ErrorCode(1_003_006_034, "计划修复次数已用尽");
+
+    /** 模型输出不可用（502）：不是合法 JSON 对象或缺少运行层判别结果。 */
+    ErrorCode AI_QUERY_MODEL_OUTPUT_INVALID = new ErrorCode(1_003_006_035, "模型输出不可用");
+
+    /** 数据集版本未发布（409）：只有已发布且已验证的版本可用于查询计划。 */
+    ErrorCode AI_DATASET_VERSION_NOT_PUBLISHED = new ErrorCode(1_003_006_036, "数据集版本未发布，不能用于查询");
+
     // ========== 应用与授权 1_003_003_xxx ==========
 
     /** 应用不存在（404）。 */

@@ -215,6 +215,11 @@ const publicFixtures = new Map([
     `${server}test/java/com/basicframework/server/integration/AiDatasetVersionIT.java`,
     new Set(["d04-it-readonly-password"]),
   ],
+  // D05：查询规划集成测试里的一次性只读账号口令（仅集成容器内使用）
+  [
+    `${server}test/java/com/basicframework/server/integration/AiQueryPlanIT.java`,
+    new Set(["d05-it-readonly-password"]),
+  ],
 ]);
 
 export function hasSecretAssignment(path, line) {

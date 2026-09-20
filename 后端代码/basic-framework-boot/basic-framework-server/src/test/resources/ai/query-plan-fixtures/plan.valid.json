@@ -1,0 +1,21 @@
+{
+  "kind": "PLAN",
+  "plan": {
+    "schemaVersion": "1.0",
+    "datasetId": "${datasetId}",
+    "datasetVersion": ${datasetVersion},
+    "metrics": ["net_amount"],
+    "dimensions": ["customer_name"],
+    "filters": [
+      {"field": "region", "operator": "EQ", "value": "EAST"}
+    ],
+    "timeRange": {
+      "field": "created_at",
+      "startInclusive": "${windowStart}",
+      "endExclusive": "${windowEnd}",
+      "timezone": "Asia/Shanghai"
+    },
+    "orderBy": [{"field": "net_amount", "direction": "DESC"}],
+    "limit": 10
+  }
+}

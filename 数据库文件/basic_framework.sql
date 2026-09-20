@@ -4,7 +4,7 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V68.
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V69.
 -- Only the 38 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
@@ -2182,6 +2182,11 @@ INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_i
 (4064, '创建语义版本', 'ai:dataset:version:create', 3, 4, 4060, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-20 18:00:00', '1', '2026-09-20 18:00:00', b'0'),
 (4065, '验证语义版本', 'ai:dataset:version:verify', 3, 5, 4060, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-20 18:00:00', '1', '2026-09-20 18:00:00', b'0'),
 (4066, '发布语义版本', 'ai:dataset:version:publish', 3, 6, 4060, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-20 18:00:00', '1', '2026-09-20 18:00:00', b'0');
+
+-- 查询规划菜单与权限点（V69）
+INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
+(4070, 'AI 查询计划', 'ai:query:plan', 2, 8, 4000, 'query', 'ep:search', 'ai/query/index', 'AiQuery', 0, b'1', b'1', b'1', '1', '2026-09-20 21:00:00', '1', '2026-09-20 21:00:00', b'0'),
+(4071, '数据集摘要', 'ai:query:summary', 3, 1, 4070, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-20 21:00:00', '1', '2026-09-20 21:00:00', b'0');
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;

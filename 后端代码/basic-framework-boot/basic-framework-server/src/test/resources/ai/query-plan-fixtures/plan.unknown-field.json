@@ -1,0 +1,14 @@
+{
+  "kind": "PLAN",
+  "plan": {
+    "schemaVersion": "1.0",
+    "datasetId": "${datasetId}",
+    "datasetVersion": ${datasetVersion},
+    "metrics": ["gross_margin"],
+    "dimensions": [],
+    "filters": [],
+    "timeRange": null,
+    "orderBy": [],
+    "limit": 10
+  }
+}

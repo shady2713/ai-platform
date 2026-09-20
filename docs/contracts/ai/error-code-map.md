@@ -81,6 +81,13 @@
 | 1_003_006_027 | AI_DATASET_FIELD_UNKNOWN | 400 | 定义引用了上游不存在的列 |
 | 1_003_006_028 | AI_DATASET_REFERENCED | 409 | 数据集被报表等引用，不能删除 |
 | 1_003_006_029 | AI_DATASET_DISABLED | 409 | 数据集已停用 |
+| 1_003_006_030 | AI_QUERY_PLAN_INVALID | 400 | 查询计划不合规（结构/字段/操作符/时间/参数） |
+| 1_003_006_031 | AI_QUERY_SQL_REJECTED | 400 | 模型返回 SQL 片段，已拒绝 |
+| 1_003_006_032 | AI_QUERY_DATASET_NOT_ALLOWED | 403 | 计划引用了授权外的数据集（不允许扩大范围） |
+| 1_003_006_033 | AI_QUERY_CLARIFICATION_REQUIRED | 409 | 措辞/口径有歧义，需要澄清 |
+| 1_003_006_034 | AI_QUERY_REPAIR_EXHAUSTED | 409 | 计划修复次数已用尽 |
+| 1_003_006_035 | AI_QUERY_MODEL_OUTPUT_INVALID | 502 | 模型输出不是可用的 PLAN/CLARIFICATION |
+| 1_003_006_036 | AI_DATASET_VERSION_NOT_PUBLISHED | 409 | 数据集版本未发布，不能用于查询 |
 | 1_003_008_000 | AI_SERVICE_NOT_READY | 409 | 服务未标记可发布，不能创建发布候选 |
 | 1_003_008_001 | AI_SERVICE_EVAL_MISSING | 409 | 缺少与候选内容匹配的评测结果（内容/端点配置变化后必须重新评测） |
 | 1_003_008_002 | AI_SERVICE_EVAL_BELOW_THRESHOLD | 409 | 评测得分未达发布门槛 |
