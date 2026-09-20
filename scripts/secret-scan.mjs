@@ -179,6 +179,11 @@ const publicFixtures = new Map([
     `${frontend}views/ai/open-platform/index.test.ts`,
     new Set(["aitkt_once", "aiapp_secret"]),
   ],
+  // K01：向量索引集成测试里的容器本地 API Key（仅测试容器内使用）
+  [
+    `${server}test/java/com/basicframework/server/integration/AiKnowledgeIndexQdrantIT.java`,
+    new Set(["k01-it-api-key", "wrong-key"]),
+  ],
 ]);
 
 export function hasSecretAssignment(path, line) {

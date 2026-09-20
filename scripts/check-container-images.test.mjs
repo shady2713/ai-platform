@@ -17,6 +17,9 @@ const mysqlImage =
   'mysql:8.4.11@sha256:b3b90af2a6552ae30c266fdb7d5dd55f3afb72404bb78d37fe8a23eb857fd3fb';
 const redisImage =
   'redis:7.4.11@sha256:71da9275c5f3fcb97d0fa0c8c5b36cc995327265420f17a04bfd544f458059f7';
+// K01 候选向量索引：只在集成测试里启动，同样按 digest 固定（与 F02 台账锁定的版本一致）
+const qdrantImage =
+  'qdrant/qdrant:v1.19.1@sha256:12364fe851b9f17356fc88189fc06d1b521262e04659ec7345975b00c9246a10';
 
 test('production container images use explicit patch versions and immutable digests', async () => {
   const [dockerfile, compose] = await Promise.all([
@@ -59,10 +62,15 @@ test('Testcontainers images match production and use immutable digests', async (
   }
 
   assert.ok(references.length > 0, 'must discover Testcontainers image references');
-  assert.deepEqual(new Set(references), new Set([mysqlImage, redisImage]));
+  assert.deepEqual(new Set(references), new Set([mysqlImage, redisImage, qdrantImage]));
   assert.equal(
     compatibleMysqlReferences,
     references.filter((reference) => reference === mysqlImage).length,
+  );
+  // 向量索引镜像必须按 digest 固定（不允许可变标签）
+  assert.match(
+    references.find((reference) => reference.startsWith('qdrant/')),
+    /@sha256:[0-9a-f]{64}$/,
   );
 });
 
