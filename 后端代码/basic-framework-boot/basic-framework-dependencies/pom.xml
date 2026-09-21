@@ -36,7 +36,7 @@
         <logstash-logback-encoder.version>8.1</logstash-logback-encoder.version>
         <!-- Test 测试相关 -->
         <podam.version>8.0.2.RELEASE</podam.version>
-        <archunit.version>1.4.1</archunit.version> <!-- 架构边界门禁测试 -->
+        <archunit.version>1.5.0</archunit.version> <!-- 架构边界门禁测试 -->
         <!-- 工具类相关 -->
         <anji-plus-captcha.version>1.4.0</anji-plus-captcha.version>
         <jsoup.version>1.21.2</jsoup.version>
