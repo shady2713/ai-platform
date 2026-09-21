@@ -29,6 +29,7 @@
         "ai_service_resource",
         "ai_subject",
         "ai_tool",
+        "ai_tool_action",
         "ai_tool_version",
         "infra_config",
         "infra_file_config",
@@ -130,6 +131,8 @@
     "fk_ai_dataset_connector",
     "fk_ai_dataset_version_dataset",
     "fk_ai_tool_connector",
-    "fk_ai_tool_version_tool"
+    "fk_ai_tool_version_tool",
+    "fk_ai_tool_action_run",
+    "fk_ai_tool_action_tool"
   ]
 }

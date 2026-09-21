@@ -101,6 +101,13 @@
 | 1_003_006_047 | AI_TOOL_ARGUMENT_INVALID | 400 | 工具参数不合法（未声明/必填缺失/类型不符） |
 | 1_003_006_048 | AI_TOOL_TYPE_UNSUPPORTED | 400 | 首期只支持读工具 |
 | 1_003_006_049 | AI_TOOL_REFERENCED | 409 | 工具被引用，不能删除 |
+| 1_003_006_050 | AI_TOOL_ACTION_NOT_FOUND | 404 | 工具动作不存在（越权同语义） |
+| 1_003_006_051 | AI_TOOL_ACTION_NOT_PENDING | 409 | 工具动作当前状态不允许该操作 |
+| 1_003_006_052 | AI_TOOL_ACTION_EXPIRED | 409 | 工具动作已过期 |
+| 1_003_006_053 | AI_TOOL_ACTION_CHALLENGE_INVALID | 403 | 确认挑战或主体不符 |
+| 1_003_006_054 | AI_TOOL_ACTION_ARGUMENTS_CHANGED | 409 | 确认参数与发起时不一致，须重新确认 |
+| 1_003_006_055 | AI_ANALYSIS_STEP_LIMIT_EXCEEDED | 429 | 分析步骤超出预算（步数/耗时） |
+| 1_003_006_056 | AI_RUN_NOT_ACTIVE | 409 | 运行不在可继续状态（取消或终态） |
 | 1_003_008_000 | AI_SERVICE_NOT_READY | 409 | 服务未标记可发布，不能创建发布候选 |
 | 1_003_008_001 | AI_SERVICE_EVAL_MISSING | 409 | 缺少与候选内容匹配的评测结果（内容/端点配置变化后必须重新评测） |
 | 1_003_008_002 | AI_SERVICE_EVAL_BELOW_THRESHOLD | 409 | 评测得分未达发布门槛 |

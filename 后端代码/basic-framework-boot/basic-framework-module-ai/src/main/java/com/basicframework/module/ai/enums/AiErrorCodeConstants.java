@@ -205,6 +205,27 @@ public interface AiErrorCodeConstants {
     /** 工具被引用（409）：被服务发布版本或分析步骤引用时不能删除。 */
     ErrorCode AI_TOOL_REFERENCED = new ErrorCode(1_003_006_049, "工具已被引用，不能删除");
 
+    /** 工具动作不存在（404）：越权与不存在同语义。 */
+    ErrorCode AI_TOOL_ACTION_NOT_FOUND = new ErrorCode(1_003_006_050, "工具动作不存在");
+
+    /** 动作状态不允许该操作（409）：已确认/已执行/已拒绝/已过期。 */
+    ErrorCode AI_TOOL_ACTION_NOT_PENDING = new ErrorCode(1_003_006_051, "工具动作当前状态不允许该操作");
+
+    /** 动作已过期（409）：过期后不可确认也不可执行。 */
+    ErrorCode AI_TOOL_ACTION_EXPIRED = new ErrorCode(1_003_006_052, "工具动作已过期");
+
+    /** 确认挑战或主体不符（403）：挑战一次性且与动作、主体绑定。 */
+    ErrorCode AI_TOOL_ACTION_CHALLENGE_INVALID = new ErrorCode(1_003_006_053, "确认挑战或主体不符");
+
+    /** 确认参数与发起时不一致（409）：改参数必须重新发起确认。 */
+    ErrorCode AI_TOOL_ACTION_ARGUMENTS_CHANGED = new ErrorCode(1_003_006_054, "确认参数与发起时不一致，请重新确认");
+
+    /** 分析步骤超限（429）：步数或预算已用尽。 */
+    ErrorCode AI_ANALYSIS_STEP_LIMIT_EXCEEDED = new ErrorCode(1_003_006_055, "分析步骤已超出预算");
+
+    /** 运行不在可继续状态（409）：取消或终态后不再执行后续步骤。 */
+    ErrorCode AI_RUN_NOT_ACTIVE = new ErrorCode(1_003_006_056, "运行不在可继续状态");
+
     // ========== 应用与授权 1_003_003_xxx ==========
 
     /** 应用不存在（404）。 */

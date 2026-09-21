@@ -522,7 +522,8 @@
       "tables": [
         "ai_run",
         "ai_run_idempotency",
-        "ai_run_task"
+        "ai_run_task",
+        "ai_tool_action"
       ],
       "controls": [
         {
@@ -530,7 +531,8 @@
           "tables": [
             "ai_run",
             "ai_run_idempotency",
-            "ai_run_task"
+            "ai_run_task",
+            "ai_tool_action"
           ],
           "evidence": [
             {
@@ -562,6 +564,11 @@
               "table": "ai_run_task",
               "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/app/v1/run/AiRunController.java",
               "contains": "@AuthenticatedOnly"
+            },
+            {
+              "table": "ai_tool_action",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/tool/action/AiToolActionServiceImpl.java",
+              "contains": "requireSameSubject("
             }
           ]
         }

@@ -1676,6 +1676,352 @@
           }
         }
       }
+    },
+    "/app-api/ai/action/confirm": {
+      "post": {
+        "tags": [
+          "工具"
+        ],
+        "summary": "确认工具动作（同一主体 + 一次性挑战 + 原参数；确认后执行一次）",
+        "requestBody": {
+          "required": true,
+          "description": "动作编号、一次性挑战与原参数",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiToolActionConfirmReq"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "工具动作",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultAiToolAction"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或票据无效（不存在/撤销/过期/应用或主体不可用同语义）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "已认证但缺少范围或权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "动作不存在或不属于当前主体（同语义，防枚举）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "状态/挑战/参数冲突（已确认、已执行、已过期、参数不一致）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/action/reject": {
+      "post": {
+        "tags": [
+          "工具"
+        ],
+        "summary": "拒绝工具动作（终态，不执行）",
+        "requestBody": {
+          "required": true,
+          "description": "动作编号与一次性挑战",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiToolActionConfirmReq"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "工具动作",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultAiToolAction"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或票据无效（不存在/撤销/过期/应用或主体不可用同语义）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "已认证但缺少范围或权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "动作不存在或不属于当前主体（同语义，防枚举）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "状态/挑战/参数冲突（已确认、已执行、已过期、参数不一致）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/action/execute": {
+      "post": {
+        "tags": [
+          "工具"
+        ],
+        "summary": "执行已确认的工具动作（只有 CONFIRMED 能执行一次）",
+        "parameters": [
+          {
+            "name": "actionId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "动作编号"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "工具动作",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultAiToolAction"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或票据无效（不存在/撤销/过期/应用或主体不可用同语义）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "已认证但缺少范围或权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "动作不存在或不属于当前主体（同语义，防枚举）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "状态/挑战/参数冲突（已确认、已执行、已过期、参数不一致）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/action/get": {
+      "get": {
+        "tags": [
+          "工具"
+        ],
+        "summary": "读取工具动作（越权与不存在同语义）",
+        "parameters": [
+          {
+            "name": "actionId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "动作编号"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "工具动作",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultAiToolAction"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或票据无效（不存在/撤销/过期/应用或主体不可用同语义）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "已认证但缺少范围或权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "动作不存在或不属于当前主体（同语义，防枚举）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/action/page": {
+      "get": {
+        "tags": [
+          "工具"
+        ],
+        "summary": "分页查询工具动作（只返回当前主体的动作）",
+        "parameters": [
+          {
+            "name": "runId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "运行编号"
+          },
+          {
+            "name": "pageNo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "页码"
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "每页条数"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "工具动作分页",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultPageResultAiToolAction"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或票据无效（不存在/撤销/过期/应用或主体不可用同语义）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "已认证但缺少范围或权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2581,6 +2927,138 @@
           "size": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "AiToolAction": {
+        "type": "object",
+        "required": [
+          "id",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "runId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "toolId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "toolVersionId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "CONFIRMED",
+              "EXECUTED",
+              "CANCELLED",
+              "EXPIRED",
+              "FAILED"
+            ]
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "decidedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "executedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "resultCode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 64
+          },
+          "version": {
+            "type": "integer"
+          }
+        }
+      },
+      "AiToolActionConfirmReq": {
+        "type": "object",
+        "required": [
+          "actionId",
+          "challenge"
+        ],
+        "properties": {
+          "actionId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "challenge": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 32
+          },
+          "arguments": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": true
+          }
+        }
+      },
+      "CommonResultAiToolAction": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AiToolAction"
+          },
+          "msg": {
+            "type": "string"
+          }
+        }
+      },
+      "PageResultAiToolAction": {
+        "type": "object",
+        "properties": {
+          "list": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiToolAction"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "CommonResultPageResultAiToolAction": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageResultAiToolAction"
+          },
+          "msg": {
+            "type": "string"
           }
         }
       }

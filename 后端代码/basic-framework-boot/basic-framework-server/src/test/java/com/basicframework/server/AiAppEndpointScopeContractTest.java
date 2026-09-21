@@ -62,6 +62,12 @@ class AiAppEndpointScopeContractTest {
             // O05：事件订阅与取消同样按运行归属判定（应用 + 主体 + 外部用户标识）
             "com.basicframework.module.ai.controller.app.v1.run.AiRunController#events",
             "com.basicframework.module.ai.controller.app.v1.run.AiRunController#cancel",
+            // D09：工具动作按 ai_tool_action 归属判定（应用 + 主体类型 + 外部用户标识），确认走一次性挑战
+            "com.basicframework.module.ai.controller.app.v1.action.AiToolActionController#confirm",
+            "com.basicframework.module.ai.controller.app.v1.action.AiToolActionController#reject",
+            "com.basicframework.module.ai.controller.app.v1.action.AiToolActionController#execute",
+            "com.basicframework.module.ai.controller.app.v1.action.AiToolActionController#get",
+            "com.basicframework.module.ai.controller.app.v1.action.AiToolActionController#page",
             // O06：任务进度查询与人工重试同样按运行归属判定
             "com.basicframework.module.ai.controller.app.v1.task.AiTaskController#progress",
             "com.basicframework.module.ai.controller.app.v1.task.AiTaskController#page",

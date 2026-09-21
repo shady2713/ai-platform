@@ -48,6 +48,11 @@
 | `AiRunController#get` | 同上：越权与不存在同语义（404） |
 | `AiRunController#page` | 同上：只返回当前主体的运行（按编号倒序） |
 | `AiRunController#events` | `ai_run_event`：订阅前按当前主体判定归属；开流后的错误以终态事件表达，心跳是注释 |
+| `AiToolActionController#confirm` | `ai_tool_action`：归属由服务端会话身份决定；确认必须携带一次性挑战与原参数（改参数/换用户/过期拒绝），执行 CAS 只发生一次 |
+| `AiToolActionController#reject` | 同上：只有 PENDING 可拒绝，终态后拒绝无效 |
+| `AiToolActionController#execute` | 同上：只有 CONFIRMED 可执行一次（重放不产生第二次副作用） |
+| `AiToolActionController#get` | 同上：越权与不存在同语义 |
+| `AiToolActionController#page` | 同上：只返回当前主体的动作（按编号倒序） |
 | `AiRunController#cancel` | `ai_run`：取消是显式动作，写入终态事件并终止任务；越权与不存在同语义 |
 | `AiTaskController#progress` | `ai_run`：按当前主体过滤运行，只返回状态与结果引用（标识 + 摘要） |
 | `AiTaskController#page` | 同上：只返回当前主体的运行进度（按编号倒序） |
