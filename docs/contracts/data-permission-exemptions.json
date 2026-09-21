@@ -673,6 +673,35 @@
           ]
         }
       ]
+    },
+    {
+      "id": "ai-tool-registry",
+      "reason": "工具注册与版本是控制面配置（来源绑定 + 执行政策 + 输入输出 schema），由功能权限 ai:tool:* 管理，不具有部门或用户行级归属；执行政策默认 DENY，且政策属于不可变版本快照，不存在按主体差异化的行级策略。",
+      "tables": [
+        "ai_tool",
+        "ai_tool_version"
+      ],
+      "controls": [
+        {
+          "kind": "function-permission",
+          "tables": [
+            "ai_tool",
+            "ai_tool_version"
+          ],
+          "evidence": [
+            {
+              "table": "ai_tool",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/tool/AiToolController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('ai:tool:query')\")"
+            },
+            {
+              "table": "ai_tool_version",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/tool/AiToolController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('ai:tool:version')\")"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

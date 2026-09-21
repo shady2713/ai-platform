@@ -92,6 +92,15 @@
 | 1_003_006_038 | AI_QUERY_SCOPE_REQUIRED | 403 | 缺少行范围授权，拒绝生成查询（不退回全库） |
 | 1_003_006_039 | AI_QUERY_RESULT_FORMAT_DRIFT | 502 | 上游响应格式与 operation 声明不一致（格式漂移） |
 | 1_003_006_040 | AI_QUERY_RESULT_INVALID | 400 | 结果值无法按声明语义类型归一 |
+| 1_003_006_041 | AI_TOOL_NOT_FOUND | 404 | 工具不存在（伪造工具名） |
+| 1_003_006_042 | AI_TOOL_CODE_DUPLICATE | 409 | 工具标识重复 |
+| 1_003_006_043 | AI_TOOL_VERSION_NOT_FOUND | 404 | 工具版本不存在 |
+| 1_003_006_044 | AI_TOOL_VERSION_NOT_PUBLISHED | 409 | 工具版本未发布，不能执行 |
+| 1_003_006_045 | AI_TOOL_POLICY_DENIED | 403 | 工具政策为 DENY，禁止执行 |
+| 1_003_006_046 | AI_TOOL_CONFIRMATION_REQUIRED | 409 | 工具执行需要人工确认（CONFIRM） |
+| 1_003_006_047 | AI_TOOL_ARGUMENT_INVALID | 400 | 工具参数不合法（未声明/必填缺失/类型不符） |
+| 1_003_006_048 | AI_TOOL_TYPE_UNSUPPORTED | 400 | 首期只支持读工具 |
+| 1_003_006_049 | AI_TOOL_REFERENCED | 409 | 工具被引用，不能删除 |
 | 1_003_008_000 | AI_SERVICE_NOT_READY | 409 | 服务未标记可发布，不能创建发布候选 |
 | 1_003_008_001 | AI_SERVICE_EVAL_MISSING | 409 | 缺少与候选内容匹配的评测结果（内容/端点配置变化后必须重新评测） |
 | 1_003_008_002 | AI_SERVICE_EVAL_BELOW_THRESHOLD | 409 | 评测得分未达发布门槛 |

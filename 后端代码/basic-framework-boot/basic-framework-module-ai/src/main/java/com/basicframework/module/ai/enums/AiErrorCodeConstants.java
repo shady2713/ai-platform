@@ -178,6 +178,33 @@ public interface AiErrorCodeConstants {
     /** 结果值无法归一（400）：取值无法按声明语义类型解析（例如金额不是十进制数）。 */
     ErrorCode AI_QUERY_RESULT_INVALID = new ErrorCode(1_003_006_040, "结果值无法归一");
 
+    /** 工具不存在（404）：模型或调用方给出的工具标识不在注册表内。 */
+    ErrorCode AI_TOOL_NOT_FOUND = new ErrorCode(1_003_006_041, "工具不存在");
+
+    /** 工具标识重复（409）：code 全局唯一且创建后不可修改。 */
+    ErrorCode AI_TOOL_CODE_DUPLICATE = new ErrorCode(1_003_006_042, "工具标识({}) 已存在");
+
+    /** 工具版本不存在（404）。 */
+    ErrorCode AI_TOOL_VERSION_NOT_FOUND = new ErrorCode(1_003_006_043, "工具版本不存在");
+
+    /** 工具版本未发布（409）：草稿版本不可执行。 */
+    ErrorCode AI_TOOL_VERSION_NOT_PUBLISHED = new ErrorCode(1_003_006_044, "工具版本未发布，不能执行");
+
+    /** 政策拒绝（403）：版本政策为 DENY，禁止执行。 */
+    ErrorCode AI_TOOL_POLICY_DENIED = new ErrorCode(1_003_006_045, "工具政策为 DENY，禁止执行");
+
+    /** 需要人工确认（409）：版本政策为 CONFIRM，必须经确认流程后执行。 */
+    ErrorCode AI_TOOL_CONFIRMATION_REQUIRED = new ErrorCode(1_003_006_046, "工具执行需要人工确认");
+
+    /** 工具参数不合法（400）：未声明参数、必填缺失或类型不符（含伪造参数）。 */
+    ErrorCode AI_TOOL_ARGUMENT_INVALID = new ErrorCode(1_003_006_047, "工具参数不合法");
+
+    /** 工具类型不支持（400）：首期只允许发布读工具，写工具一律拒绝。 */
+    ErrorCode AI_TOOL_TYPE_UNSUPPORTED = new ErrorCode(1_003_006_048, "首期只支持读工具");
+
+    /** 工具被引用（409）：被服务发布版本或分析步骤引用时不能删除。 */
+    ErrorCode AI_TOOL_REFERENCED = new ErrorCode(1_003_006_049, "工具已被引用，不能删除");
+
     // ========== 应用与授权 1_003_003_xxx ==========
 
     /** 应用不存在（404）。 */

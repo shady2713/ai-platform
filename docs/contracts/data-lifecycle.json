@@ -28,6 +28,8 @@
         "ai_service_release_evaluation",
         "ai_service_resource",
         "ai_subject",
+        "ai_tool",
+        "ai_tool_version",
         "infra_config",
         "infra_file_config",
         "infra_job",
@@ -126,6 +128,8 @@
     "fk_ai_connector_probe_connector",
     "fk_ai_connector_operation_connector",
     "fk_ai_dataset_connector",
-    "fk_ai_dataset_version_dataset"
+    "fk_ai_dataset_version_dataset",
+    "fk_ai_tool_connector",
+    "fk_ai_tool_version_tool"
   ]
 }

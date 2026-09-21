@@ -280,6 +280,8 @@ class PersistenceLifecycleIT extends AbstractPersistenceIntegrationTest {
                         "ai_service_release_evaluation",
                         "ai_service_resource",
                         "ai_subject",
+                        "ai_tool",
+                        "ai_tool_version",
                         "infra_config",
                         "infra_file_config",
                         "infra_job",
