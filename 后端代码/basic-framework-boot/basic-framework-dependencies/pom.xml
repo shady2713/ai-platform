@@ -48,6 +48,10 @@
         <transmittable-thread-local.version>2.14.5</transmittable-thread-local.version>
         <commons-lang3.version>3.20.0</commons-lang3.version>
         <tika-core.version>3.2.3</tika-core.version>
+
+        <pdfbox.version>3.0.5</pdfbox.version>
+
+        <poi.version>5.4.1</poi.version>
         <ip2region.version>2.7.0</ip2region.version>
         <bizlog-sdk.version>3.0.6</bizlog-sdk.version>
         <netty.version>4.2.17.Final</netty.version>
@@ -402,6 +406,16 @@
 
             <!-- 文档解析器与 core 同版本线锁定：3.2.2 修复 GHSA-f58c-gq56-vjjf、GHSA-p72g-pv48-7w9x 两个 CRITICAL，
                  当前 3.2.3 已覆盖；版本必须与 tika-core 保持一致，不作为独立升级项 -->
+            <dependency>
+                <groupId>org.apache.pdfbox</groupId>
+                <artifactId>pdfbox</artifactId>
+                <version>${pdfbox.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.poi</groupId>
+                <artifactId>poi-ooxml</artifactId>
+                <version>${poi.version}</version>
+            </dependency>
             <dependency>
                 <groupId>org.apache.tika</groupId>
                 <artifactId>tika-parsers-standard-package</artifactId>

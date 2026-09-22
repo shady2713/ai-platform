@@ -48,6 +48,23 @@
             <artifactId>basic-framework-spring-boot-starter-job</artifactId>
         </dependency>
 
+        <!-- K04：受限文档解析（TXT/Markdown/PDF/DOCX）。
+             说明：Tika 的解析器模块（tika-parser-*-module）在离线环境只有 pom、没有 jar，
+             因此正文解析用 PDFBox（PDF）与 POI（DOCX），类型识别仍用 tika-core 的魔数探测。
+             偏离与依据见 docs/integrations/ai-platform-document-formats.md。 -->
+        <dependency>
+            <groupId>org.apache.tika</groupId>
+            <artifactId>tika-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+        </dependency>
+
         <!-- 配置校验 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
