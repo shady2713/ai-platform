@@ -73,6 +73,25 @@ class AiToolInputSchemaTest {
     }
 
     @Test
+    void acceptsNumericValuesAndRejectsStructuredOrOversizedOnes() {
+        AiToolInputSchema schema = AiToolInputSchema.parse(SCHEMA);
+
+        // 模型常把数字写成 JSON 数字（而不是字符串）：必须按十进制接受，不能转浮点
+        Map<String, Object> numeric =
+                schema.validateArguments(Map.of("region", "EAST", "limit", 10, "include_refunded", true));
+        assertThat((BigDecimal) numeric.get("limit")).isEqualByComparingTo(new BigDecimal("10"));
+        assertThat(numeric.get("include_refunded")).isEqualTo(Boolean.TRUE);
+        // 结构化取值与超长文本一律拒绝（不截断、不猜测）
+        assertThatThrownBy(() -> schema.validateArguments(Map.of("region", "EAST", "limit", List.of(1))))
+                .satisfies(AiToolInputSchemaTest::assertInvalid);
+        assertThatThrownBy(() -> schema.validateArguments(Map.of("region", "EAST", "include_refunded", List.of())))
+                .satisfies(AiToolInputSchemaTest::assertInvalid);
+        assertThatThrownBy(() -> schema.validateArguments(Map.of("region", "x".repeat(1_001))))
+                .as("超长文本按非法参数处理")
+                .satisfies(AiToolInputSchemaTest::assertInvalid);
+    }
+
+    @Test
     void rejectsMalformedSchemas() {
         for (String schema : List.of(
                 "",

@@ -229,6 +229,11 @@ const publicFixtures = new Map([
     `${server}test/java/com/basicframework/server/integration/AiQueryPermissionIT.java`,
     new Set(["d06-it-permission-password"]),
   ],
+  // D11：单系统黄金集验收里的一次性只读账号口令（仅集成容器内使用）
+  [
+    `${server}test/java/com/basicframework/server/integration/AiGoldenSetAcceptanceIT.java`,
+    new Set(["d11-it-readonly-password"]),
+  ],
 ]);
 
 export function hasSecretAssignment(path, line) {
