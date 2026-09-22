@@ -2412,7 +2412,7 @@ INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_i
 
 -- AI 知识检索调试权限点（V75）
 INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
-VALUES (4096, '检索调试', 'ai:knowledge:debug', 3, 6, 4090, '', '', '', NULL, 0, b'1', b'1', b'1', '1',
+(4096, '检索调试', 'ai:knowledge:debug', 3, 6, 4090, '', '', '', NULL, 0, b'1', b'1', b'1', '1',
         CURRENT_TIMESTAMP, '1', CURRENT_TIMESTAMP, b'0');
 
 

@@ -112,6 +112,26 @@ public interface AiErrorCodeConstants {
     /** 入库任务状态不允许该操作（409）：例如对执行中的任务人工重试。 */
     ErrorCode AI_KNOWLEDGE_INGESTION_TASK_STATE_INVALID = new ErrorCode(1_003_005_018, "当前入库任务状态不允许该操作");
 
+    // ========== 报表与 Chat 1_003_007_xxx ==========
+
+    /** 报表结构不合规（400）：键白名单/取值域/上限。 */
+    ErrorCode AI_REPORT_SPEC_INVALID = new ErrorCode(1_003_007_000, "报表结构不合规");
+
+    /** 报表包含 HTML/脚本/样式片段（400）：一律拒绝，不做清理后使用。 */
+    ErrorCode AI_REPORT_SCRIPT_REJECTED = new ErrorCode(1_003_007_001, "报表包含脚本或样式片段，已拒绝");
+
+    /** 报表引用不存在（400）：块/数据集/查询/来源的引用必须存在且唯一。 */
+    ErrorCode AI_REPORT_REFERENCE_INVALID = new ErrorCode(1_003_007_002, "报表引用了不存在的块、数据集或查询");
+
+    /** 布局不合法（400）：越界、重叠或块未出现在布局中。 */
+    ErrorCode AI_REPORT_LAYOUT_INVALID = new ErrorCode(1_003_007_003, "报表布局越界或重叠");
+
+    /** 图表字段不合法（400）：字段缺失或类型与结果 Schema 不一致。 */
+    ErrorCode AI_REPORT_CHART_FIELD_INVALID = new ErrorCode(1_003_007_004, "图表字段缺失或类型不符");
+
+    /** 声明与真实执行结果不一致（409）：列/行数/完整性与执行结果对不上（禁止自造数据来源）。 */
+    ErrorCode AI_REPORT_BINDING_MISMATCH = new ErrorCode(1_003_007_005, "报表声明与执行结果不一致");
+
     // ========== 数据与工具 1_003_006_xxx ==========
 
     /** 连接器不存在（404）。 */
