@@ -57,3 +57,18 @@ AI 表尚未创建，本节省略具体表清单，先冻结分类与编号流�
   每次新增迁移必须在同一变更内同步 `数据库文件/basic_framework.sql` 快照，否则 contracts 门禁失败。
 - **外键与引用**：AI 表之间允许物理外键；跨模块（infra/system）引用一律用逻辑引用 + 索引，
   由业务模块的授权 SPI 校验可见性（见 F06 的文件业务授权）。
+
+### 知识库表（K02）
+
+知识库一条链按"元数据软删除 + 派生数据物理清理"分治：
+
+| 表 | 策略 | 规则 |
+|---|---|---|
+| `ai_knowledge_base` / `ai_knowledge_document` / `ai_knowledge_document_version` | soft-delete | 历史版本与引用可追溯；标识/来源键在**存活行**中唯一（函数唯一索引），软删除后同一标识可重建 |
+| `ai_knowledge_chunk` | hard-delete | 派生数据：随版本重索引或索引代回收物理删除，不保留"已撤销内容仍可检索"的可能 |
+| `ai_knowledge_index_generation` | hard-delete | 索引代状态机（BUILDING/ACTIVE/RETIRED/FAILED）走状态列，退役后代与切片由 K07 清理 |
+
+- 文档删除是**两段式**：先置 `DELETING`（立即关闭检索可见性），再由 K07 回收切片与向量；
+  期间不接受同一 `sourceKey` 的新入库。
+- 版本进入 `READY`/`SUPERSEDED` 后不可修改（文件、指纹、切片都冻结），历史引用因此不会指向被改写的内容。
+- 保留策略落在知识库的 `retention_days`：到期清理由 K07 的清理作业执行，本卡只记录策略值。

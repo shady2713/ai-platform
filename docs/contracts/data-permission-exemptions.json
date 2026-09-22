@@ -709,6 +709,56 @@
           ]
         }
       ]
+    },
+    {
+      "id": "ai-knowledge-config",
+      "reason": "知识库与文档元数据（ai_knowledge_base/ai_knowledge_document/ai_knowledge_document_version）是控制面配置，由功能权限 ai:knowledge:* 管理，不具有部门或用户行级归属；检索期的行级可见性由 A03 授权目录（资源类型 KNOWLEDGE_BASE，资源标识 = 知识库标识）与文档 ACL 共同决定，不在本表。派生数据（ai_knowledge_chunk/ai_knowledge_index_generation）随所属知识库与文档版本回收，同样按功能权限管理。",
+      "tables": [
+        "ai_knowledge_base",
+        "ai_knowledge_chunk",
+        "ai_knowledge_document",
+        "ai_knowledge_document_version",
+        "ai_knowledge_index_generation"
+      ],
+      "controls": [
+        {
+          "kind": "function-permission",
+          "tables": [
+            "ai_knowledge_base",
+            "ai_knowledge_chunk",
+            "ai_knowledge_document",
+            "ai_knowledge_document_version",
+            "ai_knowledge_index_generation"
+          ],
+          "evidence": [
+            {
+              "table": "ai_knowledge_base",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/knowledge/AiKnowledgeBaseController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('ai:knowledge:query')\")"
+            },
+            {
+              "table": "ai_knowledge_document",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/knowledge/AiKnowledgeDocumentController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('ai:knowledge:query')\")"
+            },
+            {
+              "table": "ai_knowledge_document_version",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/knowledge/AiKnowledgeDocumentController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('ai:knowledge:version')\")"
+            },
+            {
+              "table": "ai_knowledge_index_generation",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/knowledge/AiKnowledgeDocumentController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('ai:knowledge:version')\")"
+            },
+            {
+              "table": "ai_knowledge_chunk",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/knowledge/AiKnowledgeDocumentController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('ai:knowledge:version')\")"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

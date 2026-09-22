@@ -53,6 +53,50 @@ public interface AiErrorCodeConstants {
     /** 资源等级不允许外发到该端点（403）：策略拒绝发生在任何网络调用之前。 */
     ErrorCode AI_MODEL_OUTBOUND_BLOCKED = new ErrorCode(1_003_002_006, "该资源等级不允许外发到所选模型端点");
 
+    // ========== 知识库 1_003_005_xxx ==========
+
+    /** 知识库不存在（404）：越权与不存在同语义。 */
+    ErrorCode AI_KNOWLEDGE_BASE_NOT_FOUND = new ErrorCode(1_003_005_000, "知识库不存在");
+
+    /** 知识库标识重复（409）：code 全局唯一且创建后不可修改。 */
+    ErrorCode AI_KNOWLEDGE_BASE_CODE_DUPLICATE = new ErrorCode(1_003_005_001, "知识库标识({}) 已存在");
+
+    /** 知识库配置不合规（400）：可见性/嵌入模型/维度/保留策略取值非法。 */
+    ErrorCode AI_KNOWLEDGE_BASE_CONFIG_INVALID = new ErrorCode(1_003_005_002, "知识库配置不合规");
+
+    /** 知识库已停用（409）：停用后不接受新入库与索引换代。 */
+    ErrorCode AI_KNOWLEDGE_BASE_DISABLED = new ErrorCode(1_003_005_003, "知识库已停用");
+
+    /** 知识库被引用（409）：被服务绑定引用时不能删除。 */
+    ErrorCode AI_KNOWLEDGE_BASE_REFERENCED = new ErrorCode(1_003_005_004, "知识库已被服务引用，不能删除");
+
+    /** 知识库仍有文档（409）：先清空/删除文档再删库，避免留下无主版本与切片。 */
+    ErrorCode AI_KNOWLEDGE_BASE_NOT_EMPTY = new ErrorCode(1_003_005_005, "知识库下仍有文档，不能删除");
+
+    /** 文档不存在（404）：越权与不存在同语义。 */
+    ErrorCode AI_KNOWLEDGE_DOCUMENT_NOT_FOUND = new ErrorCode(1_003_005_006, "知识文档不存在");
+
+    /** 来源幂等键不合法（400）：sourceKey 必填且长度受限。 */
+    ErrorCode AI_KNOWLEDGE_SOURCE_KEY_INVALID = new ErrorCode(1_003_005_007, "文档来源幂等键不合法");
+
+    /** 文档版本不存在（404）。 */
+    ErrorCode AI_KNOWLEDGE_VERSION_NOT_FOUND = new ErrorCode(1_003_005_008, "文档版本不存在");
+
+    /** 版本不可修改（409）：已可用/已取代的版本只能新建版本。 */
+    ErrorCode AI_KNOWLEDGE_VERSION_IMMUTABLE = new ErrorCode(1_003_005_009, "版本已可用，不可修改，请新建版本");
+
+    /** 版本状态不允许该操作（409）：例如对非 INDEXING 版本标记成功。 */
+    ErrorCode AI_KNOWLEDGE_VERSION_STATE_INVALID = new ErrorCode(1_003_005_010, "当前版本状态不允许该操作");
+
+    /** 缺少私有文件（400）：文档版本必须绑定一个已上传的私有文件。 */
+    ErrorCode AI_KNOWLEDGE_FILE_REQUIRED = new ErrorCode(1_003_005_011, "文档版本必须绑定私有文件");
+
+    /** 索引代冲突（409）：已有构建中的索引代，或维度/模型与知识库声明不一致。 */
+    ErrorCode AI_KNOWLEDGE_GENERATION_CONFLICT = new ErrorCode(1_003_005_012, "索引代状态或维度与知识库不一致");
+
+    /** 切片写入不合法（400）：序号重复、向量标识缺失或属于其它版本。 */
+    ErrorCode AI_KNOWLEDGE_CHUNK_INVALID = new ErrorCode(1_003_005_013, "切片数据不合法");
+
     // ========== 数据与工具 1_003_006_xxx ==========
 
     /** 连接器不存在（404）。 */
