@@ -275,8 +275,15 @@ class AiKnowledgeIngestionIT extends AbstractPersistenceIntegrationTest {
                         assertCode(throwable, AiErrorCodeConstants.AI_KNOWLEDGE_INGESTION_TASK_STATE_INVALID));
     }
 
+    /**
+     * 入库 Job 在"没有可用索引服务"时**不假装成功**：任务与版本/文档都以稳定原因码失败，
+     * 旧可用版本不受影响（AT-024）。
+     *
+     * <p>K05 接入后解析器已就位；本用例的上下文没有配置向量服务（K01 的适配器不是 Spring Bean），
+     * 因此失败原因是 `index-service-unavailable`——这正是"缺什么就报什么"的 fail-closed 行为。
+     */
     @Test
-    void jobFailsHonestlyWhenNoParserImplementationIsWired() {
+    void jobFailsHonestlyWhenIndexingIsUnavailable() {
         AiKnowledgeIngestionResultDTO result = ingest(FILE_ID, "handbook/v1.pdf", HASH_V1);
 
         String summary = ingestionJob.execute(null);
@@ -284,13 +291,13 @@ class AiKnowledgeIngestionIT extends AbstractPersistenceIntegrationTest {
         assertThat(summary).contains("失败 1");
         AiKnowledgeIngestionTaskDO task = ingestionService.getTask(result.getTaskId());
         assertThat(task.getStatus()).as("没有解析实现时不假装成功").isEqualTo(AiKnowledgeIngestionTaskDO.STATUS_FAILED);
-        assertThat(task.getLastErrorCode()).as("失败只落稳定原因码").isEqualTo("parser-unavailable");
+        assertThat(task.getLastErrorCode()).as("失败只落稳定原因码").isEqualTo("index-service-unavailable");
         assertThat(documentService.getDocument(result.getDocumentId()).getStatus())
                 .isEqualTo(AiKnowledgeDocumentDO.STATUS_FAILED);
         assertThat(documentService.getVersion(result.getVersionId()).getStatus())
                 .isEqualTo(AiKnowledgeDocumentVersionDO.STATUS_FAILED);
         assertThat(documentService.getVersion(result.getVersionId()).getFailureReason())
-                .isEqualTo("parser-unavailable");
+                .isEqualTo("index-service-unavailable");
         assertThat(documentService.getDocument(result.getDocumentId()).getActiveVersionNo())
                 .as("失败不改 active 指针（AT-024）")
                 .isZero();
