@@ -70,7 +70,7 @@
 |---|---|---|
 | `sh .harness/verify.sh contracts` | 0 | 契约台账、字段目录、权限目录、生命周期、安全检查全部通过 |
 | `sh .harness/verify.sh backend` | 0 | 编译、单测、格式、架构与覆盖率检查通过（本卡未改后端主代码） |
-| `sh .harness/verify.sh frontend` | 见第 5 节 | 依赖/类型/拼写、lint、覆盖率与生产构建通过；首跑仅尾部棘轮未登记新文件，登记后复跑通过 |
+| `sh .harness/verify.sh frontend` | 1 → 2 → **0** | 中间两次失败分别是尾部棘轮未登记新文件与类型/格式问题（第 6 节逐条记录并修复）；最终一次完整运行**全绿**（依赖/类型/拼写、lint、覆盖率、生产构建与棘轮） |
 | `node scripts/check-coverage-ratchet.mjs --update` / `all` | 0 / 0 | 登记本卡新增前端文件；无下调、无删除 |
 
 ## 8. 未验证项
