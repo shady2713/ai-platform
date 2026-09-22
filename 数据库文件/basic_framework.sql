@@ -4,7 +4,7 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V74.
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V75.
 -- Only the 45 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
@@ -2408,6 +2408,11 @@ INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_i
        (4094, '文档入库', 'ai:knowledge:ingest', 3, 4, 4090, '', '', '', NULL, 0, b'1', b'1', b'1', '1',
         CURRENT_TIMESTAMP, '1', CURRENT_TIMESTAMP, b'0'),
        (4095, '文档版本管理', 'ai:knowledge:version', 3, 5, 4090, '', '', '', NULL, 0, b'1', b'1', b'1', '1',
+        CURRENT_TIMESTAMP, '1', CURRENT_TIMESTAMP, b'0');
+
+-- AI 知识检索调试权限点（V75）
+INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
+VALUES (4096, '检索调试', 'ai:knowledge:debug', 3, 6, 4090, '', '', '', NULL, 0, b'1', b'1', b'1', '1',
         CURRENT_TIMESTAMP, '1', CURRENT_TIMESTAMP, b'0');
 
 
