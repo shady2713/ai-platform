@@ -1,12 +1,15 @@
 package com.basicframework.module.ai.controller.admin.knowledge;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.basicframework.framework.common.exception.ServiceException;
 import com.basicframework.framework.common.pojo.PageResult;
 import com.basicframework.module.ai.controller.admin.knowledge.vo.AiKnowledgeBasePageReqVO;
 import com.basicframework.module.ai.controller.admin.knowledge.vo.AiKnowledgeBaseRespVO;
@@ -16,15 +19,26 @@ import com.basicframework.module.ai.controller.admin.knowledge.vo.AiKnowledgeDoc
 import com.basicframework.module.ai.controller.admin.knowledge.vo.AiKnowledgeDocumentPageReqVO;
 import com.basicframework.module.ai.controller.admin.knowledge.vo.AiKnowledgeDocumentVersionPageReqVO;
 import com.basicframework.module.ai.controller.admin.knowledge.vo.AiKnowledgeIndexGenerationRespVO;
+import com.basicframework.module.ai.controller.admin.knowledge.vo.AiKnowledgeIngestionTaskPageReqVO;
+import com.basicframework.module.ai.controller.admin.knowledge.vo.AiKnowledgeIngestionTaskRespVO;
+import com.basicframework.module.ai.controller.admin.knowledge.vo.AiKnowledgeUploadRespVO;
 import com.basicframework.module.ai.dal.dataobject.knowledge.AiKnowledgeBaseDO;
 import com.basicframework.module.ai.dal.dataobject.knowledge.AiKnowledgeDocumentDO;
 import com.basicframework.module.ai.dal.dataobject.knowledge.AiKnowledgeDocumentVersionDO;
 import com.basicframework.module.ai.dal.dataobject.knowledge.AiKnowledgeIndexGenerationDO;
+import com.basicframework.module.ai.enums.AiErrorCodeConstants;
+import com.basicframework.module.ai.service.file.AiFileService;
+import com.basicframework.module.ai.service.file.dto.AiFileUploadResultDTO;
 import com.basicframework.module.ai.service.knowledge.AiKnowledgeBaseService;
 import com.basicframework.module.ai.service.knowledge.AiKnowledgeDocumentService;
 import com.basicframework.module.ai.service.knowledge.AiKnowledgeIndexGenerationService;
 import com.basicframework.module.ai.service.knowledge.dto.AiKnowledgeDocumentSaveDTO;
 import com.basicframework.module.ai.service.knowledge.dto.AiKnowledgeDocumentUpsertResultDTO;
+import com.basicframework.module.ai.service.knowledge.ingestion.AiKnowledgeIngestionFilePolicy;
+import com.basicframework.module.ai.service.knowledge.ingestion.AiKnowledgeIngestionService;
+import com.basicframework.module.ai.service.knowledge.ingestion.AiKnowledgeIngestionTaskDO;
+import com.basicframework.module.ai.service.knowledge.ingestion.dto.AiKnowledgeIngestionRequestDTO;
+import com.basicframework.module.ai.service.knowledge.ingestion.dto.AiKnowledgeIngestionResultDTO;
 import jakarta.annotation.security.PermitAll;
 import java.lang.reflect.Method;
 import java.time.LocalDateTime;
@@ -48,8 +62,12 @@ class AiKnowledgeControllerTest {
 
     private final AiKnowledgeBaseController baseController = new AiKnowledgeBaseController(baseService);
 
-    private final AiKnowledgeDocumentController documentController =
-            new AiKnowledgeDocumentController(documentService, generationService);
+    private final AiFileService fileService = mock(AiFileService.class);
+
+    private final AiKnowledgeIngestionService ingestionService = mock(AiKnowledgeIngestionService.class);
+
+    private final AiKnowledgeDocumentController documentController = new AiKnowledgeDocumentController(
+            documentService, generationService, baseService, fileService, ingestionService);
 
     private static void assertSingleStrategyAndPermission(Class<?> controller, String expectedPermission) {
         int endpoints = 0;
@@ -196,6 +214,120 @@ class AiKnowledgeControllerTest {
                 .isEqualTo(1L);
         assertThat(documentController.delete(71L, 5).getData()).isTrue();
         verify(documentService).deleteDocument(71L, 5);
+    }
+
+    @Test
+    void uploadValidatesFileThenDelegatesToIngestionWithServerComputedHash() {
+        when(baseService.getKnowledgeBase(61L))
+                .thenReturn(new AiKnowledgeBaseDO().setId(61L).setCode("handbook"));
+        when(fileService.upload(
+                        eq("ai_knowledge_document"), eq("handbook"), eq("handbook.txt"), eq("text/plain"), any()))
+                .thenReturn(new AiFileUploadResultDTO()
+                        .setFileId(501L)
+                        .setBusinessType("ai_knowledge_document")
+                        .setBusinessKey("handbook")
+                        .setName("handbook.txt")
+                        .setSize(6L));
+        when(ingestionService.ingest(any()))
+                .thenReturn(new AiKnowledgeIngestionResultDTO()
+                        .setDocumentId(71L)
+                        .setVersionId(81L)
+                        .setVersionNo(1)
+                        .setTaskId(91L)
+                        .setReused(false)
+                        .setCreatedVersion(true));
+
+        byte[] content = "手册".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        AiKnowledgeUploadRespVO respVO = documentController
+                .upload(
+                        61L,
+                        "handbook/v1.txt",
+                        "员工手册",
+                        "drive:handbook/v1.txt",
+                        new org.springframework.mock.web.MockMultipartFile(
+                                "file", "handbook.txt", "text/plain", content))
+                .getData();
+
+        assertThat(respVO.getTaskId()).isEqualTo(91L);
+        assertThat(respVO.getCreatedVersion()).isTrue();
+        ArgumentCaptor<AiKnowledgeIngestionRequestDTO> captor =
+                ArgumentCaptor.forClass(AiKnowledgeIngestionRequestDTO.class);
+        verify(ingestionService).ingest(captor.capture());
+        assertThat(captor.getValue().getFileId()).isEqualTo(501L);
+        assertThat(captor.getValue().getContentHash())
+                .as("指纹由服务端计算，不信任调用方")
+                .isEqualTo(AiKnowledgeIngestionFilePolicy.sha256(content));
+        assertThat(captor.getValue().getSourceType()).isEqualTo(AiKnowledgeDocumentDO.SOURCE_UPLOAD);
+    }
+
+    @Test
+    void uploadRejectsUnsupportedOrEmptyFilesBeforeUploading() {
+        assertThatThrownBy(() -> documentController.upload(
+                        61L,
+                        "handbook/v1.exe",
+                        "员工手册",
+                        null,
+                        new org.springframework.mock.web.MockMultipartFile(
+                                "file", "handbook.exe", "application/octet-stream", new byte[] {1})))
+                .satisfies(throwable -> assertThat(((ServiceException) throwable).getCode())
+                        .isEqualTo(AiErrorCodeConstants.AI_KNOWLEDGE_FILE_TYPE_UNSUPPORTED.getCode()));
+        assertThatThrownBy(() -> documentController.upload(
+                        61L,
+                        "handbook/v1.txt",
+                        "员工手册",
+                        null,
+                        new org.springframework.mock.web.MockMultipartFile(
+                                "file", "handbook.txt", "text/plain", new byte[0])))
+                .satisfies(throwable -> assertThat(((ServiceException) throwable).getCode())
+                        .isEqualTo(AiErrorCodeConstants.AI_KNOWLEDGE_FILE_INVALID.getCode()));
+        verify(fileService, never()).upload(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void uploadFailsSafelyWhenTheFileCannotBeRead() throws Exception {
+        org.springframework.web.multipart.MultipartFile unreadable =
+                mock(org.springframework.web.multipart.MultipartFile.class);
+        when(unreadable.getOriginalFilename()).thenReturn("handbook.txt");
+        when(unreadable.getSize()).thenReturn(3L);
+        when(unreadable.getContentType()).thenReturn("text/plain");
+        when(unreadable.getBytes()).thenThrow(new java.io.IOException("底层读取失败，不应外泄"));
+
+        assertThatThrownBy(() -> documentController.upload(61L, "handbook/v1.txt", "员工手册", null, unreadable))
+                .as("读取失败按文件不合法处理，不回显底层异常文本")
+                .satisfies(throwable -> assertThat(((ServiceException) throwable).getCode())
+                        .isEqualTo(AiErrorCodeConstants.AI_KNOWLEDGE_FILE_INVALID.getCode()));
+        verify(fileService, never()).upload(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void taskEndpointsExposeStatusAndSupportManualRetry() {
+        when(ingestionService.getTask(91L))
+                .thenReturn(new AiKnowledgeIngestionTaskDO()
+                        .setId(91L)
+                        .setKnowledgeBaseId(61L)
+                        .setDocumentId(71L)
+                        .setDocumentVersionId(81L)
+                        .setTaskKind(AiKnowledgeIngestionTaskDO.KIND_PARSE)
+                        .setStatus(AiKnowledgeIngestionTaskDO.STATUS_FAILED)
+                        .setAttemptCount(3)
+                        .setMaxAttempts(3)
+                        .setLastErrorCode("parser-unavailable")
+                        .setVersion(7));
+        when(ingestionService.getTaskPage(any(), eq(61L), eq("FAILED")))
+                .thenReturn(new PageResult<>(List.of(new AiKnowledgeIngestionTaskDO().setId(91L)), 1L));
+
+        AiKnowledgeIngestionTaskRespVO task = documentController.getTask(91L).getData();
+        assertThat(task.getStatus()).isEqualTo(AiKnowledgeIngestionTaskDO.STATUS_FAILED);
+        assertThat(task.getLastErrorCode()).as("只回传脱敏原因码").isEqualTo("parser-unavailable");
+        assertThat(documentController
+                        .taskPage(new AiKnowledgeIngestionTaskPageReqVO()
+                                .setKnowledgeBaseId(61L)
+                                .setStatus("FAILED"))
+                        .getData()
+                        .getTotal())
+                .isEqualTo(1L);
+        assertThat(documentController.retryTask(91L, 7).getData()).isTrue();
+        verify(ingestionService).retry(91L, 7);
     }
 
     @Test

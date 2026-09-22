@@ -718,7 +718,8 @@
         "ai_knowledge_chunk",
         "ai_knowledge_document",
         "ai_knowledge_document_version",
-        "ai_knowledge_index_generation"
+        "ai_knowledge_index_generation",
+        "ai_knowledge_ingestion_task"
       ],
       "controls": [
         {
@@ -728,7 +729,8 @@
             "ai_knowledge_chunk",
             "ai_knowledge_document",
             "ai_knowledge_document_version",
-            "ai_knowledge_index_generation"
+            "ai_knowledge_index_generation",
+            "ai_knowledge_ingestion_task"
           ],
           "evidence": [
             {
@@ -755,6 +757,11 @@
               "table": "ai_knowledge_chunk",
               "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/knowledge/AiKnowledgeDocumentController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('ai:knowledge:version')\")"
+            },
+            {
+              "table": "ai_knowledge_ingestion_task",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/knowledge/AiKnowledgeDocumentController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('ai:knowledge:query')\")"
             }
           ]
         }

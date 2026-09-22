@@ -4,8 +4,8 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V72.
--- Only the 44 soft-delete tables retain a deleted column; hard-delete and
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V73.
+-- Only the 45 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
 
@@ -2339,6 +2339,52 @@ CREATE TABLE `ai_knowledge_index_generation` (
     KEY `idx_ai_knowledge_generation_status` (`knowledge_base_id`,`status`,`id`),
     CONSTRAINT `fk_ai_knowledge_generation_base` FOREIGN KEY (`knowledge_base_id`) REFERENCES `ai_knowledge_base` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 知识索引代（版本化索引，K02）';
+
+--
+-- AI 知识文档入库任务（租约 + 栅栏 + 重试上限，K03）
+--
+
+DROP TABLE IF EXISTS `ai_knowledge_ingestion_task`;
+
+CREATE TABLE `ai_knowledge_ingestion_task` (
+
+    `id`                  bigint      NOT NULL AUTO_INCREMENT COMMENT '任务编号',
+    `knowledge_base_id`   bigint      NOT NULL COMMENT '知识库编号',
+    `document_id`         bigint      NOT NULL COMMENT '文档编号',
+    `document_version_id` bigint      NOT NULL COMMENT '文档版本编号（任务针对的版本）',
+    `task_kind`           varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '任务类型（PARSE 解析/INDEX 切分与向量化）',
+    `status`              varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'QUEUED' COMMENT '状态（QUEUED/RUNNING/SUCCEEDED/FAILED/UNKNOWN）',
+    `attempt_count`       int         NOT NULL DEFAULT '0' COMMENT '已尝试次数',
+    `max_attempts`        int         NOT NULL DEFAULT '3' COMMENT '最大尝试次数（达到上限置 FAILED）',
+    `next_attempt_time`   datetime    NOT NULL COMMENT '下次可领取时间',
+    `lease_owner`         varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '租约持有者（worker 标识）',
+    `lease_expires_time`  datetime    DEFAULT NULL COMMENT '租约到期时间',
+    `heartbeat_time`      datetime    DEFAULT NULL COMMENT '最近续租时间',
+    `claimed_epoch`       int         NOT NULL DEFAULT '0' COMMENT '领取代数（栅栏：接管后旧 worker 失效）',
+    `last_error_code`     varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '最近失败原因（脱敏稳定原因码）',
+    `version`             int         NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
+    `creator`             varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+    `create_time`         datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updater`             varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+    `update_time`         datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `deleted`             bit(1)      NOT NULL DEFAULT b'0' COMMENT '是否删除',
+    PRIMARY KEY (`id`) USING BTREE,
+    UNIQUE KEY `uk_ai_knowledge_ingestion_version` ((if(`deleted` = b'1', NULL, concat(`document_version_id`, ':', `task_kind`)))),
+    KEY `idx_ai_knowledge_ingestion_claim` (`status`,`next_attempt_time`,`id`),
+    KEY `idx_ai_knowledge_ingestion_version` (`document_version_id`,`status`),
+    CONSTRAINT `fk_ai_knowledge_ingestion_base` FOREIGN KEY (`knowledge_base_id`) REFERENCES `ai_knowledge_base` (`id`) ON DELETE RESTRICT,
+    CONSTRAINT `fk_ai_knowledge_ingestion_document` FOREIGN KEY (`document_id`) REFERENCES `ai_knowledge_document` (`id`) ON DELETE RESTRICT,
+    CONSTRAINT `fk_ai_knowledge_ingestion_version` FOREIGN KEY (`document_version_id`) REFERENCES `ai_knowledge_document_version` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 知识文档入库任务（租约 + 栅栏 + 重试上限，K03）';
+
+-- AI 知识入库 Job 与恢复 Job（V73）
+INSERT INTO `infra_job`
+(`id`, `name`, `status`, `handler_name`, `handler_param`, `cron_expression`, `retry_count`, `retry_interval`, `monitor_timeout`, `creator`, `create_time`, `updater`, `update_time`, `deleted`)
+VALUES (34, 'AI 知识入库 Job', 1, 'aiKnowledgeIngestionJob', '', '0/20 * * * * ?', 0, 0, 0, '1',
+        CURRENT_TIMESTAMP, '1', CURRENT_TIMESTAMP, b'0'),
+       (35, 'AI 知识入库恢复 Job', 1, 'aiKnowledgeIngestionRecoveryJob', '', '30 * * * * ?', 0, 0, 0, '1',
+        CURRENT_TIMESTAMP, '1', CURRENT_TIMESTAMP, b'0');
+
 
 -- AI 知识库菜单与权限点（V72）
 INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES

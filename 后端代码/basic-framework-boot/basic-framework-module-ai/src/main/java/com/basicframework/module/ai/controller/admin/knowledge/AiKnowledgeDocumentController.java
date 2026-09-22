@@ -11,22 +11,37 @@ import com.basicframework.module.ai.controller.admin.knowledge.vo.AiKnowledgeDoc
 import com.basicframework.module.ai.controller.admin.knowledge.vo.AiKnowledgeDocumentVersionPageReqVO;
 import com.basicframework.module.ai.controller.admin.knowledge.vo.AiKnowledgeDocumentVersionRespVO;
 import com.basicframework.module.ai.controller.admin.knowledge.vo.AiKnowledgeIndexGenerationRespVO;
+import com.basicframework.module.ai.controller.admin.knowledge.vo.AiKnowledgeIngestionTaskPageReqVO;
+import com.basicframework.module.ai.controller.admin.knowledge.vo.AiKnowledgeIngestionTaskRespVO;
+import com.basicframework.module.ai.controller.admin.knowledge.vo.AiKnowledgeUploadRespVO;
 import com.basicframework.module.ai.dal.dataobject.knowledge.AiKnowledgeDocumentDO;
 import com.basicframework.module.ai.dal.dataobject.knowledge.AiKnowledgeDocumentVersionDO;
 import com.basicframework.module.ai.dal.dataobject.knowledge.AiKnowledgeIndexGenerationDO;
+import com.basicframework.module.ai.service.file.AiFileBusinessType;
+import com.basicframework.module.ai.service.file.AiFileService;
+import com.basicframework.module.ai.service.file.dto.AiFileUploadResultDTO;
+import com.basicframework.module.ai.service.knowledge.AiKnowledgeBaseService;
 import com.basicframework.module.ai.service.knowledge.AiKnowledgeDocumentService;
 import com.basicframework.module.ai.service.knowledge.AiKnowledgeIndexGenerationService;
 import com.basicframework.module.ai.service.knowledge.dto.AiKnowledgeDocumentSaveDTO;
 import com.basicframework.module.ai.service.knowledge.dto.AiKnowledgeDocumentUpsertResultDTO;
+import com.basicframework.module.ai.service.knowledge.ingestion.AiKnowledgeIngestionFilePolicy;
+import com.basicframework.module.ai.service.knowledge.ingestion.AiKnowledgeIngestionService;
+import com.basicframework.module.ai.service.knowledge.ingestion.AiKnowledgeIngestionTaskDO;
+import com.basicframework.module.ai.service.knowledge.ingestion.dto.AiKnowledgeIngestionRequestDTO;
+import com.basicframework.module.ai.service.knowledge.ingestion.dto.AiKnowledgeIngestionResultDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -36,6 +51,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * AI 知识文档管理接口（K02）。
@@ -57,6 +73,12 @@ public class AiKnowledgeDocumentController {
     private final AiKnowledgeDocumentService documentService;
 
     private final AiKnowledgeIndexGenerationService generationService;
+
+    private final AiKnowledgeBaseService knowledgeBaseService;
+
+    private final AiFileService fileService;
+
+    private final AiKnowledgeIngestionService ingestionService;
 
     @PostMapping("/ingest")
     @Operation(summary = "文档入库（sourceKey 幂等：同指纹复用，指纹变化生成新版本）")
@@ -134,6 +156,89 @@ public class AiKnowledgeDocumentController {
                 page.getTotal()));
     }
 
+    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "上传并入库文档（校验类型/大小/归属后创建版本与入库任务）")
+    @PreAuthorize("@ss.hasPermission('ai:knowledge:ingest')")
+    public CommonResult<AiKnowledgeUploadRespVO> upload(
+            @Parameter(description = "知识库编号", required = true) @RequestParam("knowledgeBaseId") @NotNull @Positive
+                    Long knowledgeBaseId,
+            @Parameter(description = "来源幂等键", required = true) @RequestParam("sourceKey") @NotEmpty @Size(max = 128)
+                    String sourceKey,
+            @Parameter(description = "文档标题", required = true) @RequestParam("title") @NotEmpty @Size(max = 256)
+                    String title,
+            @Parameter(description = "来源位置") @RequestParam(value = "sourceRef", required = false) @Size(max = 512)
+                    String sourceRef,
+            @Parameter(description = "文件", required = true) @RequestParam("file") MultipartFile file) {
+        String fileName = AiKnowledgeIngestionFilePolicy.requireSupportedFile(
+                file.getOriginalFilename(), file.getSize(), new byte[] {1});
+        AiKnowledgeIngestionFilePolicy.requireCompatibleContentType(file.getContentType());
+        byte[] content;
+        try {
+            content = file.getBytes();
+        } catch (java.io.IOException unreadable) {
+            // 读取失败按文件不合法处理：不回显底层异常文本
+            throw com.basicframework.framework.common.exception.util.ServiceExceptionUtil.exception(
+                    com.basicframework.module.ai.enums.AiErrorCodeConstants.AI_KNOWLEDGE_FILE_INVALID);
+        }
+        AiKnowledgeIngestionFilePolicy.requireSupportedFile(fileName, content.length, content);
+        String knowledgeBaseCode =
+                knowledgeBaseService.getKnowledgeBase(knowledgeBaseId).getCode();
+        AiFileUploadResultDTO uploaded = fileService.upload(
+                AiFileBusinessType.KNOWLEDGE_DOCUMENT.code(),
+                knowledgeBaseCode,
+                fileName,
+                file.getContentType(),
+                content);
+        AiKnowledgeIngestionResultDTO result = ingestionService.ingest(new AiKnowledgeIngestionRequestDTO()
+                .setKnowledgeBaseId(knowledgeBaseId)
+                .setSourceKey(sourceKey)
+                .setTitle(title)
+                .setSourceType(AiKnowledgeDocumentDO.SOURCE_UPLOAD)
+                .setSourceRef(sourceRef)
+                .setFileId(uploaded.getFileId())
+                .setContentHash(AiKnowledgeIngestionFilePolicy.sha256(content)));
+        return success(new AiKnowledgeUploadRespVO()
+                .setDocumentId(result.getDocumentId())
+                .setVersionId(result.getVersionId())
+                .setVersionNo(result.getVersionNo())
+                .setTaskId(result.getTaskId())
+                .setReused(result.isReused())
+                .setCreatedVersion(result.isCreatedVersion()));
+    }
+
+    @GetMapping("/task/get")
+    @Operation(summary = "查询入库任务")
+    @PreAuthorize("@ss.hasPermission('ai:knowledge:query')")
+    public CommonResult<AiKnowledgeIngestionTaskRespVO> getTask(
+            @Parameter(description = "任务编号", required = true) @RequestParam("id") @NotNull @Positive Long id) {
+        return success(toTaskRespVO(ingestionService.getTask(id)));
+    }
+
+    @GetMapping("/task/page")
+    @Operation(summary = "分页查询入库任务")
+    @PreAuthorize("@ss.hasPermission('ai:knowledge:query')")
+    public CommonResult<PageResult<AiKnowledgeIngestionTaskRespVO>> taskPage(
+            @Valid AiKnowledgeIngestionTaskPageReqVO pageReqVO) {
+        PageResult<AiKnowledgeIngestionTaskDO> page =
+                ingestionService.getTaskPage(pageReqVO, pageReqVO.getKnowledgeBaseId(), pageReqVO.getStatus());
+        return success(new PageResult<>(
+                page.getList().stream()
+                        .map(AiKnowledgeDocumentController::toTaskRespVO)
+                        .toList(),
+                page.getTotal()));
+    }
+
+    @PostMapping("/task/retry")
+    @Operation(summary = "人工重试入库任务（仅失败/结果未知的任务）")
+    @PreAuthorize("@ss.hasPermission('ai:knowledge:ingest')")
+    public CommonResult<Boolean> retryTask(
+            @Parameter(description = "任务编号", required = true) @RequestParam("id") @NotNull @Positive Long id,
+            @Parameter(description = "乐观锁版本", required = true) @RequestParam("version") @NotNull @PositiveOrZero
+                    Integer version) {
+        ingestionService.retry(id, version);
+        return success(true);
+    }
+
     @GetMapping("/generation/list")
     @Operation(summary = "列出知识库的索引代（代序号倒序）")
     @PreAuthorize("@ss.hasPermission('ai:knowledge:version')")
@@ -177,6 +282,22 @@ public class AiKnowledgeDocumentController {
                 .setReadyAt(version.getReadyAt())
                 .setVersion(version.getVersion())
                 .setCreateTime(version.getCreateTime());
+    }
+
+    private static AiKnowledgeIngestionTaskRespVO toTaskRespVO(AiKnowledgeIngestionTaskDO task) {
+        return new AiKnowledgeIngestionTaskRespVO()
+                .setId(task.getId())
+                .setKnowledgeBaseId(task.getKnowledgeBaseId())
+                .setDocumentId(task.getDocumentId())
+                .setDocumentVersionId(task.getDocumentVersionId())
+                .setTaskKind(task.getTaskKind())
+                .setStatus(task.getStatus())
+                .setAttemptCount(task.getAttemptCount())
+                .setMaxAttempts(task.getMaxAttempts())
+                .setNextAttemptTime(task.getNextAttemptTime())
+                .setLastErrorCode(task.getLastErrorCode())
+                .setVersion(task.getVersion())
+                .setCreateTime(task.getCreateTime());
     }
 
     private static AiKnowledgeIndexGenerationRespVO toGenerationRespVO(AiKnowledgeIndexGenerationDO generation) {

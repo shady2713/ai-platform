@@ -97,6 +97,21 @@ public interface AiErrorCodeConstants {
     /** 切片写入不合法（400）：序号重复、向量标识缺失或属于其它版本。 */
     ErrorCode AI_KNOWLEDGE_CHUNK_INVALID = new ErrorCode(1_003_005_013, "切片数据不合法");
 
+    /** 文件类型不支持（400）：首期只支持 TXT/Markdown/文本型 PDF/DOCX。 */
+    ErrorCode AI_KNOWLEDGE_FILE_TYPE_UNSUPPORTED = new ErrorCode(1_003_005_014, "文件类型不支持");
+
+    /** 文件超出上限（400）：单文件大小上限见入库文件策略。 */
+    ErrorCode AI_KNOWLEDGE_FILE_TOO_LARGE = new ErrorCode(1_003_005_015, "文件超出单文件上限");
+
+    /** 文件不合法（400）：空文件，或文件不属于该知识库（purpose/归属不符）。 */
+    ErrorCode AI_KNOWLEDGE_FILE_INVALID = new ErrorCode(1_003_005_016, "文件不合法或不属于该知识库");
+
+    /** 入库任务不存在（404）。 */
+    ErrorCode AI_KNOWLEDGE_INGESTION_TASK_NOT_FOUND = new ErrorCode(1_003_005_017, "入库任务不存在");
+
+    /** 入库任务状态不允许该操作（409）：例如对执行中的任务人工重试。 */
+    ErrorCode AI_KNOWLEDGE_INGESTION_TASK_STATE_INVALID = new ErrorCode(1_003_005_018, "当前入库任务状态不允许该操作");
+
     // ========== 数据与工具 1_003_006_xxx ==========
 
     /** 连接器不存在（404）。 */
