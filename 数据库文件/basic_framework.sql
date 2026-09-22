@@ -4,7 +4,7 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V73.
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V74.
 -- Only the 45 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
@@ -2383,6 +2383,14 @@ INSERT INTO `infra_job`
 VALUES (34, 'AI 知识入库 Job', 1, 'aiKnowledgeIngestionJob', '', '0/20 * * * * ?', 0, 0, 0, '1',
         CURRENT_TIMESTAMP, '1', CURRENT_TIMESTAMP, b'0'),
        (35, 'AI 知识入库恢复 Job', 1, 'aiKnowledgeIngestionRecoveryJob', '', '30 * * * * ?', 0, 0, 0, '1',
+        CURRENT_TIMESTAMP, '1', CURRENT_TIMESTAMP, b'0');
+
+-- AI 知识清理 Job（V74）
+INSERT INTO `infra_job`
+(`id`, `name`, `status`, `handler_name`, `handler_param`, `cron_expression`,
+ `retry_count`, `retry_interval`, `monitor_timeout`, `creator`, `create_time`, `updater`,
+ `update_time`, `deleted`)
+VALUES (36, 'AI 知识清理 Job', 1, 'aiKnowledgeCleanupJob', '', '0 5/10 * * * ?', 0, 0, 0, '1',
         CURRENT_TIMESTAMP, '1', CURRENT_TIMESTAMP, b'0');
 
 

@@ -136,6 +136,7 @@ class PersistenceLifecycleIT extends AbstractPersistenceIntegrationTest {
         assertThat(jdbcTemplate.queryForList("SELECT JOB_NAME FROM QRTZ_JOB_DETAILS", String.class))
                 .containsExactlyInAnyOrder(
                         "accessLogCleanJob",
+                        "aiKnowledgeCleanupJob",
                         "aiKnowledgeIngestionJob",
                         "aiKnowledgeIngestionRecoveryJob",
                         "aiRetentionCleanupJob",
