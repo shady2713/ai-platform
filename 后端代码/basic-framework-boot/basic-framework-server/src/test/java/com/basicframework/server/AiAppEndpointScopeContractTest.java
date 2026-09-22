@@ -71,7 +71,12 @@ class AiAppEndpointScopeContractTest {
             // O06：任务进度查询与人工重试同样按运行归属判定
             "com.basicframework.module.ai.controller.app.v1.task.AiTaskController#progress",
             "com.basicframework.module.ai.controller.app.v1.task.AiTaskController#page",
-            "com.basicframework.module.ai.controller.app.v1.task.AiTaskController#retry");
+            "com.basicframework.module.ai.controller.app.v1.task.AiTaskController#retry",
+            // K06：知识检索与引用读取按当前主体的 A03 授权判定（过滤条件由服务端生成），
+            // 片段/原文读取再次鉴权（A03 + A07 的业务文件权限 SPI）
+            "com.basicframework.module.ai.controller.app.v1.knowledge.AiKnowledgeRetrievalController#search",
+            "com.basicframework.module.ai.controller.app.v1.knowledge.AiKnowledgeRetrievalController#citation",
+            "com.basicframework.module.ai.controller.app.v1.knowledge.AiKnowledgeRetrievalController#content");
 
     private static final String AI_APP_PACKAGE = "com.basicframework.module.ai.controller.app";
 

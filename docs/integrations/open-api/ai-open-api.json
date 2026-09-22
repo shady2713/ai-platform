@@ -2022,6 +2022,100 @@
           }
         }
       }
+    },
+    "/app-api/ai/knowledge/search": {
+      "post": {
+        "tags": [
+          "AI 应用端 - 知识检索与引用"
+        ],
+        "summary": "知识检索（过滤条件由服务端按当前授权生成）",
+        "operationId": "知识检索（过滤条件由服务端按当前授权生成）",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/knowledge/citation": {
+      "get": {
+        "tags": [
+          "AI 应用端 - 知识检索与引用"
+        ],
+        "summary": "读取引用片段（重新鉴权后从原文取回）",
+        "operationId": "读取引用片段（重新鉴权后从原文取回）",
+        "parameters": [
+          {
+            "name": "citationId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/knowledge/document/content": {
+      "get": {
+        "tags": [
+          "AI 应用端 - 知识检索与引用"
+        ],
+        "summary": "读取文档原文（业务文件权限 SPI）",
+        "operationId": "读取文档原文（业务文件权限 SPI）",
+        "parameters": [
+          {
+            "name": "documentId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
