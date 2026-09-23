@@ -11,8 +11,8 @@ export type AiRunStatus =
   | 'WAITING_INPUT';
 
 export interface CreateRunRequest {
-  /** 服务业务键，形如 svc_xxx */
-  conversationId?: string;
+  /** 会话编号（数值编号；缺省表示新建会话） */
+  conversationId?: number;
   /** 用户消息，1..16000 字符 */
   message: string;
   /** 服务业务键，形如 svc_xxx */

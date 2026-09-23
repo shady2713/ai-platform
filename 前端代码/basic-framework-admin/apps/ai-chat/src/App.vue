@@ -1,22 +1,29 @@
 <script setup lang="ts">
+/**
+ * 独立 Chat 应用外壳（C02）：会话面板 + 应用端客户端装配。
+ *
+ * - 未配置基址时面板仍可用（发送给出明确错误块，不静默失败）；
+ * - 票据在调用时从宿主存储读取，客户端不持有凭据；
+ * - 会话列表/新建/重命名/删除/发送/取消/重试都由 ConversationPanel 与状态机承担。
+ */
 import { computed } from 'vue';
 
-import { AiChatPanel } from '@vben/ai-chat-ui';
+import { ConversationPanel } from '@vben/ai-chat-ui';
 
 import { buildAiChatClient } from './client-factory';
-import { useAiChat } from './use-chat';
+import { createConversationApi } from './conversation-api';
 
-const client = buildAiChatClient({
-  baseUrl: import.meta.env.VITE_AI_API_BASE_URL,
-  ticketStorage: globalThis.localStorage,
+const baseUrl = import.meta.env.VITE_AI_API_BASE_URL?.trim() ?? '';
+const ticketStorage = globalThis.localStorage;
+
+const runApi = buildAiChatClient({ baseUrl, ticketStorage });
+const conversationApi = createConversationApi({
+  baseUrl: baseUrl || '/app-api',
+  ticketStorage,
 });
 
-const { messages, pending, send } = useAiChat({
-  client,
-  serviceId: import.meta.env.VITE_AI_SERVICE_ID ?? 'svc_unset',
-});
-
-const statusText = computed(() => (pending.value ? '正在受理…' : '就绪'));
+const serviceId = import.meta.env.VITE_AI_SERVICE_ID ?? 'svc_unset';
+const statusText = computed(() => (runApi ? '就绪' : '未配置 AI 服务地址'));
 </script>
 
 <template>
@@ -27,7 +34,11 @@ const statusText = computed(() => (pending.value ? '正在受理…' : '就绪')
         statusText
       }}</span>
     </header>
-    <AiChatPanel :disabled="pending" :messages="messages" @send="send" />
+    <ConversationPanel
+      :api="conversationApi"
+      :run-api="runApi"
+      :service-id="serviceId"
+    />
   </main>
 </template>
 

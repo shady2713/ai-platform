@@ -649,6 +649,7 @@
   "frontend": {
     "前端代码/basic-framework-admin/apps/ai-chat/src/App.vue": 100,
     "前端代码/basic-framework-admin/apps/ai-chat/src/client-factory.ts": 100,
+    "前端代码/basic-framework-admin/apps/ai-chat/src/conversation-api.ts": 100,
     "前端代码/basic-framework-admin/apps/ai-chat/src/use-chat.ts": 98.07,
     "前端代码/basic-framework-admin/apps/web-ele/src/adapter/component/index.ts": 58.72,
     "前端代码/basic-framework-admin/apps/web-ele/src/adapter/field-rules.ts": 100,
@@ -1245,6 +1246,9 @@
     "前端代码/basic-framework-admin/packages/ai-chat-ui/src/client/index.ts": 89.94,
     "前端代码/basic-framework-admin/packages/ai-chat-ui/src/components/AiChatPanel.vue": 100,
     "前端代码/basic-framework-admin/packages/ai-chat-ui/src/components/ChartRenderer.vue": 84.61,
+    "前端代码/basic-framework-admin/packages/ai-chat-ui/src/conversation/ConversationPanel.vue": 94.01,
+    "前端代码/basic-framework-admin/packages/ai-chat-ui/src/conversation/state.ts": 96.33,
+    "前端代码/basic-framework-admin/packages/ai-chat-ui/src/conversation/use-conversation.ts": 96.73,
     "前端代码/basic-framework-admin/packages/ai-chat-ui/src/index.ts": 100,
     "前端代码/basic-framework-admin/packages/ai-chat-ui/src/report/AiReportView.vue": 96.62,
     "前端代码/basic-framework-admin/packages/ai-chat-ui/src/report/reportSpec.ts": 87.05,

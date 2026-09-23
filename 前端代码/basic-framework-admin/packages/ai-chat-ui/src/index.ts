@@ -12,6 +12,27 @@ export type {
 export { default as AiChatPanel } from './components/AiChatPanel.vue';
 export type { ChatMessage } from './components/AiChatPanel.vue';
 export { default as ChartRenderer } from './components/ChartRenderer.vue';
+export { default as ConversationPanel } from './conversation/ConversationPanel.vue';
+export {
+  createConversationMachine,
+  phaseOfRunStatus,
+} from './conversation/state';
+export type {
+  ConversationMachine,
+  ConversationPhase,
+  ConversationSnapshot,
+} from './conversation/state';
+export {
+  createIdempotencyKey,
+  useConversation,
+} from './conversation/use-conversation';
+export type {
+  ConversationApi,
+  ConversationMessage,
+  ConversationRunApi,
+  ConversationSummary,
+  UseConversationOptions,
+} from './conversation/use-conversation';
 export { default as AiReportView } from './report/AiReportView.vue';
 export {
   buildChartSpec,
