@@ -7,6 +7,8 @@ import com.basicframework.framework.common.pojo.PageResult;
 import com.basicframework.framework.security.core.annotation.AuthenticatedOnly;
 import com.basicframework.module.ai.controller.app.v1.report.vo.AiReportPageReqVO;
 import com.basicframework.module.ai.controller.app.v1.report.vo.AiReportRespVO;
+import com.basicframework.module.ai.controller.app.v1.report.vo.AiReportReviseReqVO;
+import com.basicframework.module.ai.controller.app.v1.report.vo.AiReportRevisionRespVO;
 import com.basicframework.module.ai.controller.app.v1.report.vo.AiReportSaveReqVO;
 import com.basicframework.module.ai.controller.app.v1.report.vo.AiReportVersionBriefVO;
 import com.basicframework.module.ai.controller.app.v1.report.vo.AiReportVersionRespVO;
@@ -14,6 +16,10 @@ import com.basicframework.module.ai.dal.dataobject.report.AiReportDO;
 import com.basicframework.module.ai.dal.dataobject.report.AiReportVersionDO;
 import com.basicframework.module.ai.service.report.persistence.AiReportService;
 import com.basicframework.module.ai.service.report.persistence.dto.AiReportSaveDTO;
+import com.basicframework.module.ai.service.report.revision.AiReportRevisionDiff;
+import com.basicframework.module.ai.service.report.revision.AiReportRevisionService;
+import com.basicframework.module.ai.service.report.revision.dto.AiReportRevisionRequestDTO;
+import com.basicframework.module.ai.service.report.revision.dto.AiReportRevisionResultDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -31,11 +37,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * AI 应用端报表保存与读取（R04）。
+ * AI 应用端报表保存、读取与对话修改（R04/R05）。
  *
- * <p>五个端点都只要求登录（{@code @AuthenticatedOnly}）：归属（应用 + 主体类型 + 外部用户标识）
+ * <p>所有端点都只要求登录（{@code @AuthenticatedOnly}）：归属（应用 + 主体类型 + 外部用户标识）
  * 与授权范围都来自**服务端会话与 A03 判定**，请求体不提供任何归属或指纹字段。读取（含旧版本编号）
  * 每次都复核保存时的范围指纹，范围收窄后拒绝展示并要求按当前权限重新生成（第 4/5 步）。
+ *
+ * <p>对话修改（{@code /revise}）同样不提供归属与行范围：展示类修改复用保存时的数据（不查库），
+ * 数据类修改必须走受控查询，行范围只能来自授权层——请求体给不出行范围，因此也绕不过受控查询。
  */
 @Tag(name = "AI 应用端 - 报表保存与版本")
 @RestController
@@ -46,12 +55,30 @@ public class AiReportController {
 
     private final AiReportService reportService;
 
+    private final AiReportRevisionService revisionService;
+
     @PostMapping("/save")
     @Operation(summary = "保存报表（不带编号为新建；带编号与乐观锁版本为保存新版本）")
     @AuthenticatedOnly
     public CommonResult<Long> save(@Valid @RequestBody AiReportSaveReqVO reqVO) {
         AiReportSaveDTO saveDTO = toSaveDTO(reqVO);
         return success(reqVO.getId() == null ? reportService.create(saveDTO) : reportService.saveVersion(saveDTO));
+    }
+
+    @PostMapping("/revise")
+    @Operation(summary = "对话修改报表（展示类复用保存时的数据；数据类按当前权限重新查询；成功即新增版本）")
+    @AuthenticatedOnly
+    public CommonResult<AiReportRevisionRespVO> revise(@Valid @RequestBody AiReportReviseReqVO reqVO) {
+        AiReportRevisionResultDTO result = revisionService.revise(new AiReportRevisionRequestDTO()
+                .setReportId(reqVO.getId())
+                .setBaseVersionNo(reqVO.getBaseVersionNo())
+                .setVersion(reqVO.getVersion())
+                .setInstruction(reqVO.getInstruction())
+                .setEndpointId(reqVO.getEndpointId())
+                .setDatasetId(reqVO.getDatasetId())
+                .setDatasetVersionId(reqVO.getDatasetVersionId())
+                .setCreatedByRun(reqVO.getCreatedByRun()));
+        return success(toRevisionRespVO(result));
     }
 
     @GetMapping("/get")
@@ -97,6 +124,43 @@ public class AiReportController {
             @Parameter(description = "版本号", required = true) @RequestParam("versionNo") @NotNull @Positive
                     Integer versionNo) {
         return success(toVersionRespVO(reportService.getVersion(id, versionNo)));
+    }
+
+    /** 修订结果 → 协议层 VO（差异与澄清候选逐项映射，不新增字段语义）。 */
+    private static AiReportRevisionRespVO toRevisionRespVO(AiReportRevisionResultDTO result) {
+        AiReportRevisionRespVO respVO = new AiReportRevisionRespVO()
+                .setOutcome(result.getOutcome())
+                .setReportId(result.getReportId())
+                .setBaseVersionNo(result.getBaseVersionNo())
+                .setNewVersionNo(result.getNewVersionNo())
+                .setQueryPerformed(result.isQueryPerformed())
+                .setClarificationQuestion(result.getClarificationQuestion())
+                .setClarificationReason(result.getClarificationReason())
+                .setNotes(result.getNotes() == null ? List.of() : result.getNotes());
+        AiReportRevisionDiff diff = result.getDiff();
+        if (diff != null) {
+            respVO.setDiff(new AiReportRevisionRespVO.Diff()
+                    .setQueryRequired(diff.queryRequired())
+                    .setOperations(diff.operations())
+                    .setTitleChanged(diff.titleChanged())
+                    .setThemeChanged(diff.themeChanged())
+                    .setLayoutChanged(diff.layoutChanged())
+                    .setAddedBlocks(diff.addedBlocks())
+                    .setRemovedBlocks(diff.removedBlocks())
+                    .setModifiedBlocks(diff.modifiedBlocks())
+                    .setAddedDatasetRefs(diff.addedDatasetRefs())
+                    .setRemovedDatasetRefs(diff.removedDatasetRefs()));
+        }
+        List<AiReportRevisionResultDTO.Candidate> candidates = result.getClarificationCandidates();
+        respVO.setClarificationCandidates(
+                candidates == null
+                        ? List.of()
+                        : candidates.stream()
+                                .map(candidate -> new AiReportRevisionRespVO.Candidate()
+                                        .setCode(candidate.code())
+                                        .setLabel(candidate.label()))
+                                .toList());
+        return respVO;
     }
 
     private static AiReportSaveDTO toSaveDTO(AiReportSaveReqVO reqVO) {

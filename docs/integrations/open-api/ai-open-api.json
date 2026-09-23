@@ -2167,6 +2167,55 @@
         }
       }
     },
+    "/app-api/ai/report/revise": {
+      "post": {
+        "tags": [
+          "AI 应用端 - 报表保存与版本"
+        ],
+        "summary": "对话修改报表（展示类复用保存时的数据；数据类按当前权限重新查询；成功即新增版本）",
+        "operationId": "对话修改报表（展示类复用保存时的数据；数据类按当前权限重新查询；成功即新增版本）",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数不合法或修订计划不合规"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限（含数据集未授权）"
+          },
+          "404": {
+            "description": "报表不存在（越权同语义）"
+          },
+          "409": {
+            "description": "乐观锁冲突、范围已变化或数据类修订缺少行范围上下文"
+          },
+          "429": {
+            "description": "限流"
+          }
+        }
+      }
+    },
     "/app-api/ai/report/get": {
       "get": {
         "tags": [

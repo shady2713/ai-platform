@@ -153,6 +153,18 @@ public interface AiErrorCodeConstants {
     /** 来源运行不存在或不属于当前主体（404）：跨用户保存他人运行同语义，不借错误码枚举他人运行。 */
     ErrorCode AI_REPORT_SOURCE_RUN_NOT_FOUND = new ErrorCode(1_003_007_012, "来源运行不存在");
 
+    /** 修订计划不合规（400）：操作码不在白名单、缺必填参数或引用了不存在的块。 */
+    ErrorCode AI_REPORT_REVISION_PLAN_INVALID = new ErrorCode(1_003_007_013, "报表修订计划不合规");
+
+    /** 修订操作无法按当前数据完成（400）：例如受控查询结果为空却要新增指标块（不编造数字）。 */
+    ErrorCode AI_REPORT_REVISION_UNSUPPORTED = new ErrorCode(1_003_007_014, "报表修订操作无法完成");
+
+    /** 数据类修订缺少行范围上下文（409）：受控查询必须有授权层给出的行范围，宁可拒绝也不查全库。 */
+    ErrorCode AI_REPORT_REVISION_QUERY_SCOPE_REQUIRED = new ErrorCode(1_003_007_015, "数据类修订需要行范围上下文");
+
+    /** 修订模型未装配（503）：对话修改步骤已就绪但未接入模型调用（fail-closed，不返回假修订）。 */
+    ErrorCode AI_REPORT_REVISION_MODEL_UNAVAILABLE = new ErrorCode(1_003_007_016, "报表修订模型未装配");
+
     // ========== 数据与工具 1_003_006_xxx ==========
 
     /** 连接器不存在（404）。 */

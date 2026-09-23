@@ -83,6 +83,10 @@
 | 1_003_007_010 | AI_REPORT_SNAPSHOT_DATA_REQUIRED | 400 | 快照报表必须携带数据 |
 | 1_003_007_011 | AI_REPORT_SCOPE_CHANGED | 409 | 授权范围已变化，拒绝展示旧产物，需重新生成 |
 | 1_003_007_012 | AI_REPORT_SOURCE_RUN_NOT_FOUND | 404 | 来源运行不存在或不属于当前主体（跨用户保存同语义） |
+| 1_003_007_013 | AI_REPORT_REVISION_PLAN_INVALID | 400 | 修订计划不合规（操作码白名单/必填参数/块引用） |
+| 1_003_007_014 | AI_REPORT_REVISION_UNSUPPORTED | 400 | 修订操作无法按当前数据完成（如查询结果为空仍要新增指标） |
+| 1_003_007_015 | AI_REPORT_REVISION_QUERY_SCOPE_REQUIRED | 409 | 数据类修订缺少行范围上下文（拒绝而非查全库） |
+| 1_003_007_016 | AI_REPORT_REVISION_MODEL_UNAVAILABLE | 503 | 报表修订模型未装配（fail-closed） |
 | 1_003_006_000 | AI_CONNECTOR_NOT_FOUND | 404 | 连接器不存在 |
 | 1_003_006_001 | AI_CONNECTOR_CODE_DUPLICATE | 409 | 连接器标识重复（code 唯一且不可改） |
 | 1_003_006_002 | AI_CONNECTOR_CONFIG_INVALID | 400 | 连接器配置不合规（只接受声明式白名单字段） |

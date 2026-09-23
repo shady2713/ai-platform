@@ -66,6 +66,7 @@
 | `AiReportController#versions` | 同上：只返回本人报表的版本摘要（不含规格与数据正文） |
 | `AiReportController#current` | 同上：读取当前生效版本前按 A03 `reauthorizeHistorical` 复核保存时的范围指纹，指纹不一致或判定拒绝即 409，要求按当前权限重新生成 |
 | `AiReportController#version` | 同上：**旧版本编号也是读取入口**，同样复核范围指纹，复制 reportId/旧版本号不能绕过 |
+| `AiReportController#revise` | 同上：对话修改的基础版本必须属于当前主体且范围复核通过；展示类操作复用保存时的结果行（不查库），数据类操作走受控查询——**行范围来自授权层**，请求体不提供行范围与允许数据集；成功只新增版本，原版本不改写（乐观锁不一致 409） |
 
 ## 会话身份（MEMBER 用户类型）
 

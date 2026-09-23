@@ -12,6 +12,8 @@ import com.basicframework.framework.common.pojo.PageResult;
 import com.basicframework.framework.security.core.annotation.AuthenticatedOnly;
 import com.basicframework.module.ai.controller.app.v1.report.vo.AiReportPageReqVO;
 import com.basicframework.module.ai.controller.app.v1.report.vo.AiReportRespVO;
+import com.basicframework.module.ai.controller.app.v1.report.vo.AiReportReviseReqVO;
+import com.basicframework.module.ai.controller.app.v1.report.vo.AiReportRevisionRespVO;
 import com.basicframework.module.ai.controller.app.v1.report.vo.AiReportSaveReqVO;
 import com.basicframework.module.ai.controller.app.v1.report.vo.AiReportVersionBriefVO;
 import com.basicframework.module.ai.controller.app.v1.report.vo.AiReportVersionRespVO;
@@ -19,6 +21,10 @@ import com.basicframework.module.ai.dal.dataobject.report.AiReportDO;
 import com.basicframework.module.ai.dal.dataobject.report.AiReportVersionDO;
 import com.basicframework.module.ai.service.report.persistence.AiReportService;
 import com.basicframework.module.ai.service.report.persistence.dto.AiReportSaveDTO;
+import com.basicframework.module.ai.service.report.revision.AiReportRevisionDiff;
+import com.basicframework.module.ai.service.report.revision.AiReportRevisionService;
+import com.basicframework.module.ai.service.report.revision.dto.AiReportRevisionRequestDTO;
+import com.basicframework.module.ai.service.report.revision.dto.AiReportRevisionResultDTO;
 import jakarta.annotation.security.PermitAll;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -29,14 +35,16 @@ import org.junit.jupiter.api.Test;
 import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
- * R04 报表应用端控制面契约：每个端点有且只有一种鉴权策略；协议层不出现归属与范围指纹字段
- * （归属由服务端会话决定，指纹是内部授权凭据）。
+ * R04/R05 报表应用端控制面契约：每个端点有且只有一种鉴权策略；协议层不出现归属、范围指纹、
+ * 行范围与允许数据集字段（归属由服务端会话决定，行范围来自授权层，指纹是内部授权凭据）。
  */
 class AiReportControllerTest {
 
     private final AiReportService reportService = mock(AiReportService.class);
 
-    private final AiReportController controller = new AiReportController(reportService);
+    private final AiReportRevisionService revisionService = mock(AiReportRevisionService.class);
+
+    private final AiReportController controller = new AiReportController(reportService, revisionService);
 
     private static AiReportDO report() {
         AiReportDO report = new AiReportDO()
@@ -113,7 +121,7 @@ class AiReportControllerTest {
             // 报表端点一律"登录即可"，归属与范围在服务层判定
             assertThat(method.isAnnotationPresent(AuthenticatedOnly.class)).isTrue();
         }
-        assertThat(endpoints).as("必须扫描到报表端点（否则本契约形同虚设）").isEqualTo(6);
+        assertThat(endpoints).as("必须扫描到报表端点（否则本契约形同虚设）").isEqualTo(7);
     }
 
     @Test
@@ -123,13 +131,104 @@ class AiReportControllerTest {
                 AiReportRespVO.class,
                 AiReportVersionRespVO.class,
                 AiReportVersionBriefVO.class,
-                AiReportPageReqVO.class);
+                AiReportPageReqVO.class,
+                AiReportReviseReqVO.class,
+                AiReportRevisionRespVO.class);
         for (Class<?> vo : vos) {
             assertThat(Arrays.stream(vo.getDeclaredFields()).map(Field::getName).toList())
-                    .as("%s 不能出现归属或范围指纹字段", vo.getSimpleName())
+                    .as("%s 不能出现归属、范围指纹、行范围或允许数据集字段", vo.getSimpleName())
                     .doesNotContain(
-                            "applicationId", "subjectType", "externalUserId", "scopeFingerprint", "scopeRefsJson");
+                            "applicationId",
+                            "subjectType",
+                            "externalUserId",
+                            "scopeFingerprint",
+                            "scopeRefsJson",
+                            "rowScope",
+                            "allowedDatasetIds",
+                            "allowedFieldCodes");
         }
+    }
+
+    @Test
+    void reviseMapsRequestAndResponseAndNeverAcceptsRowScopeFromBody() {
+        when(revisionService.revise(any(AiReportRevisionRequestDTO.class)))
+                .thenReturn(new AiReportRevisionResultDTO()
+                        .setOutcome(AiReportRevisionResultDTO.OUTCOME_APPLIED)
+                        .setReportId(71L)
+                        .setBaseVersionNo(1)
+                        .setNewVersionNo(2)
+                        .setQueryPerformed(false)
+                        .setDiff(new AiReportRevisionDiff(
+                                false,
+                                List.of("SET_CHART_TYPE"),
+                                false,
+                                false,
+                                false,
+                                List.of(),
+                                List.of(),
+                                List.of("sales_chart"),
+                                List.of(),
+                                List.of(),
+                                List.of()))
+                        .setNotes(List.of("展示类修改复用保存时的数据，未重新查询数据源")));
+
+        AiReportRevisionRespVO respVO = controller
+                .revise(new AiReportReviseReqVO()
+                        .setId(71L)
+                        .setBaseVersionNo(1)
+                        .setVersion(1)
+                        .setInstruction("把柱状图换成折线图")
+                        .setEndpointId(5L)
+                        .setDatasetId(81L)
+                        .setDatasetVersionId(91L)
+                        .setCreatedByRun("run_0123456789abcdef01234567"))
+                .getData();
+
+        assertThat(respVO.getOutcome()).isEqualTo("APPLIED");
+        assertThat(respVO.getNewVersionNo()).isEqualTo(2);
+        assertThat(respVO.isQueryPerformed()).isFalse();
+        assertThat(respVO.getDiff().getModifiedBlocks()).containsExactly("sales_chart");
+        assertThat(respVO.getDiff().isQueryRequired()).isFalse();
+        assertThat(respVO.getNotes()).hasSize(1);
+
+        // 请求体没有行范围/允许数据集字段：服务层只能从授权层拿行范围（协议层无法放大范围）
+        assertThat(Arrays.stream(AiReportReviseReqVO.class.getDeclaredFields())
+                        .map(Field::getName)
+                        .toList())
+                .doesNotContain("rowScope", "allowedDatasetIds", "allowedFieldCodes");
+    }
+
+    @Test
+    void reviseMapsClarificationOutcomeWithoutVersionDiffOrNotes() {
+        when(revisionService.revise(any(AiReportRevisionRequestDTO.class)))
+                .thenReturn(new AiReportRevisionResultDTO()
+                        .setOutcome(AiReportRevisionResultDTO.OUTCOME_CLARIFICATION)
+                        .setReportId(71L)
+                        .setBaseVersionNo(1)
+                        .setQueryPerformed(false)
+                        .setClarificationQuestion("“销售额”指净额还是含退款金额？")
+                        .setClarificationReason("AMBIGUOUS")
+                        .setClarificationCandidates(
+                                List.of(new AiReportRevisionResultDTO.Candidate("total_net_amount", "净销售额"))));
+
+        AiReportRevisionRespVO respVO = controller
+                .revise(new AiReportReviseReqVO()
+                        .setId(71L)
+                        .setBaseVersionNo(1)
+                        .setVersion(1)
+                        .setInstruction("加上销售额")
+                        .setEndpointId(5L))
+                .getData();
+
+        // 澄清：没有新版本、没有差异，只有追问与有限候选；说明缺省为空列表而不是 null
+        assertThat(respVO.getOutcome()).isEqualTo("CLARIFICATION");
+        assertThat(respVO.getNewVersionNo()).isNull();
+        assertThat(respVO.getDiff()).isNull();
+        assertThat(respVO.getClarificationReason()).isEqualTo("AMBIGUOUS");
+        assertThat(respVO.getClarificationCandidates()).hasSize(1);
+        assertThat(respVO.getClarificationCandidates().get(0).getCode()).isEqualTo("total_net_amount");
+        assertThat(respVO.getClarificationCandidates().get(0).getLabel()).isEqualTo("净销售额");
+        assertThat(respVO.getNotes()).isEmpty();
     }
 
     @Test
