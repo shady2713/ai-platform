@@ -1,3 +1,14 @@
+export { createOpenApiClient, RUN_EVENT_WINDOW_EXPIRED } from './client';
+export type {
+  OpenApiClient,
+  OpenApiClientOptions,
+  RunAccepted,
+  RunAcceptRequest,
+  RunEventStreamHandlers,
+  RunEventStreamResult,
+  RunSnapshot,
+  StreamEndReason,
+} from './client';
 export { default as AiChatPanel } from './components/AiChatPanel.vue';
 export type { ChatMessage } from './components/AiChatPanel.vue';
 export { default as ChartRenderer } from './components/ChartRenderer.vue';

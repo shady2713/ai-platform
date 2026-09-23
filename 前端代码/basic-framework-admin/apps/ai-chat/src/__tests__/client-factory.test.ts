@@ -34,7 +34,7 @@ describe('buildAiChatClient', () => {
     // SDK 在创建客户端时取用 fetch，必须在构建前替换，避免真实网络请求
     vi.stubGlobal('fetch', fetchImpl);
     const client = buildAiChatClient({
-      baseUrl: 'https://ai.example.com/app-api/ai/v1/',
+      baseUrl: 'https://ai.example.com/app-api/',
       ticketStorage: storage,
     });
 
@@ -46,7 +46,8 @@ describe('buildAiChatClient', () => {
 
     const [url, init] = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock
       .calls[0] as [string, RequestInit];
-    expect(url).toBe('https://ai.example.com/app-api/ai/v1/runs');
+    // C01：端点对齐开放 API 契约（受理走 /ai/run/accept）
+    expect(url).toBe('https://ai.example.com/app-api/ai/run/accept');
     expect((init.headers as Headers).get('Authorization') ?? '').toBe(
       'Bearer ticket-7',
     );
@@ -60,7 +61,7 @@ describe('buildAiChatClient', () => {
     });
     vi.stubGlobal('fetch', fetchImpl);
     const client = buildAiChatClient({
-      baseUrl: 'https://ai.example.com/app-api/ai/v1',
+      baseUrl: 'https://ai.example.com/app-api',
       ticketStorage: { getItem: () => null },
     });
 

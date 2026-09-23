@@ -8,6 +8,15 @@ export {
 } from './chart-spec';
 export type { ChartSpec, ChartType, ChartValue } from './chart-spec';
 export {
+  AiOpenApiError,
+  createSeqTracker,
+  invalidRequest,
+  parseCommonResult,
+} from './client/protocol';
+export type { CommonResultEnvelope, SeqTracker } from './client/protocol';
+export { createSseByteParser, createSseFrameParser } from './client/sse';
+export type { SseFrame, SseFrameParser } from './client/sse';
+export {
   parseResultBlocks,
   resultBlockListSchema,
   resultBlockSchema,

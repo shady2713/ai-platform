@@ -50,7 +50,8 @@ export function useAiChat(options: {
       push('assistant', [
         {
           kind: 'text',
-          text: `已受理运行 ${accepted.runId}（${accepted.status}）`,
+          // 对外展示业务键（runKey）；数值编号只用于接口调用
+          text: `已受理运行 ${accepted.runKey}（${accepted.status}）`,
         },
       ]);
     } catch (error) {

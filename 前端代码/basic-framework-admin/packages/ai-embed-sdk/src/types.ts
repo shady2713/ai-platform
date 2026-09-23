@@ -19,13 +19,22 @@ export interface CreateRunRequest {
   serviceId: string;
 }
 
+/** 受理结果（与开放 API 的 AiRunAcceptResp 一致）。 */
 export interface RunAccepted {
-  runId: string;
+  releaseId?: number;
+  releaseVersion?: number;
+  /** 是否命中幂等（复用首次受理的运行） */
+  reused: boolean;
+  runId: number;
+  runKey: string;
   status: AiRunStatus;
 }
 
+/** 运行快照（与开放 API 的 AiRun 一致；事件流重连/窗口过期时使用）。 */
 export interface RunSnapshot {
-  blocks: ResultBlock[];
-  runId: string;
+  blocks?: ResultBlock[];
+  id: number;
+  runKey?: string;
   status: AiRunStatus;
+  version?: number;
 }

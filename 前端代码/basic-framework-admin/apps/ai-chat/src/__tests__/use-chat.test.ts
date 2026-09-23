@@ -34,10 +34,20 @@ describe('useAiChat', () => {
       async (
         _request: { message: string; serviceId: string },
         _idempotencyKey: string,
-      ) => ({ runId: 'run_1', status: 'QUEUED' as const }),
+      ) => ({
+        reused: false,
+        runId: 1,
+        runKey: 'run_1',
+        status: 'QUEUED' as const,
+      }),
     );
     const chat = useAiChat({
-      client: { cancelRun: vi.fn(), createRun, getRun: vi.fn() },
+      client: {
+        cancelRun: vi.fn(),
+        createRun,
+        getRun: vi.fn(),
+        streamRunEvents: vi.fn(),
+      },
       serviceId: 'svc_x',
     });
 
@@ -49,6 +59,7 @@ describe('useAiChat', () => {
     expect(String(idempotencyKey).length).toBeGreaterThanOrEqual(16);
     expect(chat.messages.value[1]?.blocks[0]).toMatchObject({
       kind: 'text',
+      // 展示用 runKey（业务键）而不是数值编号
       text: '已受理运行 run_1（QUEUED）',
     });
   });
@@ -63,7 +74,12 @@ describe('useAiChat', () => {
       },
     );
     const chat = useAiChat({
-      client: { cancelRun: vi.fn(), createRun, getRun: vi.fn() },
+      client: {
+        cancelRun: vi.fn(),
+        createRun,
+        getRun: vi.fn(),
+        streamRunEvents: vi.fn(),
+      },
       serviceId: 'svc_x',
     });
 
@@ -83,12 +99,28 @@ describe('useAiChat', () => {
         _request: { message: string; serviceId: string },
         _idempotencyKey: string,
       ) =>
-        new Promise<{ runId: string; status: 'QUEUED' }>((resolve) => {
-          release = () => resolve({ runId: 'run_2', status: 'QUEUED' });
+        new Promise<{
+          reused: boolean;
+          runId: number;
+          runKey: string;
+          status: 'QUEUED';
+        }>((resolve) => {
+          release = () =>
+            resolve({
+              reused: false,
+              runId: 2,
+              runKey: 'run_2',
+              status: 'QUEUED',
+            });
         }),
     );
     const chat = useAiChat({
-      client: { cancelRun: vi.fn(), createRun, getRun: vi.fn() },
+      client: {
+        cancelRun: vi.fn(),
+        createRun,
+        getRun: vi.fn(),
+        streamRunEvents: vi.fn(),
+      },
       serviceId: 'svc_x',
     });
 
