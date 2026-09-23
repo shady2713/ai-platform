@@ -1,5 +1,6 @@
 package com.basicframework.module.ai.service.run;
 
+import com.basicframework.module.ai.service.run.dto.AiRunQueryExecutionFixedRequestDTO;
 import com.basicframework.module.ai.service.run.dto.AiRunQueryExecutionRequestDTO;
 import com.basicframework.module.ai.service.run.dto.AiRunQueryExecutionResultDTO;
 
@@ -22,4 +23,13 @@ public interface AiRunQueryExecutionService {
 
     /** 按当前权限执行一次受控查询（PLAN 或 CLARIFICATION）。 */
     AiRunQueryExecutionResultDTO execute(AiRunQueryExecutionRequestDTO request);
+
+    /**
+     * 按当前权限执行一次**已固定的计划**（R06 刷新链路）：不规划、不调用模型，只做
+     * 版本可执行性复核 + 执行前再校验 + 编译 + 只读执行。
+     *
+     * <p>计划来自报表版本里保存的规范化计划（创建时已校验），刷新只是"按当前权限再执行一次"；
+     * 行范围仍必须由授权层给出，没有行范围即拒绝（不退回全库）。
+     */
+    AiRunQueryExecutionResultDTO executeFixed(AiRunQueryExecutionFixedRequestDTO request);
 }

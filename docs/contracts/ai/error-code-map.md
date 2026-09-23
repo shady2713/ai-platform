@@ -87,6 +87,8 @@
 | 1_003_007_014 | AI_REPORT_REVISION_UNSUPPORTED | 400 | 修订操作无法按当前数据完成（如查询结果为空仍要新增指标） |
 | 1_003_007_015 | AI_REPORT_REVISION_QUERY_SCOPE_REQUIRED | 409 | 数据类修订缺少行范围上下文（拒绝而非查全库） |
 | 1_003_007_016 | AI_REPORT_REVISION_MODEL_UNAVAILABLE | 503 | 报表修订模型未装配（fail-closed） |
+| 1_003_007_017 | AI_REPORT_REFRESH_NOT_SUPPORTED | 400 | 该报表不支持刷新（仅可刷新报表） |
+| 1_003_007_018 | AI_REPORT_REFRESH_SCOPE_REQUIRED | 409 | 刷新需要行范围上下文（留痕并保留旧结果） |
 | 1_003_006_000 | AI_CONNECTOR_NOT_FOUND | 404 | 连接器不存在 |
 | 1_003_006_001 | AI_CONNECTOR_CODE_DUPLICATE | 409 | 连接器标识重复（code 唯一且不可改） |
 | 1_003_006_002 | AI_CONNECTOR_CONFIG_INVALID | 400 | 连接器配置不合规（只接受声明式白名单字段） |

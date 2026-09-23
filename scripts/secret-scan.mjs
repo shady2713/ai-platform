@@ -239,6 +239,11 @@ const publicFixtures = new Map([
     `${server}test/java/com/basicframework/server/integration/AiReportRevisionIT.java`,
     new Set(["r05-it-readonly-password"]),
   ],
+  // R06：报表刷新集成测试里的一次性只读账号口令（仅集成容器内使用）
+  [
+    `${server}test/java/com/basicframework/server/integration/AiReportRefreshIT.java`,
+    new Set(["r06-it-readonly-password"]),
+  ],
 ]);
 
 export function hasSecretAssignment(path, line) {

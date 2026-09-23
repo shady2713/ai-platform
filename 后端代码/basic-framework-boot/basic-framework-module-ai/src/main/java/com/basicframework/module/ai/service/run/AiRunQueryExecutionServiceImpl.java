@@ -26,6 +26,7 @@ import com.basicframework.module.ai.service.query.compiler.QueryPlanSqlCompiler;
 import com.basicframework.module.ai.service.query.planner.AiQueryPlanner;
 import com.basicframework.module.ai.service.query.planner.dto.AiQueryPlanRequestDTO;
 import com.basicframework.module.ai.service.query.planner.dto.AiQueryPlanResultDTO;
+import com.basicframework.module.ai.service.run.dto.AiRunQueryExecutionFixedRequestDTO;
 import com.basicframework.module.ai.service.run.dto.AiRunQueryExecutionRequestDTO;
 import com.basicframework.module.ai.service.run.dto.AiRunQueryExecutionResultDTO;
 import java.time.Clock;
@@ -89,6 +90,22 @@ public class AiRunQueryExecutionServiceImpl implements AiRunQueryExecutionServic
         return result(resolved.dataset(), validated, plan.getPlanJson(), compiled, executed);
     }
 
+    @Override
+    public AiRunQueryExecutionResultDTO executeFixed(AiRunQueryExecutionFixedRequestDTO request) {
+        if (request == null
+                || request.getDatasetId() == null
+                || request.getDatasetVersionId() == null
+                || !StringUtils.hasText(request.getPlanJson())) {
+            throw exception(AI_REQUEST_INVALID);
+        }
+        requireRowScope(request.getRowScope());
+        Resolved resolved = resolve(request.getDatasetId(), request.getDatasetVersionId());
+        ValidatedQueryPlan validated = revalidate(request.getPlanJson(), resolved.dataset());
+        CompiledQuery compiled = compiler.compile(validated, resolved.dataset(), request.getRowScope());
+        AiMysqlQueryResultDTO executed = compiledQueryExecutor.execute(resolved.connectorId(), compiled);
+        return result(resolved.dataset(), validated, request.getPlanJson(), compiled, executed);
+    }
+
     /** 请求完整性与行范围：没有行范围就不生成可执行 SQL（空集合不是"不过滤"）。 */
     private static void requireRequest(AiRunQueryExecutionRequestDTO request) {
         if (request == null
@@ -97,9 +114,12 @@ public class AiRunQueryExecutionServiceImpl implements AiRunQueryExecutionServic
                 || !StringUtils.hasText(request.getQuestion())) {
             throw exception(AI_REQUEST_INVALID);
         }
-        QueryScope scope = request.getRowScope();
+        requireRowScope(request.getRowScope());
+    }
+
+    /** 行范围必须由授权层给出且有效：空集合不是"不过滤"，而是"没有授权约束"，必须拒绝。 */
+    private static void requireRowScope(QueryScope scope) {
         if (scope == null || !scope.isEffective()) {
-            // 授权层没有给出行范围：拒绝执行，而不是退回全库
             throw exception(AI_QUERY_SCOPE_REQUIRED);
         }
     }

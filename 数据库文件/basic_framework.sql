@@ -4,8 +4,8 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V76.
--- Only the 47 soft-delete tables retain a deleted column; hard-delete and
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V77.
+-- Only the 48 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
 
@@ -2393,6 +2393,14 @@ INSERT INTO `infra_job`
 VALUES (36, 'AI 知识清理 Job', 1, 'aiKnowledgeCleanupJob', '', '0 5/10 * * * ?', 0, 0, 0, '1',
         CURRENT_TIMESTAMP, '1', CURRENT_TIMESTAMP, b'0');
 
+-- AI 报表刷新 Job（V77）
+INSERT INTO `infra_job`
+(`id`, `name`, `status`, `handler_name`, `handler_param`, `cron_expression`,
+ `retry_count`, `retry_interval`, `monitor_timeout`, `creator`, `create_time`, `updater`,
+ `update_time`, `deleted`)
+VALUES (37, 'AI 报表刷新 Job', 1, 'aiReportRefreshJob', '', '0 0/30 * * * ?', 0, 0, 0, '1',
+        CURRENT_TIMESTAMP, '1', CURRENT_TIMESTAMP, b'0');
+
 
 -- AI 知识库菜单与权限点（V72）
 INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
@@ -2483,6 +2491,40 @@ CREATE TABLE `ai_report_version` (
     KEY `idx_ai_report_version_report` (`report_id`,`id`),
     CONSTRAINT `fk_ai_report_version_report` FOREIGN KEY (`report_id`) REFERENCES `ai_report` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 报表版本（不可变快照，R04）';
+
+
+--
+-- AI 报表刷新尝试（结果原子切换 + 失败留痕，R06）
+--
+
+DROP TABLE IF EXISTS `ai_report_refresh`;
+
+CREATE TABLE `ai_report_refresh` (
+
+    `id`                bigint        NOT NULL AUTO_INCREMENT COMMENT '刷新尝试编号',
+    `report_id`         bigint        NOT NULL COMMENT '报表编号',
+    `base_version_no`   int           NOT NULL COMMENT '本次刷新基于的版本号',
+    `result_version_no` int           DEFAULT NULL COMMENT '本次刷新产生的版本号（OK 时存在）',
+    `status`            varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci   NOT NULL COMMENT '结果（OK 已刷新 / UNCHANGED 数据未变化 / FAILED 失败）',
+    `reason`            varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci  DEFAULT NULL COMMENT '稳定原因码（失败为平台错误码；未变化为 UNCHANGED）',
+    `as_of`             datetime      NOT NULL COMMENT '尝试时间（成功时即本次数据的截至时间）',
+    `completeness`      varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci   DEFAULT NULL COMMENT '数据完整性（COMPLETE/PARTIAL）',
+    `data_json`         mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '成功刷新时的绑定数据（读取时按当前 ACL 复核）',
+    `sources_json`      text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '本次刷新引用的资源依赖（A03 词表）',
+    `scope_refs_json`   text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '逐项资源依赖的 A03 范围指纹（读取旧结果时复核）',
+    `scope_fingerprint` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci  NOT NULL COMMENT '本次刷新的授权范围指纹（读取旧结果时比对）',
+    `version`           int           NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
+    `creator`           varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci   DEFAULT '' COMMENT '创建者',
+    `create_time`       datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updater`           varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci   DEFAULT '' COMMENT '更新者',
+    `update_time`       datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `deleted`           bit(1)        NOT NULL DEFAULT b'0' COMMENT '是否删除',
+    PRIMARY KEY (`id`) USING BTREE,
+    KEY `idx_ai_report_refresh_report` (`report_id`,`id`),
+    KEY `idx_ai_report_refresh_status` (`status`,`as_of`),
+    CONSTRAINT `fk_ai_report_refresh_report` FOREIGN KEY (`report_id`) REFERENCES `ai_report` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 报表刷新尝试（结果原子切换 + 失败留痕，R06）';
+
 
 
 -- AI 服务菜单与权限点（V56）

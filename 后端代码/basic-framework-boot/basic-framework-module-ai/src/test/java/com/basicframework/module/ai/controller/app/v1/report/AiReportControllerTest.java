@@ -11,6 +11,9 @@ import static org.mockito.Mockito.when;
 import com.basicframework.framework.common.pojo.PageResult;
 import com.basicframework.framework.security.core.annotation.AuthenticatedOnly;
 import com.basicframework.module.ai.controller.app.v1.report.vo.AiReportPageReqVO;
+import com.basicframework.module.ai.controller.app.v1.report.vo.AiReportRefreshReqVO;
+import com.basicframework.module.ai.controller.app.v1.report.vo.AiReportRefreshRespVO;
+import com.basicframework.module.ai.controller.app.v1.report.vo.AiReportRefreshStateRespVO;
 import com.basicframework.module.ai.controller.app.v1.report.vo.AiReportRespVO;
 import com.basicframework.module.ai.controller.app.v1.report.vo.AiReportReviseReqVO;
 import com.basicframework.module.ai.controller.app.v1.report.vo.AiReportRevisionRespVO;
@@ -21,6 +24,10 @@ import com.basicframework.module.ai.dal.dataobject.report.AiReportDO;
 import com.basicframework.module.ai.dal.dataobject.report.AiReportVersionDO;
 import com.basicframework.module.ai.service.report.persistence.AiReportService;
 import com.basicframework.module.ai.service.report.persistence.dto.AiReportSaveDTO;
+import com.basicframework.module.ai.service.report.refresh.AiReportRefreshService;
+import com.basicframework.module.ai.service.report.refresh.dto.AiReportRefreshRequestDTO;
+import com.basicframework.module.ai.service.report.refresh.dto.AiReportRefreshResultDTO;
+import com.basicframework.module.ai.service.report.refresh.dto.AiReportRefreshStateDTO;
 import com.basicframework.module.ai.service.report.revision.AiReportRevisionDiff;
 import com.basicframework.module.ai.service.report.revision.AiReportRevisionService;
 import com.basicframework.module.ai.service.report.revision.dto.AiReportRevisionRequestDTO;
@@ -44,7 +51,10 @@ class AiReportControllerTest {
 
     private final AiReportRevisionService revisionService = mock(AiReportRevisionService.class);
 
-    private final AiReportController controller = new AiReportController(reportService, revisionService);
+    private final AiReportRefreshService refreshService = mock(AiReportRefreshService.class);
+
+    private final AiReportController controller =
+            new AiReportController(reportService, revisionService, refreshService);
 
     private static AiReportDO report() {
         AiReportDO report = new AiReportDO()
@@ -121,7 +131,7 @@ class AiReportControllerTest {
             // 报表端点一律"登录即可"，归属与范围在服务层判定
             assertThat(method.isAnnotationPresent(AuthenticatedOnly.class)).isTrue();
         }
-        assertThat(endpoints).as("必须扫描到报表端点（否则本契约形同虚设）").isEqualTo(7);
+        assertThat(endpoints).as("必须扫描到报表端点（否则本契约形同虚设）").isEqualTo(9);
     }
 
     @Test
@@ -133,7 +143,10 @@ class AiReportControllerTest {
                 AiReportVersionBriefVO.class,
                 AiReportPageReqVO.class,
                 AiReportReviseReqVO.class,
-                AiReportRevisionRespVO.class);
+                AiReportRevisionRespVO.class,
+                AiReportRefreshReqVO.class,
+                AiReportRefreshRespVO.class,
+                AiReportRefreshStateRespVO.class);
         for (Class<?> vo : vos) {
             assertThat(Arrays.stream(vo.getDeclaredFields()).map(Field::getName).toList())
                     .as("%s 不能出现归属、范围指纹、行范围或允许数据集字段", vo.getSimpleName())
@@ -284,5 +297,45 @@ class AiReportControllerTest {
                         .map(Field::getName)
                         .toList())
                 .doesNotContain("scopeFingerprint");
+    }
+
+    @Test
+    void refreshMapsResultAndStateWithoutOwnershipOrScopeFields() {
+        when(refreshService.refresh(any(AiReportRefreshRequestDTO.class)))
+                .thenReturn(new AiReportRefreshResultDTO()
+                        .setStatus(AiReportRefreshResultDTO.STATUS_FAILED)
+                        .setReportId(71L)
+                        .setBaseVersionNo(1)
+                        .setReason("1_003_007_018")
+                        .setAsOf(LocalDateTime.of(2026, 9, 23, 12, 0))
+                        .setNote("数据类刷新需要行范围上下文"));
+
+        AiReportRefreshRespVO respVO =
+                controller.refresh(new AiReportRefreshReqVO().setId(71L)).getData();
+        assertThat(respVO.getStatus()).isEqualTo("FAILED");
+        assertThat(respVO.getReason()).isEqualTo("1_003_007_018");
+        assertThat(respVO.getAsOf()).isNotNull();
+        assertThat(respVO.getDataJson()).isNull();
+
+        when(refreshService.lastState(71L))
+                .thenReturn(new AiReportRefreshStateDTO()
+                        .setReportId(71L)
+                        .setAttempted(true)
+                        .setStatus(AiReportRefreshResultDTO.STATUS_OK)
+                        .setAsOf(LocalDateTime.of(2026, 9, 23, 11, 0))
+                        .setCompleteness("COMPLETE")
+                        .setResultVersionNo(2)
+                        .setDataJson("{\"kind\":\"REPORT\"}"));
+        AiReportRefreshStateRespVO state = controller.refreshLast(71L).getData();
+        assertThat(state.isAttempted()).isTrue();
+        assertThat(state.getResultVersionNo()).isEqualTo(2);
+        assertThat(state.getDataJson()).contains("REPORT");
+        assertThat(state.getCompleteness()).isEqualTo("COMPLETE");
+
+        // 请求体不提供归属与行范围：客户端无法指定身份或放大数据范围
+        assertThat(Arrays.stream(AiReportRefreshReqVO.class.getDeclaredFields())
+                        .map(Field::getName)
+                        .toList())
+                .doesNotContain("applicationId", "externalUserId", "rowScope", "scopeFingerprint");
     }
 }

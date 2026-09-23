@@ -165,6 +165,12 @@ public interface AiErrorCodeConstants {
     /** 修订模型未装配（503）：对话修改步骤已就绪但未接入模型调用（fail-closed，不返回假修订）。 */
     ErrorCode AI_REPORT_REVISION_MODEL_UNAVAILABLE = new ErrorCode(1_003_007_016, "报表修订模型未装配");
 
+    /** 刷新不适用（400）：只有可刷新（REFRESHABLE）报表支持刷新，快照报表的数据是保存时的样子。 */
+    ErrorCode AI_REPORT_REFRESH_NOT_SUPPORTED = new ErrorCode(1_003_007_017, "该报表不支持刷新");
+
+    /** 刷新缺少行范围上下文（409）：受控查询必须有授权层给出的行范围，留痕并保留旧结果，不查全库。 */
+    ErrorCode AI_REPORT_REFRESH_SCOPE_REQUIRED = new ErrorCode(1_003_007_018, "刷新需要行范围上下文");
+
     // ========== 数据与工具 1_003_006_xxx ==========
 
     /** 连接器不存在（404）。 */

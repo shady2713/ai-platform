@@ -2216,6 +2216,102 @@
         }
       }
     },
+    "/app-api/ai/report/refresh": {
+      "post": {
+        "tags": [
+          "AI 应用端 - 报表保存与版本"
+        ],
+        "summary": "刷新可刷新报表（按当前权限重放固定查询版本；失败保留旧结果并留痕）",
+        "operationId": "刷新可刷新报表（按当前权限重放固定查询版本；失败保留旧结果并留痕）",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK（status=OK/UNCHANGED/FAILED 都是正常结果）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数不合法或该报表不支持刷新"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          },
+          "404": {
+            "description": "报表不存在（越权同语义）"
+          },
+          "409": {
+            "description": "授权范围已变化（读取与刷新都停止）"
+          },
+          "429": {
+            "description": "限流"
+          }
+        }
+      }
+    },
+    "/app-api/ai/report/refresh/last": {
+      "get": {
+        "tags": [
+          "AI 应用端 - 报表保存与版本"
+        ],
+        "summary": "查询上次刷新状态与上一次结果（读取结果前按当前权限复核）",
+        "operationId": "查询上次刷新状态与上一次结果（读取结果前按当前权限复核）",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "报表编号"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          },
+          "404": {
+            "description": "报表不存在（越权同语义）"
+          },
+          "409": {
+            "description": "授权范围已变化，拒绝展示上一次结果"
+          },
+          "429": {
+            "description": "限流"
+          }
+        }
+      }
+    },
     "/app-api/ai/report/get": {
       "get": {
         "tags": [

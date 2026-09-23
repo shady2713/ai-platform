@@ -87,7 +87,11 @@ class AiAppEndpointScopeContractTest {
             "com.basicframework.module.ai.controller.app.v1.report.AiReportController#version",
             // R05：报表对话修改同样按 ai_report 归属判定；展示类复用保存时的数据，数据类走受控查询，
             // 行范围来自授权层（请求体给不出行范围），成功只新增版本
-            "com.basicframework.module.ai.controller.app.v1.report.AiReportController#revise");
+            "com.basicframework.module.ai.controller.app.v1.report.AiReportController#revise",
+            // R06：报表刷新与刷新状态同样按 ai_report 归属判定；刷新按当前权限重放固定查询版本，
+            // 上一次结果在返回前复核范围指纹（AT-047/048）
+            "com.basicframework.module.ai.controller.app.v1.report.AiReportController#refresh",
+            "com.basicframework.module.ai.controller.app.v1.report.AiReportController#refreshLast");
 
     private static final String AI_APP_PACKAGE = "com.basicframework.module.ai.controller.app";
 

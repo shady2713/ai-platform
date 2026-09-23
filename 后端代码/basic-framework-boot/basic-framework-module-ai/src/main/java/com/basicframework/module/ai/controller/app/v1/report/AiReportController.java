@@ -6,6 +6,9 @@ import com.basicframework.framework.common.pojo.CommonResult;
 import com.basicframework.framework.common.pojo.PageResult;
 import com.basicframework.framework.security.core.annotation.AuthenticatedOnly;
 import com.basicframework.module.ai.controller.app.v1.report.vo.AiReportPageReqVO;
+import com.basicframework.module.ai.controller.app.v1.report.vo.AiReportRefreshReqVO;
+import com.basicframework.module.ai.controller.app.v1.report.vo.AiReportRefreshRespVO;
+import com.basicframework.module.ai.controller.app.v1.report.vo.AiReportRefreshStateRespVO;
 import com.basicframework.module.ai.controller.app.v1.report.vo.AiReportRespVO;
 import com.basicframework.module.ai.controller.app.v1.report.vo.AiReportReviseReqVO;
 import com.basicframework.module.ai.controller.app.v1.report.vo.AiReportRevisionRespVO;
@@ -16,6 +19,10 @@ import com.basicframework.module.ai.dal.dataobject.report.AiReportDO;
 import com.basicframework.module.ai.dal.dataobject.report.AiReportVersionDO;
 import com.basicframework.module.ai.service.report.persistence.AiReportService;
 import com.basicframework.module.ai.service.report.persistence.dto.AiReportSaveDTO;
+import com.basicframework.module.ai.service.report.refresh.AiReportRefreshService;
+import com.basicframework.module.ai.service.report.refresh.dto.AiReportRefreshRequestDTO;
+import com.basicframework.module.ai.service.report.refresh.dto.AiReportRefreshResultDTO;
+import com.basicframework.module.ai.service.report.refresh.dto.AiReportRefreshStateDTO;
 import com.basicframework.module.ai.service.report.revision.AiReportRevisionDiff;
 import com.basicframework.module.ai.service.report.revision.AiReportRevisionService;
 import com.basicframework.module.ai.service.report.revision.dto.AiReportRevisionRequestDTO;
@@ -57,6 +64,8 @@ public class AiReportController {
 
     private final AiReportRevisionService revisionService;
 
+    private final AiReportRefreshService refreshService;
+
     @PostMapping("/save")
     @Operation(summary = "保存报表（不带编号为新建；带编号与乐观锁版本为保存新版本）")
     @AuthenticatedOnly
@@ -79,6 +88,23 @@ public class AiReportController {
                 .setDatasetVersionId(reqVO.getDatasetVersionId())
                 .setCreatedByRun(reqVO.getCreatedByRun()));
         return success(toRevisionRespVO(result));
+    }
+
+    @PostMapping("/refresh")
+    @Operation(summary = "刷新可刷新报表（按当前权限重放固定查询版本；失败保留旧结果并留痕）")
+    @AuthenticatedOnly
+    public CommonResult<AiReportRefreshRespVO> refresh(@Valid @RequestBody AiReportRefreshReqVO reqVO) {
+        AiReportRefreshResultDTO result = refreshService.refresh(
+                new AiReportRefreshRequestDTO().setReportId(reqVO.getId()).setCreatedByRun(reqVO.getCreatedByRun()));
+        return success(toRefreshRespVO(result));
+    }
+
+    @GetMapping("/refresh/last")
+    @Operation(summary = "查询上次刷新状态与上一次结果（读取结果前按当前权限复核）")
+    @AuthenticatedOnly
+    public CommonResult<AiReportRefreshStateRespVO> refreshLast(
+            @Parameter(description = "报表编号", required = true) @RequestParam("id") @NotNull @Positive Long id) {
+        return success(toRefreshStateRespVO(refreshService.lastState(id)));
     }
 
     @GetMapping("/get")
@@ -124,6 +150,31 @@ public class AiReportController {
             @Parameter(description = "版本号", required = true) @RequestParam("versionNo") @NotNull @Positive
                     Integer versionNo) {
         return success(toVersionRespVO(reportService.getVersion(id, versionNo)));
+    }
+
+    private static AiReportRefreshRespVO toRefreshRespVO(AiReportRefreshResultDTO result) {
+        return new AiReportRefreshRespVO()
+                .setStatus(result.getStatus())
+                .setReportId(result.getReportId())
+                .setBaseVersionNo(result.getBaseVersionNo())
+                .setResultVersionNo(result.getResultVersionNo())
+                .setAsOf(result.getAsOf())
+                .setCompleteness(result.getCompleteness())
+                .setReason(result.getReason())
+                .setDataJson(result.getDataJson())
+                .setNote(result.getNote());
+    }
+
+    private static AiReportRefreshStateRespVO toRefreshStateRespVO(AiReportRefreshStateDTO state) {
+        return new AiReportRefreshStateRespVO()
+                .setReportId(state.getReportId())
+                .setAttempted(state.isAttempted())
+                .setStatus(state.getStatus())
+                .setAsOf(state.getAsOf())
+                .setReason(state.getReason())
+                .setCompleteness(state.getCompleteness())
+                .setResultVersionNo(state.getResultVersionNo())
+                .setDataJson(state.getDataJson());
     }
 
     /** 修订结果 → 协议层 VO（差异与澄清候选逐项映射，不新增字段语义）。 */

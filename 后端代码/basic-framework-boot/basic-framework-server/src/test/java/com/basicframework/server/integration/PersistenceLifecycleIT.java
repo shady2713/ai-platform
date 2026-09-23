@@ -139,6 +139,7 @@ class PersistenceLifecycleIT extends AbstractPersistenceIntegrationTest {
                         "aiKnowledgeCleanupJob",
                         "aiKnowledgeIngestionJob",
                         "aiKnowledgeIngestionRecoveryJob",
+                        "aiReportRefreshJob",
                         "aiRetentionCleanupJob",
                         "aiTaskRecoveryJob",
                         "errorLogCleanJob",
@@ -279,6 +280,7 @@ class PersistenceLifecycleIT extends AbstractPersistenceIntegrationTest {
                         "ai_model_probe",
                         // V76：报表与版本（迁移顺序决定表顺序）
                         "ai_report",
+                        "ai_report_refresh",
                         "ai_report_version",
                         "ai_resource_grant",
                         "ai_run",
