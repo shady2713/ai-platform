@@ -24,6 +24,11 @@ const publicFixtures = new Map([
     `${frontend}components/upload/use-upload.test.ts`,
     new Set(["upload-token"]),
   ],
+  // R07：个人报表页面测试里的一次性假凭据/票据（页面测试用，不是真实凭据）
+  [
+    `${frontend}views/ai/report/index.test.ts`,
+    new Set(["secret-value", "ticket-1"]),
+  ],
   [
     `${frontend}api/request.test.ts`,
     new Set([

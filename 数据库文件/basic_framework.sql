@@ -4,7 +4,7 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V77.
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V78.
 -- Only the 48 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
@@ -2401,6 +2401,10 @@ INSERT INTO `infra_job`
 VALUES (37, 'AI 报表刷新 Job', 1, 'aiReportRefreshJob', '', '0 0/30 * * * ?', 0, 0, 0, '1',
         CURRENT_TIMESTAMP, '1', CURRENT_TIMESTAMP, b'0');
 
+
+-- AI 个人报表菜单与权限点（V78）
+INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
+(4100, '个人报表', 'ai:report:preview', 2, 11, 4000, 'report', 'ep:data-analysis', 'ai/report/index', 'AiReport', 0, b'1', b'1', b'1', '1', CURRENT_TIMESTAMP, '1', CURRENT_TIMESTAMP, b'0');
 
 -- AI 知识库菜单与权限点（V72）
 INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
