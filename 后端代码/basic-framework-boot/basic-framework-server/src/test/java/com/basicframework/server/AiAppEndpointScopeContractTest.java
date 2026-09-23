@@ -76,7 +76,15 @@ class AiAppEndpointScopeContractTest {
             // 片段/原文读取再次鉴权（A03 + A07 的业务文件权限 SPI）
             "com.basicframework.module.ai.controller.app.v1.knowledge.AiKnowledgeRetrievalController#search",
             "com.basicframework.module.ai.controller.app.v1.knowledge.AiKnowledgeRetrievalController#citation",
-            "com.basicframework.module.ai.controller.app.v1.knowledge.AiKnowledgeRetrievalController#content");
+            "com.basicframework.module.ai.controller.app.v1.knowledge.AiKnowledgeRetrievalController#content",
+            // R04：报表按 ai_report 归属判定（应用 + 主体类型 + 外部用户标识），
+            // 读取（含旧版本编号）复核保存时的 A03 范围指纹，范围收窄后拒绝展示
+            "com.basicframework.module.ai.controller.app.v1.report.AiReportController#save",
+            "com.basicframework.module.ai.controller.app.v1.report.AiReportController#get",
+            "com.basicframework.module.ai.controller.app.v1.report.AiReportController#page",
+            "com.basicframework.module.ai.controller.app.v1.report.AiReportController#versions",
+            "com.basicframework.module.ai.controller.app.v1.report.AiReportController#current",
+            "com.basicframework.module.ai.controller.app.v1.report.AiReportController#version");
 
     private static final String AI_APP_PACKAGE = "com.basicframework.module.ai.controller.app";
 

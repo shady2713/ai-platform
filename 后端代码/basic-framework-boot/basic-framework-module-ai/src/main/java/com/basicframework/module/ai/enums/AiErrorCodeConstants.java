@@ -135,6 +135,24 @@ public interface AiErrorCodeConstants {
     /** 报表模型未装配（503）：报表生成步骤已就绪但未接入模型调用（fail-closed，不返回空报表冒充成功）。 */
     ErrorCode AI_REPORT_MODEL_UNAVAILABLE = new ErrorCode(1_003_007_006, "报表生成模型未装配");
 
+    /** 报表不存在（404）：越权访问他人报表返回同一码，不借错误码枚举他人编号。 */
+    ErrorCode AI_REPORT_NOT_FOUND = new ErrorCode(1_003_007_007, "报表不存在");
+
+    /** 报表版本不存在（404）。 */
+    ErrorCode AI_REPORT_VERSION_NOT_FOUND = new ErrorCode(1_003_007_008, "报表版本不存在");
+
+    /** 报表标识重复（409）：同一应用内 code 唯一且创建后不可修改。 */
+    ErrorCode AI_REPORT_CODE_DUPLICATE = new ErrorCode(1_003_007_009, "报表标识({}) 已存在");
+
+    /** 快照模式缺少数据（400）：快照报表必须携带生成时的数据，否则无法按保存时的样子展示。 */
+    ErrorCode AI_REPORT_SNAPSHOT_DATA_REQUIRED = new ErrorCode(1_003_007_010, "快照报表必须携带数据");
+
+    /** 授权范围已变化（409）：当前范围无法证明覆盖保存时的范围，拒绝展示旧产物，需在当前权限下重新生成。 */
+    ErrorCode AI_REPORT_SCOPE_CHANGED = new ErrorCode(1_003_007_011, "授权范围已变化，请在当前权限下重新生成报表");
+
+    /** 来源运行不存在或不属于当前主体（404）：跨用户保存他人运行同语义，不借错误码枚举他人运行。 */
+    ErrorCode AI_REPORT_SOURCE_RUN_NOT_FOUND = new ErrorCode(1_003_007_012, "来源运行不存在");
+
     // ========== 数据与工具 1_003_006_xxx ==========
 
     /** 连接器不存在（404）。 */

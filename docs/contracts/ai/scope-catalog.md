@@ -60,6 +60,12 @@
 | `AiKnowledgeRetrievalController#search` | 知识库：授权范围来自当前主体的 A03 授权目录（READ ∩ 启用中知识库），**过滤条件只由它推导**（问题文本不参与）；候选复核要求知识库启用 + 版本 READY + 是文档当前 active 版本，否则丢弃并计数（索引残留不可见） |
 | `AiKnowledgeRetrievalController#citation` | 同上：引用标识只能来自本次检索候选；读取片段重新鉴权后从**原文**取回该位置正文，授权回收即失败（越权与不存在同语义） |
 | `AiKnowledgeRetrievalController#content` | 同上：读取原文经 A07 的业务文件权限 SPI（业务类型 `ai_knowledge_document`，业务键 = 知识库标识），文件引用解除或授权回收后立即拒绝 |
+| `AiReportController#save` | `ai_report`：归属由服务端会话身份（应用 + 主体类型 + 外部用户标识）决定，请求体不能自报归属；新建带 code，保存新版本必须回传乐观锁版本（不一致 409） |
+| `AiReportController#get` | 同上：越权与不存在同语义（404），不借错误码枚举他人报表编号 |
+| `AiReportController#page` | 同上：只返回当前主体的报表（按编号倒序），模式过滤只收窄自己的结果集 |
+| `AiReportController#versions` | 同上：只返回本人报表的版本摘要（不含规格与数据正文） |
+| `AiReportController#current` | 同上：读取当前生效版本前按 A03 `reauthorizeHistorical` 复核保存时的范围指纹，指纹不一致或判定拒绝即 409，要求按当前权限重新生成 |
+| `AiReportController#version` | 同上：**旧版本编号也是读取入口**，同样复核范围指纹，复制 reportId/旧版本号不能绕过 |
 
 ## 会话身份（MEMBER 用户类型）
 

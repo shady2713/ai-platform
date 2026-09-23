@@ -4,8 +4,8 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V75.
--- Only the 45 soft-delete tables retain a deleted column; hard-delete and
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V76.
+-- Only the 47 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
 
@@ -2414,6 +2414,75 @@ INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_i
 INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
 (4096, '检索调试', 'ai:knowledge:debug', 3, 6, 4090, '', '', '', NULL, 0, b'1', b'1', b'1', '1',
         CURRENT_TIMESTAMP, '1', CURRENT_TIMESTAMP, b'0');
+
+-- AI 报表与报表版本（V76）
+
+--
+-- AI 报表（可刷新定义 + 私有归属，R04）
+--
+
+DROP TABLE IF EXISTS `ai_report`;
+
+CREATE TABLE `ai_report` (
+
+    `id`                   bigint       NOT NULL AUTO_INCREMENT COMMENT '报表编号',
+    `code`                 varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci  NOT NULL COMMENT '报表标识（创建后不可修改）',
+    `name`                 varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '报表名称',
+    `description`          varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '说明',
+    `application_id`       bigint       NOT NULL COMMENT '所属应用编号（归属之一）',
+    `subject_type`         varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci  NOT NULL COMMENT '主体类型（APP/USER）',
+    `external_user_id`     varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '外部用户标识（私人报表的所有者）',
+    `mode`                 varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci  NOT NULL COMMENT '模式（SNAPSHOT 快照/REFRESHABLE 可刷新）',
+    `service_id`           bigint       DEFAULT NULL COMMENT '来源服务编号（可空：手工创建的报表）',
+    `release_id`           bigint       DEFAULT NULL COMMENT '来源服务发布版本编号（可空）',
+    `theme_id`             varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci  DEFAULT NULL COMMENT '主题标识（记录保存时的主题）',
+    `theme_revision`       int          DEFAULT NULL COMMENT '主题修订号',
+    `schema_version`       varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci  NOT NULL DEFAULT '1.0' COMMENT 'ReportSpec 契约版本（旧版本加载时判定兼容性）',
+    `latest_version_no`    int          NOT NULL DEFAULT '0' COMMENT '最新版本号（0 表示尚无版本）',
+    `published_version_no` int          NOT NULL DEFAULT '0' COMMENT '当前生效版本号（0 表示未生效）',
+    `version`              int          NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
+    `creator`              varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci  DEFAULT '' COMMENT '创建者',
+    `create_time`          datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updater`              varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci  DEFAULT '' COMMENT '更新者',
+    `update_time`          datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `deleted`              bit(1)       NOT NULL DEFAULT b'0' COMMENT '是否删除',
+    PRIMARY KEY (`id`) USING BTREE,
+    UNIQUE KEY `uk_ai_report_code` ((if(`deleted` = b'1', NULL, concat(`application_id`, ':', `code`)))),
+    KEY `idx_ai_report_owner` (`application_id`,`subject_type`,`external_user_id`,`id`),
+    CONSTRAINT `fk_ai_report_application` FOREIGN KEY (`application_id`) REFERENCES `ai_application` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 报表（可刷新定义 + 私有归属，R04）';
+
+--
+-- AI 报表版本（不可变快照，R04）
+--
+
+DROP TABLE IF EXISTS `ai_report_version`;
+
+CREATE TABLE `ai_report_version` (
+
+    `id`                 bigint        NOT NULL AUTO_INCREMENT COMMENT '版本编号',
+    `report_id`          bigint        NOT NULL COMMENT '报表编号',
+    `version_no`         int           NOT NULL COMMENT '版本号（报表内递增，发布后不可变）',
+    `mode`               varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci   NOT NULL COMMENT '模式（SNAPSHOT/REFRESHABLE）',
+    `spec_json`          mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'ReportSpec（已校验；长度受 VO 上限约束）',
+    `data_json`          mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '快照数据（SNAPSHOT 模式；可刷新模式为空）',
+    `sources_json`       text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '来源与资源依赖（datasetRef/queryRef/resultRef/行数/完整性）',
+    `scope_refs_json`    text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '逐项资源依赖的 A03 范围指纹（读取时逐项复核）',
+    `scope_fingerprint`  varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci  NOT NULL COMMENT '保存时的授权范围指纹（读取时比对，不一致即拒绝显示）',
+    `as_of`              datetime      DEFAULT NULL COMMENT '数据截至时间（快照模式）',
+    `completeness`       varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci   DEFAULT NULL COMMENT '数据完整性（COMPLETE/PARTIAL/FAILED）',
+    `created_by_run`     varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci  DEFAULT NULL COMMENT '来源运行标识（可追溯）',
+    `version`            int           NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
+    `creator`            varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci   DEFAULT '' COMMENT '创建者',
+    `create_time`        datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updater`            varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci   DEFAULT '' COMMENT '更新者',
+    `update_time`        datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `deleted`            bit(1)        NOT NULL DEFAULT b'0' COMMENT '是否删除',
+    PRIMARY KEY (`id`) USING BTREE,
+    UNIQUE KEY `uk_ai_report_version_no` ((if(`deleted` = b'1', NULL, concat(`report_id`, ':', `version_no`)))),
+    KEY `idx_ai_report_version_report` (`report_id`,`id`),
+    CONSTRAINT `fk_ai_report_version_report` FOREIGN KEY (`report_id`) REFERENCES `ai_report` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 报表版本（不可变快照，R04）';
 
 
 -- AI 服务菜单与权限点（V56）

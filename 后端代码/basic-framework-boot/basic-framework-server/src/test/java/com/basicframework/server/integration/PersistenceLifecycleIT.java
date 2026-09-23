@@ -277,6 +277,9 @@ class PersistenceLifecycleIT extends AbstractPersistenceIntegrationTest {
                         "ai_model_endpoint",
                         "ai_model_endpoint_revision",
                         "ai_model_probe",
+                        // V76：报表与版本（迁移顺序决定表顺序）
+                        "ai_report",
+                        "ai_report_version",
                         "ai_resource_grant",
                         "ai_run",
                         "ai_run_event",

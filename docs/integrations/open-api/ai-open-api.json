@@ -34,6 +34,10 @@
     {
       "name": "文件",
       "description": "业务文件上传、读取与解除引用"
+    },
+    {
+      "name": "AI 应用端 - 报表保存与版本",
+      "description": "报表保存、版本读取与授权范围复核"
     }
   ],
   "paths": {
@@ -2113,6 +2117,305 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/app-api/ai/report/save": {
+      "post": {
+        "tags": [
+          "AI 应用端 - 报表保存与版本"
+        ],
+        "summary": "保存报表（不带编号新建；带编号与乐观锁版本保存新版本）",
+        "operationId": "保存报表（不带编号新建；带编号与乐观锁版本保存新版本）",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数不合法"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          },
+          "409": {
+            "description": "状态或版本冲突"
+          },
+          "429": {
+            "description": "限流"
+          }
+        }
+      }
+    },
+    "/app-api/ai/report/get": {
+      "get": {
+        "tags": [
+          "AI 应用端 - 报表保存与版本"
+        ],
+        "summary": "查询报表元信息（越权与不存在同语义）",
+        "operationId": "查询报表元信息（越权与不存在同语义）",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "报表编号"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          },
+          "404": {
+            "description": "不存在（越权同语义）"
+          },
+          "429": {
+            "description": "限流"
+          }
+        }
+      }
+    },
+    "/app-api/ai/report/page": {
+      "get": {
+        "tags": [
+          "AI 应用端 - 报表保存与版本"
+        ],
+        "summary": "分页查询当前主体的报表",
+        "operationId": "分页查询当前主体的报表",
+        "parameters": [
+          {
+            "name": "pageNo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "页码（默认 1）"
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "每页条数（-1 表示全部）"
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "模式过滤：SNAPSHOT / REFRESHABLE"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          },
+          "404": {
+            "description": "不存在（越权同语义）"
+          },
+          "429": {
+            "description": "限流"
+          }
+        }
+      }
+    },
+    "/app-api/ai/report/versions": {
+      "get": {
+        "tags": [
+          "AI 应用端 - 报表保存与版本"
+        ],
+        "summary": "查询报表版本列表（不含规格与数据正文）",
+        "operationId": "查询报表版本列表（不含规格与数据正文）",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "报表编号"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          },
+          "404": {
+            "description": "不存在（越权同语义）"
+          },
+          "429": {
+            "description": "限流"
+          }
+        }
+      }
+    },
+    "/app-api/ai/report/current": {
+      "get": {
+        "tags": [
+          "AI 应用端 - 报表保存与版本"
+        ],
+        "summary": "读取当前生效版本（复核保存时的授权范围）",
+        "operationId": "读取当前生效版本（复核保存时的授权范围）",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "报表编号"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          },
+          "404": {
+            "description": "报表或版本不存在（越权同语义）"
+          },
+          "409": {
+            "description": "授权范围已变化（AI_REPORT_SCOPE_CHANGED），需在当前权限下重新生成"
+          },
+          "429": {
+            "description": "限流"
+          }
+        }
+      }
+    },
+    "/app-api/ai/report/version": {
+      "get": {
+        "tags": [
+          "AI 应用端 - 报表保存与版本"
+        ],
+        "summary": "读取指定版本（旧版本编号同样复核授权范围）",
+        "operationId": "读取指定版本（旧版本编号同样复核授权范围）",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "报表编号"
+          },
+          {
+            "name": "versionNo",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "版本号"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "403": {
+            "description": "无权限"
+          },
+          "404": {
+            "description": "报表或版本不存在（越权同语义）"
+          },
+          "409": {
+            "description": "授权范围已变化（AI_REPORT_SCOPE_CHANGED），需在当前权限下重新生成"
+          },
+          "429": {
+            "description": "限流"
           }
         }
       }

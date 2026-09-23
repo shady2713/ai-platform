@@ -766,6 +766,50 @@
           ]
         }
       ]
+    },
+    {
+      "id": "ai-report-private",
+      "reason": "报表首期为**私人报表**：归属由服务端会话身份（应用 + 主体类型 + 外部用户标识）判定，读取一律按当前主体过滤（越权与不存在同语义），不参与部门/用户行级数据权限（FR-28 明确\"首期私人报表，分享发布单独迭代\"）。版本读取（含旧版本编号）逐项按 A03 范围指纹复核：当前范围无法证明覆盖保存时范围即拒绝显示。",
+      "tables": [
+        "ai_report",
+        "ai_report_version"
+      ],
+      "controls": [
+        {
+          "kind": "subject-bound",
+          "tables": [
+            "ai_report",
+            "ai_report_version"
+          ],
+          "evidence": [
+            {
+              "table": "ai_report",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/report/AiReportMapper.java",
+              "contains": ".eq(AiReportDO::getExternalUserId, externalUserId == null ? \"\" : externalUserId)"
+            },
+            {
+              "table": "ai_report",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/report/persistence/AiReportServiceImpl.java",
+              "contains": "requireOwnedReport("
+            },
+            {
+              "table": "ai_report_version",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/report/AiReportVersionMapper.java",
+              "contains": ".eq(AiReportVersionDO::getReportId, reportId)"
+            },
+            {
+              "table": "ai_report_version",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/report/persistence/AiReportServiceImpl.java",
+              "contains": "reauthorizeHistorical("
+            },
+            {
+              "table": "ai_report_version",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/app/v1/report/AiReportController.java",
+              "contains": "@AuthenticatedOnly"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

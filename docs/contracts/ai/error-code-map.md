@@ -77,6 +77,12 @@
 | 1_003_007_004 | AI_REPORT_CHART_FIELD_INVALID | 400 | 图表字段缺失或类型不符 |
 | 1_003_007_005 | AI_REPORT_BINDING_MISMATCH | 409 | 报表声明与执行结果不一致 |
 | 1_003_007_006 | AI_REPORT_MODEL_UNAVAILABLE | 503 | 报表生成模型未装配 |
+| 1_003_007_007 | AI_REPORT_NOT_FOUND | 404 | 报表不存在（越权访问他人报表同码） |
+| 1_003_007_008 | AI_REPORT_VERSION_NOT_FOUND | 404 | 报表版本不存在 |
+| 1_003_007_009 | AI_REPORT_CODE_DUPLICATE | 409 | 报表标识重复（同一应用内 code 唯一且不可改） |
+| 1_003_007_010 | AI_REPORT_SNAPSHOT_DATA_REQUIRED | 400 | 快照报表必须携带数据 |
+| 1_003_007_011 | AI_REPORT_SCOPE_CHANGED | 409 | 授权范围已变化，拒绝展示旧产物，需重新生成 |
+| 1_003_007_012 | AI_REPORT_SOURCE_RUN_NOT_FOUND | 404 | 来源运行不存在或不属于当前主体（跨用户保存同语义） |
 | 1_003_006_000 | AI_CONNECTOR_NOT_FOUND | 404 | 连接器不存在 |
 | 1_003_006_001 | AI_CONNECTOR_CODE_DUPLICATE | 409 | 连接器标识重复（code 唯一且不可改） |
 | 1_003_006_002 | AI_CONNECTOR_CONFIG_INVALID | 400 | 连接器配置不合规（只接受声明式白名单字段） |
