@@ -132,6 +132,9 @@ public interface AiErrorCodeConstants {
     /** 声明与真实执行结果不一致（409）：列/行数/完整性与执行结果对不上（禁止自造数据来源）。 */
     ErrorCode AI_REPORT_BINDING_MISMATCH = new ErrorCode(1_003_007_005, "报表声明与执行结果不一致");
 
+    /** 报表模型未装配（503）：报表生成步骤已就绪但未接入模型调用（fail-closed，不返回空报表冒充成功）。 */
+    ErrorCode AI_REPORT_MODEL_UNAVAILABLE = new ErrorCode(1_003_007_006, "报表生成模型未装配");
+
     // ========== 数据与工具 1_003_006_xxx ==========
 
     /** 连接器不存在（404）。 */
