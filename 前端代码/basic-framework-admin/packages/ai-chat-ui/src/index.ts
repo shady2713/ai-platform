@@ -1,3 +1,38 @@
+export {
+  attachmentFailureMessage,
+  attachmentSummary,
+  downloadAttachment,
+  formatSize,
+  isPreviewable,
+  readAttachment,
+  sanitizeFileName,
+} from './attachment/attachment';
+export type {
+  AttachmentAction,
+  AttachmentApi,
+  AttachmentContent,
+  AttachmentFailure,
+  AttachmentOk,
+  AttachmentOutcome,
+} from './attachment/attachment';
+export { default as AttachmentCard } from './attachment/AttachmentCard.vue';
+export {
+  canOpenOriginal,
+  citationFailureMessage,
+  citationLabel,
+  citationSnippetText,
+  openCitationOriginal,
+  openCitationSnippet,
+} from './citation/citation';
+export type {
+  CitationApi,
+  CitationContent,
+  CitationOpenAction,
+  CitationOpenFailure,
+  CitationOpenOk,
+  CitationOpenOutcome,
+} from './citation/citation';
+export { default as CitationCard } from './citation/CitationCard.vue';
 export { createOpenApiClient, RUN_EVENT_WINDOW_EXPIRED } from './client';
 export type {
   OpenApiClient,
@@ -33,6 +68,54 @@ export type {
   ConversationSummary,
   UseConversationOptions,
 } from './conversation/use-conversation';
+export {
+  cellDisplay,
+  isActionExpired,
+  parseMessageBlock,
+  sourceKindOf,
+  toRenderableBlock,
+  toRenderableBlocks,
+} from './message/blocks';
+export type {
+  ActionBlock,
+  CitationBlock,
+  ClarificationBlock,
+  ClarificationField,
+  FileBlock,
+  MessageBlock,
+  ReportBlock as MessageReportBlock,
+  RenderableBlock,
+  SupportedBlock,
+  TableBlock,
+  TableColumn,
+  TablePageInfo,
+  UnsupportedBlock,
+} from './message/blocks';
+export {
+  isAllowedLinkUrl,
+  markdownText,
+  parseMarkdown,
+  parseMarkdownInline,
+} from './message/markdown';
+export type {
+  MarkdownBlockquoteNode,
+  MarkdownCodeBlockNode,
+  MarkdownCodeNode,
+  MarkdownEmphasisNode,
+  MarkdownHeadingNode,
+  MarkdownInline,
+  MarkdownLinkNode,
+  MarkdownListNode,
+  MarkdownNode,
+  MarkdownParagraphNode,
+  MarkdownParseOptions,
+  MarkdownStrongNode,
+  MarkdownTextNode,
+} from './message/markdown';
+export { default as MessageBlockView } from './message/MessageBlockView.vue';
+export type { MessagePorts } from './message/MessageBlockView.vue';
+export { default as MessageList } from './message/MessageList.vue';
+export type { MessageItem } from './message/MessageList.vue';
 export { default as AiReportView } from './report/AiReportView.vue';
 export {
   buildChartSpec,
