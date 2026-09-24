@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "entryJs": "entry-test.js",
+  "entryCss": "entry-test.css",
+  "files": {
+    "entry-test.js": 1,
+    "entry-test.css": 1
+  }
+}

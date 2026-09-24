@@ -34,8 +34,13 @@ import org.springframework.web.bind.annotation.RestController;
 class AiAppEndpointScopeContractTest {
 
     /** 已审查的匿名端点：与 docs/contracts/ai/scope-catalog.md 的登记表一一对应。 */
-    private static final Set<String> REVIEWED_ANONYMOUS_ENDPOINTS =
-            Set.of("com.basicframework.module.ai.controller.app.v1.auth.AiAuthController#issueTicket");
+    private static final Set<String> REVIEWED_ANONYMOUS_ENDPOINTS = Set.of(
+            "com.basicframework.module.ai.controller.app.v1.auth.AiAuthController#issueTicket",
+            // C05：嵌入页公开启动壳（固定壳 HTML、公开启动配置、自托管资产）——三者的响应头由
+            // 应用配置精确决定 frame-ancestors，正文与 AI 调用仍要票据，故可匿名
+            "com.basicframework.module.ai.controller.app.v1.embed.AiEmbedShellController#shell",
+            "com.basicframework.module.ai.controller.app.v1.embed.AiEmbedShellController#bootstrap",
+            "com.basicframework.module.ai.controller.app.v1.embed.AiEmbedShellController#asset");
 
     /**
      * 已审查的"登录即可访问"端点：不声明 scope 表达式，归属判定在服务层按业务归属执行

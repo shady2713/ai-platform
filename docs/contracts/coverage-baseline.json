@@ -230,6 +230,10 @@
     "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/app/v1/action/AiToolActionController.java": 100,
     "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/app/v1/auth/AiAuthController.java": 91.67,
     "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/app/v1/conversation/AiConversationController.java": 100,
+    "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/app/v1/embed/AiEmbedApplicationResolver.java": 92.86,
+    "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/app/v1/embed/AiEmbedAssetCatalog.java": 89.29,
+    "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/app/v1/embed/AiEmbedPolicy.java": 100,
+    "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/app/v1/embed/AiEmbedShellController.java": 94.94,
     "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/app/v1/file/AiFileController.java": 100,
     "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/app/v1/knowledge/AiKnowledgeRetrievalController.java": 0,
     "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/app/v1/report/AiReportController.java": 100,
@@ -272,7 +276,7 @@
     "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/token/AiAccessTicketMapper.java": 100,
     "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/tool/AiToolMapper.java": 100,
     "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/tool/AiToolVersionMapper.java": 100,
-    "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/domain/application/ApplicationOrigins.java": 83.33,
+    "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/domain/application/ApplicationOrigins.java": 86.11,
     "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/domain/application/ApplicationSecrets.java": 83.33,
     "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/domain/identity/AiExecutionContext.java": 100,
     "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/domain/identity/AiSubjectType.java": 100,
@@ -648,7 +652,8 @@
     "后端代码/basic-framework-boot/basic-framework-server/src/main/java/com/basicframework/server/BasicFrameworkServerApplication.java": 33.33,
     "后端代码/basic-framework-boot/basic-framework-server/src/main/java/com/basicframework/server/config/ProductionConfigurationEnvironmentPostProcessor.java": 96.55,
     "后端代码/basic-framework-boot/basic-framework-server/src/main/java/com/basicframework/server/config/PrometheusProperties.java": 100,
-    "后端代码/basic-framework-boot/basic-framework-server/src/main/java/com/basicframework/server/config/PrometheusSecurityConfiguration.java": 100
+    "后端代码/basic-framework-boot/basic-framework-server/src/main/java/com/basicframework/server/config/PrometheusSecurityConfiguration.java": 100,
+    "后端代码/basic-framework-boot/basic-framework-server/src/main/java/com/basicframework/server/embed/AiEmbedSecurityConfiguration.java": 100
   },
   "frontend": {
     "前端代码/basic-framework-admin/apps/ai-chat/src/App.vue": 100,

@@ -8,7 +8,9 @@
     "build": "vite build --mode production",
     "dev": "vite --mode development",
     "preview": "vite preview",
-    "typecheck": "vue-tsc --noEmit --skipLibCheck"
+    "typecheck": "vue-tsc --noEmit --skipLibCheck",
+    "stage:embed": "node scripts/stage-embed-assets.mjs",
+    "build:embed": "pnpm run build && pnpm run stage:embed"
   },
   "imports": {
     "#/*": "./src/*"

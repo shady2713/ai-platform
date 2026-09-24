@@ -21,6 +21,9 @@
 | 端点 | 归属 | 鉴权方式 | 理由 |
 |---|---|---|---|
 | `POST /app-api/ai/auth/ticket` | `AiAuthController#issueTicket` | 应用客户端凭据（appCode + appSecret）+ 失败节流 | 换票入口本身以客户端凭据鉴权；不接受仅 Origin 的调用 |
+| `GET /app-api/ai/v1/embed/{appCode}` | `AiEmbedShellController#shell` | 匿名公开（响应头按应用配置给出精确 `frame-ancestors`） | 公开启动壳：固定构建 HTML，不含凭据、会话正文与资源清单 |
+| `GET /app-api/ai/v1/embed/{appCode}/bootstrap` | `AiEmbedShellController#bootstrap` | 匿名公开（应用公开信息 + 已发布主题 token） | 仅品牌名/协议版本/握手允许域/主题，供宿主握手前读取 |
+| `GET /app-api/ai/v1/embed/{appCode}/assets/{file}` | `AiEmbedShellController#asset` | 匿名公开（构建清单白名单内的文件名） | 自托管静态资产；清单外路径 404，未启用应用 404 |
 
 新增匿名端点必须同步更新本表，并由 `AiAppEndpointScopeContractTest` 与
 `EndpointAuthorizationContractTest` 双重扫描拦截。

@@ -189,6 +189,19 @@ public interface AiErrorCodeConstants {
     /** 主题发布冲突（409）：并发发布/回退用了过期的乐观锁版本。 */
     ErrorCode AI_THEME_VERSION_CONFLICT = new ErrorCode(1_003_007_024, "主题修订已被其他操作变更，请刷新后重试");
 
+    /** 嵌入应用不可用（404）：未知或未启用的应用同语义，不暴露"存在但停用"。
+     *  名称后缀 `_NOT_EXISTS` 是**承重**的：HTTP 状态由 GlobalExceptionHandler 按常量名后缀推导（ADR 0003）。 */
+    ErrorCode AI_EMBED_APP_NOT_EXISTS = new ErrorCode(1_003_007_025, "嵌入应用不存在或未启用");
+
+    /** 嵌入允许域不可用（422）：未配置或配置非法（必须是精确 Origin），fail-closed 不返回可被任意站点嵌套的壳。 */
+    ErrorCode AI_EMBED_ORIGIN_INVALID = new ErrorCode(1_003_007_026, "应用未配置可用的嵌入允许域");
+
+    /** 嵌入构建产物未就位（422）：部署时未把构建产物放到资产目录，或资产清单缺失/损坏。 */
+    ErrorCode AI_EMBED_ASSETS_NOT_STAGED = new ErrorCode(1_003_007_027, "嵌入页构建产物未就位");
+
+    /** 嵌入资产不存在（404）：请求的文件不在构建清单内（后缀 `_NOT_EXISTS` 同样是承重的）。 */
+    ErrorCode AI_EMBED_ASSET_NOT_EXISTS = new ErrorCode(1_003_007_028, "嵌入资产不存在");
+
     // ========== 数据与工具 1_003_006_xxx ==========
 
     /** 连接器不存在（404）。 */

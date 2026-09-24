@@ -38,6 +38,10 @@
     {
       "name": "AI 应用端 - 报表保存与版本",
       "description": "报表保存、版本读取与授权范围复核"
+    },
+    {
+      "name": "AI 应用端 - 嵌入页",
+      "description": "公开启动壳、启动配置与自托管资产（不含凭据与正文）"
     }
   ],
   "paths": {
@@ -2561,6 +2565,107 @@
           },
           "429": {
             "description": "限流"
+          }
+        }
+      }
+    },
+    "/app-api/ai/v1/embed/{appCode}": {
+      "get": {
+        "tags": [
+          "AI 应用端 - 嵌入页"
+        ],
+        "summary": "嵌入页启动壳（固定构建 HTML + 精确 frame-ancestors）",
+        "operationId": "嵌入页启动壳（固定构建 HTML + 精确 frame-ancestors）",
+        "parameters": [
+          {
+            "name": "appCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/v1/embed/{appCode}/bootstrap": {
+      "get": {
+        "tags": [
+          "AI 应用端 - 嵌入页"
+        ],
+        "summary": "嵌入页公开启动配置（应用标识/协议版本/允许域/主题）",
+        "operationId": "嵌入页公开启动配置（应用标识/协议版本/允许域/主题）",
+        "parameters": [
+          {
+            "name": "appCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/v1/embed/{appCode}/assets/{file}": {
+      "get": {
+        "tags": [
+          "AI 应用端 - 嵌入页"
+        ],
+        "summary": "嵌入页自托管静态资产（构建清单白名单）",
+        "operationId": "嵌入页自托管静态资产（构建清单白名单）",
+        "parameters": [
+          {
+            "name": "appCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "file",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       }
