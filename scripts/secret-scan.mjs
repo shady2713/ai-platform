@@ -184,6 +184,19 @@ const publicFixtures = new Map([
     `${frontend}views/ai/open-platform/index.test.ts`,
     new Set(["aitkt_once", "aiapp_secret"]),
   ],
+  // C06：桥协议测试里的一次性假票据（只作为被测值，不指向任何真实票据）
+  [
+    `前端代码/basic-framework-admin/packages/ai-contracts/src/__tests__/bridge.test.ts`,
+    new Set(["aitkt_once_abcdefg"]),
+  ],
+  [
+    `前端代码/basic-framework-admin/packages/ai-embed-sdk/src/bridge/__tests__/host-bridge.test.ts`,
+    new Set(["aitkt_once_abcdefg"]),
+  ],
+  [
+    `前端代码/basic-framework-admin/apps/ai-chat/src/bridge/__tests__/iframe-bridge.test.ts`,
+    new Set(["aitkt_once_abcdefg"]),
+  ],
   // K01：向量索引集成测试里的容器本地 API Key（仅测试容器内使用）
   [
     `${server}test/java/com/basicframework/server/integration/AiKnowledgeIndexQdrantIT.java`,

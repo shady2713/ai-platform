@@ -1,4 +1,20 @@
-import type { ResultBlock } from '@vben/ai-contracts';
+import type { ResultBlock, Theme } from '@vben/ai-contracts';
+
+/**
+ * 桥实例状态（C06）：与设计契约 8.2 的状态机一致。
+ *
+ * CREATED（已创建，未握手）→ WAITING_READY（已发 HELLO）→ AUTHENTICATING（换票中）→
+ * INITIALIZED（可收发业务消息）→ DESTROYED（已销毁，单向终态）。
+ */
+export type BridgeState =
+  | 'AUTHENTICATING'
+  | 'CREATED'
+  | 'DESTROYED'
+  | 'INITIALIZED'
+  | 'WAITING_READY';
+
+/** 桥协议里用到的主题类型（与 ai-contracts 的冻结契约同型）。 */
+export type { Theme };
 
 /** 运行状态与开放 API 契约 RunStatus 一致（docs/ai-platform/contracts/openapi-core.json）。 */
 export type AiRunStatus =

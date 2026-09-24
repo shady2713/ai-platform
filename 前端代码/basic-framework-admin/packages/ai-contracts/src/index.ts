@@ -1,4 +1,30 @@
 export {
+  BRIDGE_MESSAGE_TYPES,
+  BRIDGE_PROTOCOL_VERSION,
+  bridgeAuthSchema,
+  bridgeDestroySchema,
+  bridgeErrorSchema,
+  bridgeHelloSchema,
+  bridgeInitSchema,
+  bridgeMessageSchema,
+  bridgeReadySchema,
+  bridgeTokenRequiredSchema,
+  isCompatibleProtocolVersion,
+  parseBridgeMessage,
+  whitelistedBridgeType,
+} from './bridge';
+export type {
+  BridgeAuth,
+  BridgeDestroy,
+  BridgeError,
+  BridgeHello,
+  BridgeInit,
+  BridgeMessage,
+  BridgeMessageType,
+  BridgeReady,
+  BridgeTokenRequired,
+} from './bridge';
+export {
   chartSeriesSchema,
   chartSpecSchema,
   chartTypeSchema,

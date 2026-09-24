@@ -657,6 +657,7 @@
   },
   "frontend": {
     "前端代码/basic-framework-admin/apps/ai-chat/src/App.vue": 100,
+    "前端代码/basic-framework-admin/apps/ai-chat/src/bridge/iframe-bridge.ts": 81.17,
     "前端代码/basic-framework-admin/apps/ai-chat/src/client-factory.ts": 100,
     "前端代码/basic-framework-admin/apps/ai-chat/src/conversation-api.ts": 100,
     "前端代码/basic-framework-admin/apps/ai-chat/src/use-chat.ts": 98.07,
@@ -1277,6 +1278,7 @@
     "前端代码/basic-framework-admin/packages/ai-chat-ui/src/theme/adapters.ts": 100,
     "前端代码/basic-framework-admin/packages/ai-chat-ui/src/theme/samples.ts": 100,
     "前端代码/basic-framework-admin/packages/ai-chat-ui/src/theme/tokens.ts": 97.92,
+    "前端代码/basic-framework-admin/packages/ai-contracts/src/bridge.ts": 98.46,
     "前端代码/basic-framework-admin/packages/ai-contracts/src/chart-spec.ts": 100,
     "前端代码/basic-framework-admin/packages/ai-contracts/src/client/protocol.ts": 100,
     "前端代码/basic-framework-admin/packages/ai-contracts/src/client/sse.ts": 95.5,
@@ -1284,6 +1286,7 @@
     "前端代码/basic-framework-admin/packages/ai-contracts/src/result-block.ts": 100,
     "前端代码/basic-framework-admin/packages/ai-contracts/src/run-event.ts": 100,
     "前端代码/basic-framework-admin/packages/ai-contracts/src/theme.ts": 100,
+    "前端代码/basic-framework-admin/packages/ai-embed-sdk/src/bridge/host-bridge.ts": 88.88,
     "前端代码/basic-framework-admin/packages/ai-embed-sdk/src/client.ts": 100,
     "前端代码/basic-framework-admin/packages/ai-embed-sdk/src/index.ts": 100,
     "前端代码/basic-framework-admin/packages/constants/src/biz-infra-enum.ts": 100,
