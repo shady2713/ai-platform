@@ -13,6 +13,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -167,11 +168,10 @@ class AdminUserServiceImplTest {
                             "Alice@example.com",
                             "encoded-password",
                             Boolean.TRUE);
-            @SuppressWarnings("unchecked")
-            ArgumentCaptor<List<UserPostDO>> posts = ArgumentCaptor.forClass(List.class);
-            verify(userPostMapper).insertBatch(posts.capture());
-            assertThat(posts.getValue()).extracting(UserPostDO::getUserId).containsOnly(7L);
-            assertThat(posts.getValue()).extracting(UserPostDO::getPostId).containsExactlyInAnyOrder(11L, 12L);
+            ArgumentCaptor<UserPostDO> posts = ArgumentCaptor.forClass(UserPostDO.class);
+            verify(userPostMapper, times(2)).insert(posts.capture());
+            assertThat(posts.getAllValues()).extracting(UserPostDO::getUserId).containsOnly(7L);
+            assertThat(posts.getAllValues()).extracting(UserPostDO::getPostId).containsExactlyInAnyOrder(11L, 12L);
         } finally {
             LogRecordContext.clear();
         }

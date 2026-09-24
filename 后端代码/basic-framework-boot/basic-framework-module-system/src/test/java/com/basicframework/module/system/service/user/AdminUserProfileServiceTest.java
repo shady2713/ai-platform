@@ -112,19 +112,18 @@ class AdminUserProfileServiceTest {
             when(permissionProvider.getObject()).thenReturn(permissionService);
             userService.updateUser(9L, edit);
 
-            @SuppressWarnings("unchecked")
-            ArgumentCaptor<List<UserPostDO>> inserted = ArgumentCaptor.forClass(List.class);
+            ArgumentCaptor<UserPostDO> inserted = ArgumentCaptor.forClass(UserPostDO.class);
             @SuppressWarnings("unchecked")
             ArgumentCaptor<Collection<Long>> removed = ArgumentCaptor.forClass(Collection.class);
             InOrder order = inOrder(userMapper, userPostMapper, revocations);
             order.verify(userMapper).selectByIdForUpdate(7L);
             order.verify(userMapper).updateManagedUser(edit);
             order.verify(userPostMapper).selectListByUserIdForUpdate(7L);
-            order.verify(userPostMapper).insertBatch(inserted.capture());
+            order.verify(userPostMapper).insert(inserted.capture());
             order.verify(userPostMapper)
                     .deleteByUserIdAndPostId(org.mockito.ArgumentMatchers.eq(7L), removed.capture());
             order.verify(revocations).revokeAdminSession(7L, USER_INFO_CHANGED);
-            assertThat(inserted.getValue()).singleElement().satisfies(post -> {
+            assertThat(inserted.getValue()).satisfies(post -> {
                 assertThat(post.getUserId()).isEqualTo(7L);
                 assertThat(post.getPostId()).isEqualTo(13L);
             });

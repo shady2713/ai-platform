@@ -78,9 +78,12 @@ public class AdminUserServiceImpl implements AdminUserService {
         user.setMustChangePassword(Boolean.TRUE);
         userMapper.insert(user);
         if (CollectionUtil.isNotEmpty(user.getPostIds())) {
-            userPostMapper.insertBatch(convertList(
-                    user.getPostIds(),
-                    postId -> new UserPostDO().setUserId(user.getId()).setPostId(postId)));
+            // 同 updateUserPost：逐条 insert 走当前事务的 SqlSession，避免 Db.saveBatch 另开连接后
+            // 因外键校验在事务外等自己持有的 system_users 行锁。
+            convertList(
+                            user.getPostIds(),
+                            postId -> new UserPostDO().setUserId(user.getId()).setPostId(postId))
+                    .forEach(userPostMapper::insert);
         }
 
         LogRecordContext.putVariable("user", user);
@@ -137,8 +140,13 @@ public class AdminUserServiceImpl implements AdminUserService {
         Collection<Long> createPostIds = CollUtil.subtract(postIds, dbPostIds);
         Collection<Long> deletePostIds = CollUtil.subtract(dbPostIds, postIds);
         if (!CollectionUtil.isEmpty(createPostIds)) {
-            userPostMapper.insertBatch(convertList(
-                    createPostIds, postId -> new UserPostDO().setUserId(userId).setPostId(postId)));
+            // 岗位关系是个位数：逐条 insert 走当前事务的 SqlSession。
+            // BaseMapperX.insertBatch 走 Db.saveBatch 会另开 SqlSession/连接（autocommit），
+            // 在已持 system_users 行锁的事务里，那条插入因外键校验要拿父行 S 锁 → 等自己 50 秒锁超时。
+            convertList(
+                            createPostIds,
+                            postId -> new UserPostDO().setUserId(userId).setPostId(postId))
+                    .forEach(userPostMapper::insert);
         }
         if (!CollectionUtil.isEmpty(deletePostIds)) {
             userPostMapper.deleteByUserIdAndPostId(userId, deletePostIds);
