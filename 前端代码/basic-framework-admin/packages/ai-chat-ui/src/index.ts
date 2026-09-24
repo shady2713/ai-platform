@@ -135,3 +135,31 @@ export type {
   ReportResultColumn,
   ReportSpec,
 } from './report/reportSpec';
+export {
+  chartTokensOf,
+  colorSchemeOf,
+  isAllowedFontFamily,
+  reportThemeOf,
+} from './theme/adapters';
+export type { ThemeColorScheme } from './theme/adapters';
+export {
+  darkThemeSample,
+  lightThemeSample,
+  platformDefaultSample,
+} from './theme/samples';
+export {
+  ALLOWED_FONT_FAMILIES,
+  applyRuntimeOverride,
+  defaultLayout,
+  parseThemeLayout,
+  parseThemeTokens,
+  platformDefaultTheme,
+  resolveEffectiveTheme,
+  themeCssVariables,
+} from './theme/tokens';
+export type {
+  EffectiveThemePayload,
+  ResolvedTheme,
+  ThemeLayout,
+  ThemeSource,
+} from './theme/tokens';

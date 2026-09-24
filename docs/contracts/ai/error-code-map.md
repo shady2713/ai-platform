@@ -89,6 +89,12 @@
 | 1_003_007_016 | AI_REPORT_REVISION_MODEL_UNAVAILABLE | 503 | 报表修订模型未装配（fail-closed） |
 | 1_003_007_017 | AI_REPORT_REFRESH_NOT_SUPPORTED | 400 | 该报表不支持刷新（仅可刷新报表） |
 | 1_003_007_018 | AI_REPORT_REFRESH_SCOPE_REQUIRED | 409 | 刷新需要行范围上下文（留痕并保留旧结果） |
+| 1_003_007_019 | AI_THEME_TOKENS_INVALID | 400 | 主题 token 不合规（未知字段/非法色值/半径越界） |
+| 1_003_007_020 | AI_THEME_FONT_NOT_ALLOWED | 400 | 主题字体不在自托管白名单内（拒绝远程字体与任意 CSS） |
+| 1_003_007_021 | AI_THEME_LAYOUT_INVALID | 400 | 主题布局选项不合规（只接受受控枚举与区间） |
+| 1_003_007_022 | AI_THEME_NOT_FOUND | 404 | 主题修订不存在 |
+| 1_003_007_023 | AI_THEME_REVISION_IMMUTABLE | 409 | 主题修订已发布，不能修改（调整需新建修订） |
+| 1_003_007_024 | AI_THEME_VERSION_CONFLICT | 409 | 主题发布/回退并发冲突（乐观锁或唯一键判负） |
 | 1_003_006_000 | AI_CONNECTOR_NOT_FOUND | 404 | 连接器不存在 |
 | 1_003_006_001 | AI_CONNECTOR_CODE_DUPLICATE | 409 | 连接器标识重复（code 唯一且不可改） |
 | 1_003_006_002 | AI_CONNECTOR_CONFIG_INVALID | 400 | 连接器配置不合规（只接受声明式白名单字段） |

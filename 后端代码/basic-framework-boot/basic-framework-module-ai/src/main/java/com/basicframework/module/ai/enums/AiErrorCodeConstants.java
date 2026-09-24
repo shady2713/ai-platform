@@ -171,6 +171,24 @@ public interface AiErrorCodeConstants {
     /** 刷新缺少行范围上下文（409）：受控查询必须有授权层给出的行范围，留痕并保留旧结果，不查全库。 */
     ErrorCode AI_REPORT_REFRESH_SCOPE_REQUIRED = new ErrorCode(1_003_007_018, "刷新需要行范围上下文");
 
+    /** 主题 token 不合规（400）：只接受 ThemeTokens v1 的已校验取值，未知字段与非法色值一律拒绝。 */
+    ErrorCode AI_THEME_TOKENS_INVALID = new ErrorCode(1_003_007_019, "主题 token 不合规");
+
+    /** 主题字体不在白名单（400）：只接受自托管字体栈，不接受远程字体地址或任意 CSS。 */
+    ErrorCode AI_THEME_FONT_NOT_ALLOWED = new ErrorCode(1_003_007_020, "主题字体不在允许列表内");
+
+    /** 主题布局选项不合规（400）：布局只接受受控枚举与数值区间，不接受任意 CSS 或表达式。 */
+    ErrorCode AI_THEME_LAYOUT_INVALID = new ErrorCode(1_003_007_021, "主题布局选项不合规");
+
+    /** 主题修订不存在（404）。 */
+    ErrorCode AI_THEME_NOT_FOUND = new ErrorCode(1_003_007_022, "主题修订不存在");
+
+    /** 主题修订不可修改（409）：发布后内容不可变更，调整必须新建修订。 */
+    ErrorCode AI_THEME_REVISION_IMMUTABLE = new ErrorCode(1_003_007_023, "主题修订已发布，不能修改");
+
+    /** 主题发布冲突（409）：并发发布/回退用了过期的乐观锁版本。 */
+    ErrorCode AI_THEME_VERSION_CONFLICT = new ErrorCode(1_003_007_024, "主题修订已被其他操作变更，请刷新后重试");
+
     // ========== 数据与工具 1_003_006_xxx ==========
 
     /** 连接器不存在（404）。 */

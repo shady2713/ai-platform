@@ -4,8 +4,8 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V78.
--- Only the 48 soft-delete tables retain a deleted column; hard-delete and
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V79.
+-- Only the 49 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
 
@@ -2632,6 +2632,40 @@ INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_i
 (4082, '工具修改', 'ai:tool:update', 3, 2, 4080, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-21 10:00:00', '1', '2026-09-21 10:00:00', b'0'),
 (4083, '工具删除', 'ai:tool:delete', 3, 3, 4080, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-21 10:00:00', '1', '2026-09-21 10:00:00', b'0'),
 (4084, '工具版本管理', 'ai:tool:version', 3, 4, 4080, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-21 10:00:00', '1', '2026-09-21 10:00:00', b'0');
+
+-- AI 主题修订与权限点（V79）
+
+DROP TABLE IF EXISTS `ai_theme`;
+
+CREATE TABLE `ai_theme` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主题修订编号',
+  `public_id` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '主题对外标识（thm_ 前缀的不透明字符串）',
+  `application_id` bigint NOT NULL COMMENT '所属应用编号',
+  `revision` int NOT NULL COMMENT '修订号（应用内递增，发布后不可修改）',
+  `tokens_json` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'ThemeTokens v1（已校验：色值/半径/字体白名单/深浅色）',
+  `layout_json` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '布局与排版受控选项（fontScale/density/narrowBreakpoint/minSidebarWidth）',
+  `tokens_fingerprint` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'tokens+layout 的摘要（同修订内容比对与审计；不含任何凭据）',
+  `publication_state` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '发布状态（DRAFT 草稿/PUBLISHED 当前生效/SUPERSEDED 已被取代）',
+  `published_time` datetime DEFAULT NULL COMMENT '发布时间（首次发布时写入；回退会重新指向历史修订）',
+  `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `uk_ai_theme_public_id` ((if(`deleted` = b'1', NULL, `public_id`))),
+  UNIQUE KEY `uk_ai_theme_revision` ((if(`deleted` = b'1', NULL, concat(`application_id`, ':', `revision`)))),
+  UNIQUE KEY `uk_ai_theme_published` ((if(`publication_state` = 'PUBLISHED', `application_id`, NULL))),
+  KEY `idx_ai_theme_application` (`application_id`,`revision`),
+  CONSTRAINT `fk_ai_theme_application` FOREIGN KEY (`application_id`) REFERENCES `ai_application` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 主题修订（控制面配置，C04）';
+
+-- 主题管理菜单与权限点（V79）
+INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
+(4105, 'AI 主题', 'ai:theme:query', 2, 12, 4000, 'theme', 'ep:brush', 'ai/theme/index', 'AiTheme', 0, b'1', b'1', b'1', '1', '2026-09-24 20:00:00', '1', '2026-09-24 20:00:00', b'0'),
+(4106, '创建主题修订', 'ai:theme:create', 3, 1, 4105, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-24 20:00:00', '1', '2026-09-24 20:00:00', b'0'),
+(4107, '发布/回退主题修订', 'ai:theme:publish', 3, 2, 4105, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-24 20:00:00', '1', '2026-09-24 20:00:00', b'0');
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
