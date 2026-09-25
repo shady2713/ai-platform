@@ -195,6 +195,18 @@ const publicFixtures = new Map([
   ],
   [
     `前端代码/basic-framework-admin/apps/ai-chat/src/bridge/__tests__/iframe-bridge.test.ts`,
+  [
+    `前端代码/basic-framework-admin/examples/ai-host-html/server.test.ts`,
+    new Set(["aitk_short", "sample-secret"]),
+  ],
+  [
+    `前端代码/basic-framework-admin/packages/ai-embed-sdk/fixtures/n-1/baseline.json`,
+    new Set(["aitkt_once_abcdefg"]),
+  ],
+  [
+    `前端代码/basic-framework-admin/packages/ai-embed-sdk/src/__tests__/n-1-baseline.test.ts`,
+    new Set(["aitkt_once_abcdefg"]),
+  ],
     new Set(["aitkt_once_abcdefg"]),
   ],
   // K01：向量索引集成测试里的容器本地 API Key（仅测试容器内使用）
@@ -261,6 +273,19 @@ const publicFixtures = new Map([
   [
     `${server}test/java/com/basicframework/server/integration/AiReportRefreshIT.java`,
     new Set(["r06-it-readonly-password"]),
+  ],
+  // C10：宿主示例与 N-1 基线夹具里的一次性假凭据（只作为被测值，不指向任何真实凭据）
+  [
+    `前端代码/basic-framework-admin/examples/ai-host-html/server.test.ts`,
+    new Set(["aitk_short", "sample-secret"]),
+  ],
+  [
+    `前端代码/basic-framework-admin/packages/ai-embed-sdk/fixtures/n-1/baseline.json`,
+    new Set(["aitkt_once_abcdefg"]),
+  ],
+  [
+    `前端代码/basic-framework-admin/packages/ai-embed-sdk/src/__tests__/n-1-baseline.test.ts`,
+    new Set(["aitkt_once_abcdefg"]),
   ],
 ]);
 

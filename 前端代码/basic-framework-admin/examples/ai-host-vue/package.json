@@ -1,0 +1,20 @@
+{
+  "name": "@ai-platform-examples/host-vue",
+  "version": "0.0.0",
+  "description": "AI 中台 · Vue 第三方宿主示例（主题/上下文切换与跨源嵌入）",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build --config vite.config.mts",
+    "dev": "vite --config vite.config.mts",
+    "typecheck": "vue-tsc --noEmit --skipLibCheck"
+  },
+  "dependencies": {
+    "@vben/ai-embed-sdk": "workspace:*",
+    "vue": "catalog:"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "catalog:",
+    "vite": "catalog:"
+  }
+}

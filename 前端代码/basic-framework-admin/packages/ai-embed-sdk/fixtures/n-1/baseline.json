@@ -1,0 +1,50 @@
+{
+  "artifact": "ai-embed-sdk-5.6.0.js",
+  "artifactSha256": "09090b4b1f6662e411c1295a6d91995b92db53ae15d510bf9c08ed6502b28f1d",
+  "frozenAt": "2026-09-25",
+  "handshake": [
+    {
+      "appCode": "crm-portal",
+      "instanceId": "inst-1",
+      "protocolVersion": "1.0",
+      "type": "HELLO"
+    },
+    {
+      "instanceId": "inst-1",
+      "protocolVersion": "1.0",
+      "themeRevision": 2,
+      "type": "READY"
+    },
+    {
+      "expiresAt": "2026-09-25T10:00:00Z",
+      "instanceId": "inst-1",
+      "protocolVersion": "1.0",
+      "token": "aitkt_once_abcdefg",
+      "type": "AUTH"
+    },
+    {
+      "instanceId": "inst-1",
+      "protocolVersion": "1.0",
+      "serviceId": "svc_1",
+      "type": "INIT"
+    }
+  ],
+  "messageTypes": [
+    "AUTH",
+    "CLOSE",
+    "CONTEXT_UPDATE",
+    "DESTROY",
+    "ERROR",
+    "HELLO",
+    "INIT",
+    "NAVIGATE_REQUEST",
+    "OPEN",
+    "READY",
+    "REPORT_CREATED",
+    "THEME_UPDATE",
+    "TOKEN_REQUIRED"
+  ],
+  "note": "首发基线（FR-34）：首次发布没有真实 N-1 产物，故冻结首发候选的协议行为作为未来升级的兼容夹具。升级 SDK 时必须重放本夹具，证明新实现仍接受这些消息。",
+  "protocolVersion": "1.0",
+  "sdkVersion": "5.6.0"
+}

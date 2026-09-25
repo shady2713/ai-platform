@@ -1,0 +1,10 @@
+{
+  "name": "@ai-platform-examples/host-html",
+  "version": "0.0.0",
+  "description": "AI 中台 · 纯 HTML 第三方宿主示例（含最小换票后端）",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "node server.mjs"
+  }
+}

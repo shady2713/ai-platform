@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>AI 中台 · HTML 宿主示例</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 24px; }
+      .row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+      button { padding: 6px 10px; }
+      #status { font-size: 13px; color: #444; margin-bottom: 12px; }
+      #ai-chat-root { border: 1px dashed #bbb; min-height: 320px; }
+    </style>
+  </head>
+  <body>
+    <h1>HTML 宿主示例</h1>
+    <p>
+      本页与嵌入页**不同源**（宿主端口 5180、平台端口按部署配置），用来演示跨源嵌入；
+      票据由本示例的最小后端用应用客户端凭据换取，页面只持有短期票据。
+    </p>
+    <div id="status" data-testid="host-status">初始化中…</div>
+    <div class="row">
+      <button data-action="open" type="button">打开</button>
+      <button data-action="close" type="button">关闭</button>
+      <button data-action="inline" type="button">内嵌</button>
+      <button data-action="drawer" type="button">侧栏</button>
+      <button data-action="dialog" type="button">弹窗</button>
+      <button data-action="theme-dark" type="button">深色主题</button>
+      <button data-action="theme-light" type="button">浅色主题</button>
+      <button data-action="context" type="button">切换上下文</button>
+      <button data-action="switch-user" type="button">切换用户</button>
+      <button data-action="destroy" type="button">销毁</button>
+    </div>
+    <div id="ai-chat-root"></div>
+    <script type="module">
+      import { mountSampleHost } from './host.js';
+      window.sampleHost = await mountSampleHost({
+        appCode: new URLSearchParams(location.search).get('appCode') ?? 'crm-portal',
+        container: document.querySelector('#ai-chat-root'),
+        embedBasePath: new URLSearchParams(location.search).get('embedBase') ?? 'http://localhost:48080',
+        status: document.querySelector('#status'),
+      });
+    </script>
+  </body>
+</html>
