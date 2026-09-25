@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { businessContextSchema } from './business-context';
 import { themeSchema } from './theme';
 
 /**
@@ -121,6 +122,60 @@ export const bridgeDestroySchema = z
   })
   .strict();
 
+/**
+ * 宿主 → iframe：业务上下文更新（**只作用下一次运行**，不改正在执行的运行）。
+ *
+ * <p>上下文里没有身份与范围字段（见 `business-context.ts`）：辅助信息不能改变权限。
+ */
+export const bridgeContextUpdateSchema = z
+  .object({
+    ...envelope,
+    context: businessContextSchema,
+    type: z.literal('CONTEXT_UPDATE'),
+  })
+  .strict();
+
+/** 宿主 → iframe：主题更新（只改观感，不重建会话、不动滚动位置）。 */
+export const bridgeThemeUpdateSchema = z
+  .object({
+    ...envelope,
+    theme: themeSchema,
+    type: z.literal('THEME_UPDATE'),
+  })
+  .strict();
+
+/**
+ * iframe → 宿主：请求导航（只带**登记的路由名**与类型化参数，由宿主决定是否导航）。
+ *
+ * <p>协议层不接受 URL、脚本或任意跳转目标：`route` 必须是标识符形状，`params` 只允许标量。
+ */
+export const bridgeNavigateRequestSchema = z
+  .object({
+    ...envelope,
+    params: z
+      .record(
+        z.string().regex(/^[a-z][a-z0-9_]{0,63}$/u),
+        z.union([z.string().max(256), z.number().finite(), z.boolean()]),
+      )
+      .optional(),
+    route: z
+      .string()
+      .regex(/^[a-z][a-z0-9_.-]{0,63}$/u, '路由名必须是小写标识符'),
+    type: z.literal('NAVIGATE_REQUEST'),
+  })
+  .strict();
+
+/** iframe → 宿主：报表已创建（宿主据此刷新列表或跳转）。 */
+export const bridgeReportCreatedSchema = z
+  .object({
+    ...envelope,
+    reportId: z.string().regex(/^rpt_[\w-]{3,35}$/u),
+    title: z.string().max(200).optional(),
+    type: z.literal('REPORT_CREATED'),
+    version: z.number().int().min(1).max(1_000_000),
+  })
+  .strict();
+
 export const bridgeMessageSchema = z.discriminatedUnion('type', [
   bridgeHelloSchema,
   bridgeReadySchema,
@@ -129,6 +184,10 @@ export const bridgeMessageSchema = z.discriminatedUnion('type', [
   bridgeTokenRequiredSchema,
   bridgeErrorSchema,
   bridgeDestroySchema,
+  bridgeContextUpdateSchema,
+  bridgeThemeUpdateSchema,
+  bridgeNavigateRequestSchema,
+  bridgeReportCreatedSchema,
 ]);
 
 export type BridgeMessage = z.infer<typeof bridgeMessageSchema>;
@@ -146,6 +205,14 @@ export type BridgeTokenRequired = z.infer<typeof bridgeTokenRequiredSchema>;
 export type BridgeError = z.infer<typeof bridgeErrorSchema>;
 
 export type BridgeDestroy = z.infer<typeof bridgeDestroySchema>;
+
+export type BridgeContextUpdate = z.infer<typeof bridgeContextUpdateSchema>;
+
+export type BridgeThemeUpdate = z.infer<typeof bridgeThemeUpdateSchema>;
+
+export type BridgeNavigateRequest = z.infer<typeof bridgeNavigateRequestSchema>;
+
+export type BridgeReportCreated = z.infer<typeof bridgeReportCreatedSchema>;
 
 /**
  * 解析桥消息；任何不合规输入（未知类型、多余字段、非法实例标识/版本、超长字段）都抛错。

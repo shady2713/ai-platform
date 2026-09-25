@@ -11,6 +11,8 @@ export type {
   RunEventHandlers,
   RunEventStreamResult,
 } from './client';
+export { createBusinessContextStore } from './context/business-context-store';
+export type { BusinessContextStore } from './context/business-context-store';
 export { createChatMount } from './display/mount';
 export type {
   ChatDisplayMode,
@@ -19,6 +21,20 @@ export type {
   ChatMountLayout,
   ChatMountOptions,
 } from './display/mount';
+export {
+  createHostEventHandlers,
+  validateHostNavigation,
+} from './events/host-events';
+export type {
+  HostEventHandlers,
+  HostNavigationAccepted,
+  HostNavigationRejected,
+  HostNavigationResult,
+  HostReportCreatedEvent,
+  HostRouteDefinition,
+  HostRouteParamType,
+  HostRouteRegistry,
+} from './events/host-events';
 export type {
   AiRunStatus,
   BridgeState,
@@ -33,7 +49,7 @@ export {
   parseBridgeMessage,
   whitelistedBridgeType,
 } from '@vben/ai-contracts';
-export type { Theme } from '@vben/ai-contracts';
+export type { BusinessContext, Theme } from '@vben/ai-contracts';
 export type {
   BridgeAuth,
   BridgeDestroy,

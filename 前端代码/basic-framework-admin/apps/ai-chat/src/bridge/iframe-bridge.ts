@@ -2,11 +2,13 @@ import type {
   BridgeMessage,
   BridgeState,
   BridgeTokenRequired,
+  BusinessContext,
   Theme,
 } from '@vben/ai-embed-sdk';
 
 import {
   BRIDGE_PROTOCOL_VERSION,
+  createBusinessContextStore,
   isCompatibleProtocolVersion,
   parseBridgeMessage,
   whitelistedBridgeType,
@@ -28,6 +30,9 @@ import {
  * <p>允许域来自服务端 `/bootstrap`（应用发布配置）；为空即拒绝构造——不允许退化成"谁都信"。
  */
 export class IframeBridge {
+  /** 业务上下文：只作用下一次运行（运行受理时取快照）。 */
+  private readonly contexts = createBusinessContextStore();
+
   private currentState: BridgeState = 'CREATED';
 
   private theme: Theme | undefined;
@@ -43,6 +48,11 @@ export class IframeBridge {
   /** 当前票据（仅供同源业务代码使用；绝不写 URL/存储）。 */
   credential(): null | { expiresAt: string; token: string } {
     return this.token;
+  }
+
+  /** 下一次运行将使用的业务上下文（运行受理时用 `snapshotContext()` 取快照）。 */
+  currentContext(): BusinessContext | null {
+    return this.contexts.current();
   }
 
   /** 已生效的主题（INIT 携带并校验通过后）。 */
@@ -70,6 +80,20 @@ export class IframeBridge {
     }
     this.currentState = 'WAITING_READY';
     this.options.transport.post(this.message({ type: 'READY' }));
+  }
+
+  /** iframe → 宿主：报表已创建。 */
+  notifyReportCreated(event: {
+    reportId: string;
+    title?: string;
+    version: number;
+  }): void {
+    if (this.currentState !== 'INITIALIZED') {
+      return;
+    }
+    this.options.transport.post(
+      this.message({ ...event, type: 'REPORT_CREATED' }),
+    );
   }
 
   /** 处理来自宿主的消息；返回是否被采纳。 */
@@ -135,6 +159,17 @@ export class IframeBridge {
         });
         return true;
       }
+      case 'CONTEXT_UPDATE': {
+        // 只更新"下一次运行"的上下文；已受理的运行用自己受理时的快照（AT-053 的上下文版本）
+        try {
+          this.contexts.update(message.context);
+        } catch {
+          this.fail('CONTEXT_SCHEMA_INVALID', '业务上下文不符合契约');
+          return false;
+        }
+        this.options.onContext?.(this.contexts.current());
+        return true;
+      }
       case 'DESTROY': {
         this.onDestroy();
         return true;
@@ -171,8 +206,23 @@ export class IframeBridge {
         });
         return true;
       }
+      case 'NAVIGATE_REQUEST':
+      case 'REPORT_CREATED': {
+        // 这两个方向是 iframe → 宿主；宿主发来即为乱序（不伪装成功）
+        this.fail(
+          'MESSAGE_OUT_OF_ORDER',
+          `${message.type} 只能由 iframe 发往宿主`,
+        );
+        return false;
+      }
+      case 'THEME_UPDATE': {
+        // 只换观感：不重置会话、不清上下文、不重建（滚动位置由渲染层保持）
+        this.theme = message.theme;
+        this.options.onTheme?.(message.theme);
+        return true;
+      }
       default: {
-        // INITIALIZED 之后的业务消息由后续卡（C07/C08）实现；当前明确拒绝而不是静默丢弃
+        // 白名单内但本版本尚未处理的消息（OPEN/CLOSE）：明确拒绝而不是静默丢弃
         this.fail(
           'MESSAGE_NOT_SUPPORTED',
           `本版本尚未处理消息 ${message.type}`,
@@ -180,6 +230,19 @@ export class IframeBridge {
         return false;
       }
     }
+  }
+
+  /** iframe → 宿主：请求导航（只带登记路由名与类型化参数；宿主侧再按登记表校验）。 */
+  requestNavigate(
+    route: string,
+    params?: Record<string, boolean | number | string>,
+  ): void {
+    if (this.currentState !== 'INITIALIZED') {
+      return;
+    }
+    this.options.transport.post(
+      this.message({ params, route, type: 'NAVIGATE_REQUEST' }),
+    );
   }
 
   /** 票据不可用（缺失/过期/被撤销）：请求宿主重新换取（宿主侧 single-flight）。 */
@@ -191,6 +254,11 @@ export class IframeBridge {
     this.options.transport.post(
       this.message({ reason, type: 'TOKEN_REQUIRED' }),
     );
+  }
+
+  /** 运行受理时取上下文快照：之后的 CONTEXT_UPDATE 不影响这次运行。 */
+  snapshotContext(): BusinessContext | null {
+    return this.contexts.snapshot();
   }
 
   state(): BridgeState {
@@ -211,7 +279,18 @@ export class IframeBridge {
     payload:
       | { appCode: string; type: 'HELLO' }
       | { errorCode: string; message: string; type: 'ERROR' }
+      | {
+          params: Record<string, boolean | number | string> | undefined;
+          route: string;
+          type: 'NAVIGATE_REQUEST';
+        }
       | { reason: BridgeTokenRequired['reason']; type: 'TOKEN_REQUIRED' }
+      | {
+          reportId: string;
+          title?: string;
+          type: 'REPORT_CREATED';
+          version: number;
+        }
       | { type: 'READY' },
   ): BridgeMessage {
     return {
@@ -250,12 +329,14 @@ export interface IframeBridgeOptions {
   /** 实例标识（由 URL 上的非秘密参数传入）。 */
   instanceId: string;
   onAuth?: (auth: { expiresAt: string; token: string }) => void;
+  onContext?: (context: unknown) => void;
   onDestroy?: () => void;
   onError?: (error: { errorCode: string; message: string }) => void;
   onInit?: (payload: {
     serviceId: null | string;
     theme: Theme | undefined;
   }) => void;
+  onTheme?: (theme: Theme) => void;
   /** 父窗口引用（生产为 window.parent；测试可注入）——必须显式给出，否则来源校验无从比较。 */
   parentSource: unknown;
   protocolVersion?: string;

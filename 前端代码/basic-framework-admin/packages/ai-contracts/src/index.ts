@@ -15,15 +15,25 @@ export {
 } from './bridge';
 export type {
   BridgeAuth,
+  BridgeContextUpdate,
   BridgeDestroy,
   BridgeError,
   BridgeHello,
   BridgeInit,
   BridgeMessage,
   BridgeMessageType,
+  BridgeNavigateRequest,
   BridgeReady,
+  BridgeReportCreated,
+  BridgeThemeUpdate,
   BridgeTokenRequired,
 } from './bridge';
+export {
+  businessContextSchema,
+  parseBusinessContext,
+  safeParseBusinessContext,
+} from './business-context';
+export type { BusinessContext } from './business-context';
 export {
   chartSeriesSchema,
   chartSpecSchema,

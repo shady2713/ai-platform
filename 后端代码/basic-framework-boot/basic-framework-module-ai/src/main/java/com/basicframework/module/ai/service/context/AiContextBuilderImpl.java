@@ -2,10 +2,8 @@ package com.basicframework.module.ai.service.context;
 
 import static com.basicframework.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static com.basicframework.module.ai.enums.AiErrorCodeConstants.AI_CONTEXT_BUDGET_EXCEEDED;
-import static com.basicframework.module.ai.enums.AiErrorCodeConstants.AI_CONTEXT_SCHEMA_INVALID;
 import static com.basicframework.module.ai.enums.AiErrorCodeConstants.AI_REQUEST_INVALID;
 
-import com.basicframework.framework.common.util.json.JsonUtils;
 import com.basicframework.module.ai.domain.runtime.AiContextBudget;
 import com.basicframework.module.ai.domain.runtime.AiContextSection;
 import com.basicframework.module.ai.service.context.dto.AiContextBuildDTO;
@@ -14,9 +12,7 @@ import com.basicframework.module.ai.service.context.dto.AiContextKnowledgeDTO;
 import com.basicframework.module.ai.service.context.dto.AiContextResultDTO;
 import com.basicframework.module.ai.service.context.dto.AiContextSectionStatDTO;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -60,9 +56,6 @@ public class AiContextBuilderImpl implements AiContextBuilder {
     private static final String NEUTRALIZED_MARKER = "[已中和的分区标记]";
 
     /** 已注册的业务上下文字段（FR-13）：只接受这些键，其余一律拒绝。 */
-    private static final Set<String> REGISTERED_CONTEXT_KEYS =
-            new LinkedHashSet<>(List.of("page", "objectType", "objectId", "filters", "locale", "timezone"));
-
     /** 历史消息允许的角色。 */
     private static final Set<String> HISTORY_ROLES = Set.of("user", "assistant", "system");
 
@@ -221,30 +214,13 @@ public class AiContextBuilderImpl implements AiContextBuilder {
         return result;
     }
 
-    /** 业务上下文校验：必须是 JSON 对象，且只含已注册字段。 */
+    /**
+     * 业务上下文校验：委托 {@link AiBusinessContextSchema}（C08 的逐键形状协议）。
+     *
+     * <p>校验规则只有一份：键白名单 + 每键形状都在 C08 的协议类里，避免"构造器一套、入参一套"漂移。
+     */
     private static String normalizeBusinessContext(String businessContext) {
-        if (!StringUtils.hasText(businessContext)) {
-            return null;
-        }
-        if (businessContext.length() > MAX_BUSINESS_CONTEXT_LENGTH) {
-            throw exception(AI_CONTEXT_SCHEMA_INVALID, "长度");
-        }
-        Map<?, ?> parsed;
-        try {
-            parsed = JsonUtils.parseObject(businessContext, Map.class);
-        } catch (IllegalArgumentException notAnObject) {
-            // 解析库对非 JSON 文本与"不是对象"都抛非法参数：统一收敛为稳定的契约错误
-            throw exception(AI_CONTEXT_SCHEMA_INVALID, "格式");
-        }
-        if (parsed == null) {
-            throw exception(AI_CONTEXT_SCHEMA_INVALID, "格式");
-        }
-        for (Object key : parsed.keySet()) {
-            if (key == null || !REGISTERED_CONTEXT_KEYS.contains(String.valueOf(key))) {
-                throw exception(AI_CONTEXT_SCHEMA_INVALID, String.valueOf(key));
-            }
-        }
-        return JsonUtils.toJsonString(parsed);
+        return AiBusinessContextSchema.normalize(businessContext);
     }
 
     private static void validate(AiContextBuildDTO request) {

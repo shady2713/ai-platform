@@ -268,3 +268,162 @@ describe('iframe 侧桥（C06）', () => {
     ).toBe(false);
   });
 });
+
+describe('业务上下文与宿主事件（C08）', () => {
+  function initialized() {
+    const harnessed = harness();
+    harnessed.bridge.handshake();
+    harnessed.bridge.receive({
+      data: auth(),
+      origin: ORIGIN,
+      source: harnessed.parent,
+    });
+    harnessed.bridge.receive({
+      data: init(),
+      origin: ORIGIN,
+      source: harnessed.parent,
+    });
+    return harnessed;
+  }
+
+  it('cONTEXT_UPDATE 只落下一次；运行受理时取快照，之后的更新不改已受理运行', () => {
+    const harnessed = initialized();
+    const onContext = vi.fn();
+    // 通过 options 回调观测（构造时已注入 onContext 的场景在 harness 里更简单）
+    const update = (context: Record<string, unknown>) => ({
+      context,
+      instanceId: INSTANCE,
+      protocolVersion: '1.0',
+      type: 'CONTEXT_UPDATE',
+    });
+
+    expect(
+      harnessed.bridge.receive({
+        data: update({ objectId: 'order-1' }),
+        origin: ORIGIN,
+        source: harnessed.parent,
+      }),
+    ).toBe(true);
+    const runningSnapshot = harnessed.bridge.snapshotContext();
+    expect(runningSnapshot?.objectId).toBe('order-1');
+
+    // 运行期间宿主切对象：已取快照不变（运行结束前不受影响）
+    harnessed.bridge.receive({
+      data: update({ objectId: 'order-2' }),
+      origin: ORIGIN,
+      source: harnessed.parent,
+    });
+    expect(runningSnapshot?.objectId).toBe('order-1');
+    expect(harnessed.bridge.currentContext()?.objectId).toBe('order-2');
+    void onContext;
+  });
+
+  it('cONTEXT_UPDATE 携带身份/范围字段时被拒绝，且保留原上下文', () => {
+    const harnessed = initialized();
+    harnessed.bridge.receive({
+      data: {
+        context: { objectId: 'order-1' },
+        instanceId: INSTANCE,
+        protocolVersion: '1.0',
+        type: 'CONTEXT_UPDATE',
+      },
+      origin: ORIGIN,
+      source: harnessed.parent,
+    });
+
+    const accepted = harnessed.bridge.receive({
+      data: {
+        context: { appCode: 'crm-portal' },
+        instanceId: INSTANCE,
+        protocolVersion: '1.0',
+        type: 'CONTEXT_UPDATE',
+      },
+      origin: ORIGIN,
+      source: harnessed.parent,
+    });
+
+    expect(accepted).toBe(false);
+    expect(harnessed.bridge.currentContext()?.objectId).toBe('order-1');
+  });
+
+  it('tHEME_UPDATE 只换主题，不清上下文、不重置状态', () => {
+    const harnessed = initialized();
+    harnessed.bridge.receive({
+      data: {
+        context: { objectId: 'order-1' },
+        instanceId: INSTANCE,
+        protocolVersion: '1.0',
+        type: 'CONTEXT_UPDATE',
+      },
+      origin: ORIGIN,
+      source: harnessed.parent,
+    });
+
+    const accepted = harnessed.bridge.receive({
+      data: {
+        instanceId: INSTANCE,
+        protocolVersion: '1.0',
+        theme: {
+          colorScheme: 'dark',
+          fontFamily: 'system-ui',
+          primaryColor: '#1677ff',
+          radius: 6,
+        },
+        type: 'THEME_UPDATE',
+      },
+      origin: ORIGIN,
+      source: harnessed.parent,
+    });
+
+    expect(accepted).toBe(true);
+    expect(harnessed.bridge.state()).toBe('INITIALIZED');
+    expect(harnessed.bridge.currentTheme()?.colorScheme).toBe('dark');
+    expect(harnessed.bridge.currentContext()?.objectId).toBe('order-1');
+    expect(harnessed.bridge.credential()).not.toBeNull();
+  });
+
+  it('nAVIGATE_REQUEST/REPORT_CREATED 由 iframe 上报，且只带登记形状', () => {
+    const harnessed = initialized();
+
+    harnessed.bridge.requestNavigate('order.detail', { id: 'order-1' });
+    expect(harnessed.sent.at(-1)).toMatchObject({
+      route: 'order.detail',
+      type: 'NAVIGATE_REQUEST',
+    });
+
+    harnessed.bridge.notifyReportCreated({
+      reportId: 'rpt_sales01',
+      title: '销售报表',
+      version: 2,
+    });
+    expect(harnessed.sent.at(-1)).toMatchObject({
+      reportId: 'rpt_sales01',
+      type: 'REPORT_CREATED',
+      version: 2,
+    });
+
+    // 未初始化前不上报（也不静默伪装成功）
+    const fresh = harness();
+    fresh.bridge.handshake();
+    const before = fresh.sent.length;
+    fresh.bridge.requestNavigate('order.detail');
+    fresh.bridge.notifyReportCreated({ reportId: 'rpt_sales01', version: 1 });
+    expect(fresh.sent.length).toBe(before);
+
+    // 反向（宿主 → iframe）的导航/报表消息是乱序：明确拒绝
+    expect(
+      harnessed.bridge.receive({
+        data: {
+          instanceId: INSTANCE,
+          params: { id: 'order-1' },
+          protocolVersion: '1.0',
+          route: 'order.detail',
+          type: 'NAVIGATE_REQUEST',
+        },
+        origin: ORIGIN,
+        source: harnessed.parent,
+      }),
+    ).toBe(false);
+    expect(harnessed.errors.at(-1)?.errorCode).toBe('MESSAGE_OUT_OF_ORDER');
+  });
+});
