@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://basic-framework.local/contracts/ai/audit-event.schema.json",
+  "title": "AiAuditEvent v1 正式契约",
+  "description": "AI 审计事件：只包含可对账的结构化事实（主体、资源、动作、结果码、耗时）。契约刻意没有自由文本字段——问题正文、提示词、知识片段、SQL 语句与凭据都不属于审计事件。本文件是权威 Schema；Java 侧实现见 module-ai 的 service/audit，事件目录与告警映射见 docs/security/ai-audit-and-diagnostics.md。",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "eventType": {
+      "description": "事件类型（闭集）",
+      "enum": [
+        "FILE_ACCESS",
+        "OPS_DIAGNOSTIC",
+        "RESOURCE_ACCESS",
+        "RUN_ACCEPTED",
+        "RUN_FINISHED",
+        "TOOL_ACTION"
+      ]
+    },
+    "runRef": {
+      "description": "运行标识（含步骤时形如 run_xxx#step；无运行上下文时用 - ）",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "subjectRef": {
+      "description": "主体标识（应用编号 + 主体标识摘要；不含姓名/邮箱）",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "resourceRefs": {
+      "description": "资源引用（类型:不透明标识，如 REPORT:rpt_ab12）",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+      },
+      "minItems": 0,
+      "maxItems": 20
+    },
+    "action": {
+      "description": "动作（与 scope 目录的动作词表同口径）",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32
+    },
+    "outcomeCode": {
+      "description": "结果码：成功为 AI_OK，失败为稳定错误码常量名",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "durationMs": {
+      "description": "耗时（毫秒；未知为 -1）",
+      "type": "integer",
+      "minimum": -1
+    },
+    "occurredAt": {
+      "description": "发生时间（带时区偏移的 RFC3339）",
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "eventType",
+    "runRef",
+    "subjectRef",
+    "resourceRefs",
+    "action",
+    "outcomeCode",
+    "durationMs",
+    "occurredAt"
+  ]
+}
