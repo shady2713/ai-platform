@@ -68,6 +68,7 @@ export type {
   ConversationSummary,
   UseConversationOptions,
 } from './conversation/use-conversation';
+export { default as ChatLayout } from './layout/ChatLayout.vue';
 export {
   cellDisplay,
   isActionExpired,

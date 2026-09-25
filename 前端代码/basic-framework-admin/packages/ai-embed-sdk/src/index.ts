@@ -11,6 +11,14 @@ export type {
   RunEventHandlers,
   RunEventStreamResult,
 } from './client';
+export { createChatMount } from './display/mount';
+export type {
+  ChatDisplayMode,
+  ChatFramePort,
+  ChatMount,
+  ChatMountLayout,
+  ChatMountOptions,
+} from './display/mount';
 export type {
   AiRunStatus,
   BridgeState,
