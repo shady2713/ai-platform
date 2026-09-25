@@ -4,7 +4,7 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V79.
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V80.
 -- Only the 49 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
@@ -2666,6 +2666,12 @@ INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_i
 (4105, 'AI 主题', 'ai:theme:query', 2, 12, 4000, 'theme', 'ep:brush', 'ai/theme/index', 'AiTheme', 0, b'1', b'1', b'1', '1', '2026-09-24 20:00:00', '1', '2026-09-24 20:00:00', b'0'),
 (4106, '创建主题修订', 'ai:theme:create', 3, 1, 4105, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-24 20:00:00', '1', '2026-09-24 20:00:00', b'0'),
 (4107, '发布/回退主题修订', 'ai:theme:publish', 3, 2, 4105, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-24 20:00:00', '1', '2026-09-24 20:00:00', b'0');
+
+-- AI Chat 集成菜单与主题页启用（V80）
+UPDATE `system_menu` SET `status` = 0, `updater` = '1', `update_time` = '2026-09-25 05:00:00'
+WHERE `id` = 4105 AND `status` = 1;
+INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
+(4110, 'Chat 集成', 'ai:application:query', 2, 13, 4000, 'chat-integration', 'ep:chat-line-round', 'ai/chat-integration/index', 'AiChatIntegration', 0, b'1', b'1', b'1', '1', '2026-09-25 05:00:00', '1', '2026-09-25 05:00:00', b'0');
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
