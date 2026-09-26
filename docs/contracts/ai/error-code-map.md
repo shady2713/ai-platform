@@ -183,5 +183,12 @@ HTTP 语义遵循 [ADR 0003](../../adr/0003-http-status-semantics.md)；认证�
 | `AI_EVAL_RESULT_NOT_EXISTS` | 1_003_009_011 | 评测结果不存在 | 404 |
 | `AI_EVAL_RESULT_NOT_REVIEWABLE` | 1_003_009_012 | 该结果不需要人工复核或已复核 | 422 |
 | `AI_EVAL_RUN_NOT_EXECUTED` | 1_003_009_013 | 评测用例未能取到执行租约（队列被其它任务占用） | 422 |
+| `AI_EVAL_PUBLISH_RUN_NOT_FINISHED` | 1_003_009_014 | 评测运行未完成，不能作为发布依据 | 422 |
+| `AI_EVAL_PUBLISH_SUITE_CHANGED` | 1_003_009_015 | 套件在评测之后被修改，需要按当前冻结内容重新评测 | 422 |
+| `AI_EVAL_PUBLISH_CASE_COVERAGE_INCOMPLETE` | 1_003_009_016 | 评测没有覆盖全部冻结样例，禁止只挑部分样例计算通过率 | 422 |
+| `AI_EVAL_PUBLISH_CASE_NOT_CONVERGED` | 1_003_009_017 | 存在未能执行或待人工复核的样例，不能作为发布依据 | 422 |
+| `AI_EVAL_PUBLISH_RELEASE_MISMATCH` | 1_003_009_018 | 评测执行时的发布版本/内容摘要/端点修订与待发布候选不一致，换模型或改提示词必须重新评测 | 422 |
+| `AI_EVAL_PUBLISH_BLOCKER_CASE_FAILED` | 1_003_009_019 | 阻断级评测样例未通过，禁止发布 | 422 |
+| `AI_EVAL_PUBLISH_BELOW_THRESHOLD` | 1_003_009_020 | 评测通过率低于发布门槛 | 422 |
 
 HTTP 状态按 ADR 0003 的命名规则推导：`*_NOT_EXISTS` 为 404，名称含 `DUPLICATE` 为 409，其余为 422。

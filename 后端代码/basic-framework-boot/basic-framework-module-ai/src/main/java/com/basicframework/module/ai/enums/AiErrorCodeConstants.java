@@ -487,4 +487,21 @@ public interface AiErrorCodeConstants {
     ErrorCode AI_EVAL_RESULT_NOT_REVIEWABLE = new ErrorCode(1_003_009_012, "该结果不需要人工复核或已复核");
 
     ErrorCode AI_EVAL_RUN_NOT_EXECUTED = new ErrorCode(1_003_009_013, "评测用例未能取到执行租约（队列被其它任务占用）");
+
+    // ========== 评测发布门槛（Q05，同域延续 1_003_009） ==========
+
+    ErrorCode AI_EVAL_PUBLISH_RUN_NOT_FINISHED = new ErrorCode(1_003_009_014, "评测运行未完成，不能作为发布依据");
+
+    ErrorCode AI_EVAL_PUBLISH_SUITE_CHANGED = new ErrorCode(1_003_009_015, "套件在评测之后被修改，需要按当前冻结内容重新评测");
+
+    ErrorCode AI_EVAL_PUBLISH_CASE_COVERAGE_INCOMPLETE = new ErrorCode(1_003_009_016, "评测没有覆盖全部冻结样例，禁止只挑部分样例计算通过率");
+
+    ErrorCode AI_EVAL_PUBLISH_CASE_NOT_CONVERGED = new ErrorCode(1_003_009_017, "存在未能执行或待人工复核的样例，不能作为发布依据");
+
+    ErrorCode AI_EVAL_PUBLISH_RELEASE_MISMATCH =
+            new ErrorCode(1_003_009_018, "评测执行时的发布版本/内容摘要/端点修订与待发布候选不一致，换模型或改提示词必须重新评测");
+
+    ErrorCode AI_EVAL_PUBLISH_BLOCKER_CASE_FAILED = new ErrorCode(1_003_009_019, "阻断级评测样例未通过，禁止发布");
+
+    ErrorCode AI_EVAL_PUBLISH_BELOW_THRESHOLD = new ErrorCode(1_003_009_020, "评测通过率低于发布门槛");
 }
