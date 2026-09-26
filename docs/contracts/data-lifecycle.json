@@ -72,6 +72,8 @@
     {
       "id": "append-retention",
       "tables": [
+        "ai_quota_lease",
+        "ai_usage_ledger",
         "infra_api_access_log",
         "infra_api_error_log",
         "infra_job_log",

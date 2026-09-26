@@ -2,8 +2,37 @@
   "version": 3,
   "exemptions": [
     {
+      "id": "ai-usage-metering",
+      "reason": "\u7528\u91cf\u8d26\u672c\u4e0e\u914d\u989d\u5360\u4f4d\u662f\u8fd0\u884c\u65f6\u8ba1\u91cf\u5143\u6570\u636e\uff08\u4e00\u6b21\u4e0a\u6e38\u8c03\u7528\u4e00\u6761\u3001\u5e26\u79df\u7ea6\u7684\u5e76\u53d1\u5360\u4f4d\uff09\uff0c\u53ea\u7531\u5e73\u53f0\u5199\u5165\uff0c\u7ba1\u7406\u7aef\u6309\u529f\u80fd\u6743\u9650 ai:usage:query \u8bfb\u53d6\u805a\u5408\u7ed3\u679c\uff1b\u8868\u5185\u4e0d\u542b\u63d0\u793a\u8bcd\u3001\u54cd\u5e94\u6b63\u6587\u3001\u7aef\u70b9\u5730\u5740\u4e0e\u5bc6\u94a5\uff0c\u56e0\u6b64\u6ca1\u6709\u53ef\u6388\u6743\u7684\u884c\u7ea7\u4e3b\u4f53\u8303\u56f4\u3002",
+      "tables": [
+        "ai_usage_ledger",
+        "ai_quota_lease"
+      ],
+      "controls": [
+        {
+          "kind": "function-permission",
+          "tables": [
+            "ai_usage_ledger",
+            "ai_quota_lease"
+          ],
+          "evidence": [
+            {
+              "table": "ai_usage_ledger",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/usage/AiUsageController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('ai:usage:query')\")"
+            },
+            {
+              "table": "ai_quota_lease",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/usage/AiUsageController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('ai:usage:query')\")"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "ai-control-plane-config",
-      "reason": "AI 控制面配置（模型端点及其不可变版本）由功能权限 ai:model-endpoint:* 管理，不具有部门或用户行级归属。 应用与客户端凭据（ai_application / ai_application_credential）同属控制面配置，凭据只存摘要，由 ai:application:* 权限管理。 AI 服务草稿与发布版本（ai_service/ai_service_release/ai_service_resource/ai_service_release_evaluation）同属控制面配置，由 ai:service:* 权限管理。",
+      "reason": "AI \u63a7\u5236\u9762\u914d\u7f6e\uff08\u6a21\u578b\u7aef\u70b9\u53ca\u5176\u4e0d\u53ef\u53d8\u7248\u672c\uff09\u7531\u529f\u80fd\u6743\u9650 ai:model-endpoint:* \u7ba1\u7406\uff0c\u4e0d\u5177\u6709\u90e8\u95e8\u6216\u7528\u6237\u884c\u7ea7\u5f52\u5c5e\u3002 \u5e94\u7528\u4e0e\u5ba2\u6237\u7aef\u51ed\u636e\uff08ai_application / ai_application_credential\uff09\u540c\u5c5e\u63a7\u5236\u9762\u914d\u7f6e\uff0c\u51ed\u636e\u53ea\u5b58\u6458\u8981\uff0c\u7531 ai:application:* \u6743\u9650\u7ba1\u7406\u3002 AI \u670d\u52a1\u8349\u7a3f\u4e0e\u53d1\u5e03\u7248\u672c\uff08ai_service/ai_service_release/ai_service_resource/ai_service_release_evaluation\uff09\u540c\u5c5e\u63a7\u5236\u9762\u914d\u7f6e\uff0c\u7531 ai:service:* \u6743\u9650\u7ba1\u7406\u3002",
       "tables": [
         "ai_model_endpoint",
         "ai_model_endpoint_revision",
@@ -34,52 +63,52 @@
           "evidence": [
             {
               "table": "ai_model_endpoint",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/model/AiModelEndpointController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/model/AiModelEndpointController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('ai:model-endpoint:query')\")"
             },
             {
               "table": "ai_model_endpoint_revision",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/model/AiModelEndpointController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/model/AiModelEndpointController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('ai:model-endpoint:query')\")"
             },
             {
               "table": "ai_model_probe",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/model/AiModelCapabilityProbeController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/model/AiModelCapabilityProbeController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('ai:model-endpoint:query')\")"
             },
             {
               "table": "ai_application",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/application/AiApplicationController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/application/AiApplicationController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('ai:application:query')\")"
             },
             {
               "table": "ai_application_credential",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/application/AiApplicationController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/application/AiApplicationController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('ai:application:query')\")"
             },
             {
               "table": "ai_resource_grant",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/grant/AiResourceGrantController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/grant/AiResourceGrantController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('ai:grant:query')\")"
             },
             {
               "table": "ai_service",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/serviceconfig/AiServiceController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/serviceconfig/AiServiceController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('ai:service:query')\")"
             },
             {
               "table": "ai_service_release",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/serviceconfig/AiServiceController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/serviceconfig/AiServiceController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('ai:service:query')\")"
             },
             {
               "table": "ai_service_resource",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/serviceconfig/AiServiceController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/serviceconfig/AiServiceController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('ai:service:query')\")"
             },
             {
               "table": "ai_service_release_evaluation",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/serviceconfig/AiServiceReleaseController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/serviceconfig/AiServiceReleaseController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('ai:service:evaluate')\")"
             }
           ]
@@ -88,7 +117,7 @@
     },
     {
       "id": "ai-subject-binding",
-      "reason": "AI 外部主体表按 (application_id, subject_type, external_user_id) 绑定到唯一主体，读取一律经 AiSubjectService 的主体唯一键查询，不使用部门数据范围规则；范围授权由 SubjectScopeResolver 在请求期解析并默认 DENY。 访问票据（ai_access_ticket）按签发主体绑定并只存 token 摘要，校验一律经摘要唯一键定位。 业务文件绑定（ai_file_binding）按上传主体与业务对象归属判定，读写删都经主体唯一键与服务层 ACL。",
+      "reason": "AI \u5916\u90e8\u4e3b\u4f53\u8868\u6309 (application_id, subject_type, external_user_id) \u7ed1\u5b9a\u5230\u552f\u4e00\u4e3b\u4f53\uff0c\u8bfb\u53d6\u4e00\u5f8b\u7ecf AiSubjectService \u7684\u4e3b\u4f53\u552f\u4e00\u952e\u67e5\u8be2\uff0c\u4e0d\u4f7f\u7528\u90e8\u95e8\u6570\u636e\u8303\u56f4\u89c4\u5219\uff1b\u8303\u56f4\u6388\u6743\u7531 SubjectScopeResolver \u5728\u8bf7\u6c42\u671f\u89e3\u6790\u5e76\u9ed8\u8ba4 DENY\u3002 \u8bbf\u95ee\u7968\u636e\uff08ai_access_ticket\uff09\u6309\u7b7e\u53d1\u4e3b\u4f53\u7ed1\u5b9a\u5e76\u53ea\u5b58 token \u6458\u8981\uff0c\u6821\u9a8c\u4e00\u5f8b\u7ecf\u6458\u8981\u552f\u4e00\u952e\u5b9a\u4f4d\u3002 \u4e1a\u52a1\u6587\u4ef6\u7ed1\u5b9a\uff08ai_file_binding\uff09\u6309\u4e0a\u4f20\u4e3b\u4f53\u4e0e\u4e1a\u52a1\u5bf9\u8c61\u5f52\u5c5e\u5224\u5b9a\uff0c\u8bfb\u5199\u5220\u90fd\u7ecf\u4e3b\u4f53\u552f\u4e00\u952e\u4e0e\u670d\u52a1\u5c42 ACL\u3002",
       "tables": [
         "ai_subject",
         "ai_access_ticket",
@@ -105,27 +134,27 @@
           "evidence": [
             {
               "table": "ai_subject",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/subject/AiSubjectMapper.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/subject/AiSubjectMapper.java",
               "contains": ".eq(AiSubjectDO::getApplicationId, applicationId)"
             },
             {
               "table": "ai_subject",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/subject/AiSubjectServiceImpl.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/subject/AiSubjectServiceImpl.java",
               "contains": "findActiveSubject("
             },
             {
               "table": "ai_access_ticket",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/auth/AiTicketServiceImpl.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/auth/AiTicketServiceImpl.java",
               "contains": "selectByDigest("
             },
             {
               "table": "ai_file_binding",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/file/AiFileBindingMapper.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/file/AiFileBindingMapper.java",
               "contains": ".eq(AiFileBindingDO::getFileId, fileId)"
             },
             {
               "table": "ai_file_binding",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/file/AiFileServiceImpl.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/file/AiFileServiceImpl.java",
               "contains": "subject.sameAs(owner)"
             }
           ]
@@ -134,7 +163,7 @@
     },
     {
       "id": "append-only-observability",
-      "reason": "审计与运行留痕表只通过专用查询权限读取，或仅由内部记录服务写入并按保留策略清理。",
+      "reason": "\u5ba1\u8ba1\u4e0e\u8fd0\u884c\u7559\u75d5\u8868\u53ea\u901a\u8fc7\u4e13\u7528\u67e5\u8be2\u6743\u9650\u8bfb\u53d6\uff0c\u6216\u4ec5\u7531\u5185\u90e8\u8bb0\u5f55\u670d\u52a1\u5199\u5165\u5e76\u6309\u4fdd\u7559\u7b56\u7565\u6e05\u7406\u3002",
       "tables": [
         "infra_api_access_log",
         "infra_api_error_log",
@@ -154,17 +183,17 @@
           "evidence": [
             {
               "table": "infra_job_log",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/controller/admin/job/JobLogController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/controller/admin/job/JobLogController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('infra:job:query')\")"
             },
             {
               "table": "system_login_log",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/logger/LoginLogController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/logger/LoginLogController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('system:login-log:query')\")"
             },
             {
               "table": "system_operate_log",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/logger/OperateLogController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/logger/OperateLogController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('system:operate-log:query')\")"
             }
           ]
@@ -179,17 +208,17 @@
           "evidence": [
             {
               "table": "infra_api_access_log",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/service/logger/ApiAccessLogServiceImpl.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/service/logger/ApiAccessLogServiceImpl.java",
               "contains": "apiAccessLogMapper.insert(apiAccessLog)"
             },
             {
               "table": "infra_api_error_log",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/service/logger/ApiErrorLogServiceImpl.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/service/logger/ApiErrorLogServiceImpl.java",
               "contains": "apiErrorLogMapper.insert(apiErrorLog)"
             },
             {
               "table": "system_sms_log",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/service/sms/SmsLogServiceImpl.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/service/sms/SmsLogServiceImpl.java",
               "contains": "smsLogMapper.insert(smsLogDO)"
             }
           ]
@@ -198,7 +227,7 @@
     },
     {
       "id": "global-administration",
-      "reason": "全局控制面配置由功能权限管理，不具有部门或用户行级归属。",
+      "reason": "\u5168\u5c40\u63a7\u5236\u9762\u914d\u7f6e\u7531\u529f\u80fd\u6743\u9650\u7ba1\u7406\uff0c\u4e0d\u5177\u6709\u90e8\u95e8\u6216\u7528\u6237\u884c\u7ea7\u5f52\u5c5e\u3002",
       "tables": [
         "infra_config",
         "infra_file_config",
@@ -233,62 +262,62 @@
           "evidence": [
             {
               "table": "infra_config",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/controller/admin/config/ConfigController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/controller/admin/config/ConfigController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('infra:config:query')\")"
             },
             {
               "table": "infra_file_config",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/controller/admin/file/FileConfigController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/controller/admin/file/FileConfigController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('infra:file-config:query')\")"
             },
             {
               "table": "infra_job",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/controller/admin/job/JobController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/controller/admin/job/JobController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('infra:job:query')\")"
             },
             {
               "table": "system_dict_data",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/dict/DictDataController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/dict/DictDataController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('system:dict:query')\")"
             },
             {
               "table": "system_dict_type",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/dict/DictTypeController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/dict/DictTypeController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('system:dict:query')\")"
             },
             {
               "table": "system_menu",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/permission/MenuController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/permission/MenuController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('system:menu:query')\")"
             },
             {
               "table": "system_notice",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/notice/NoticeController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/notice/NoticeController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('system:notice:query')\")"
             },
             {
               "table": "system_notify_template",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/notify/NotifyTemplateController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/notify/NotifyTemplateController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('system:notify-template:query')\")"
             },
             {
               "table": "system_post",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/dept/PostController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/dept/PostController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('system:post:query')\")"
             },
             {
               "table": "system_role",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/permission/RoleController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/permission/RoleController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('system:role:query')\")"
             },
             {
               "table": "system_sms_channel",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/sms/SmsChannelController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/sms/SmsChannelController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('system:sms-channel:query')\")"
             },
             {
               "table": "system_sms_template",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/sms/SmsTemplateController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/sms/SmsTemplateController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('system:sms-template:query')\")"
             }
           ]
@@ -297,7 +326,7 @@
     },
     {
       "id": "identity-security",
-      "reason": "身份安全记录只通过凭据或当前主体绑定的服务访问，不按组织部门范围查询。",
+      "reason": "\u8eab\u4efd\u5b89\u5168\u8bb0\u5f55\u53ea\u901a\u8fc7\u51ed\u636e\u6216\u5f53\u524d\u4e3b\u4f53\u7ed1\u5b9a\u7684\u670d\u52a1\u8bbf\u95ee\uff0c\u4e0d\u6309\u7ec4\u7ec7\u90e8\u95e8\u8303\u56f4\u67e5\u8be2\u3002",
       "tables": [
         "system_sms_code",
         "system_user_session"
@@ -311,12 +340,12 @@
           "evidence": [
             {
               "table": "system_sms_code",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/service/sms/SmsCodeServiceImpl.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/service/sms/SmsCodeServiceImpl.java",
               "contains": "smsCodeMapper.selectLastByMobile(mobile, null, scene)"
             },
             {
               "table": "system_sms_code",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/dal/mysql/sms/SmsCodeMapper.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/dal/mysql/sms/SmsCodeMapper.java",
               "contains": "WHERE id = #{id} AND used = 0"
             }
           ]
@@ -329,12 +358,12 @@
           "evidence": [
             {
               "table": "system_user_session",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/service/session/UserSessionServiceImpl.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/service/session/UserSessionServiceImpl.java",
               "contains": "SessionTokenDigest.digest(refreshToken)"
             },
             {
               "table": "system_user_session",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/session/UserSessionController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/session/UserSessionController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('system:session:revoke')\")"
             }
           ]
@@ -343,7 +372,7 @@
     },
     {
       "id": "infrastructure-storage",
-      "reason": "文件元数据由所有者或文件管理权限控制，数据库内容表只能经受控文件客户端按配置与路径访问。",
+      "reason": "\u6587\u4ef6\u5143\u6570\u636e\u7531\u6240\u6709\u8005\u6216\u6587\u4ef6\u7ba1\u7406\u6743\u9650\u63a7\u5236\uff0c\u6570\u636e\u5e93\u5185\u5bb9\u8868\u53ea\u80fd\u7ecf\u53d7\u63a7\u6587\u4ef6\u5ba2\u6237\u7aef\u6309\u914d\u7f6e\u4e0e\u8def\u5f84\u8bbf\u95ee\u3002",
       "tables": [
         "infra_file",
         "infra_file_content"
@@ -358,17 +387,17 @@
           "evidence": [
             {
               "table": "infra_file",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/service/file/FileServiceImpl.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/service/file/FileServiceImpl.java",
               "contains": "if (file == null || !canRead(file, principal))"
             },
             {
               "table": "infra_file",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/service/file/FileServiceImpl.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/service/file/FileServiceImpl.java",
               "contains": "principal.owns(file.getOwnerUserId(), file.getOwnerUserType())"
             },
             {
               "table": "infra_file_content",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/framework/file/core/client/db/DBFileClient.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-infra/src/main/java/com/basicframework/module/infra/framework/file/core/client/db/DBFileClient.java",
               "contains": "fileContentMapper.selectListByConfigIdAndPath(getId(), path)"
             }
           ]
@@ -377,7 +406,7 @@
     },
     {
       "id": "relationship-tables",
-      "reason": "授权关系表不提供独立写接口，写入前由所属服务校验目标主体并由专用权限 保护入口。",
+      "reason": "\u6388\u6743\u5173\u7cfb\u8868\u4e0d\u63d0\u4f9b\u72ec\u7acb\u5199\u63a5\u53e3\uff0c\u5199\u5165\u524d\u7531\u6240\u5c5e\u670d\u52a1\u6821\u9a8c\u76ee\u6807\u4e3b\u4f53\u5e76\u7531\u4e13\u7528\u6743\u9650 \u4fdd\u62a4\u5165\u53e3\u3002",
       "tables": [
         "system_role_menu",
         "system_user_post",
@@ -392,12 +421,12 @@
           "evidence": [
             {
               "table": "system_role_menu",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/service/permission/PermissionServiceImpl.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/service/permission/PermissionServiceImpl.java",
               "contains": "roleService.validateRoleList(Collections.singleton(roleId))"
             },
             {
               "table": "system_role_menu",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/service/permission/PermissionServiceImpl.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/service/permission/PermissionServiceImpl.java",
               "contains": "validateMenuList(menuIds)"
             }
           ]
@@ -410,7 +439,7 @@
           "evidence": [
             {
               "table": "system_user_post",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/service/user/AdminUserUniqueValidator.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/service/user/AdminUserUniqueValidator.java",
               "contains": "postService.validatePostList(postIds)"
             }
           ]
@@ -423,12 +452,12 @@
           "evidence": [
             {
               "table": "system_user_role",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/service/permission/PermissionServiceImpl.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/service/permission/PermissionServiceImpl.java",
               "contains": "userService.validateUserList(Collections.singleton(userId))"
             },
             {
               "table": "system_user_role",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/service/permission/PermissionServiceImpl.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/service/permission/PermissionServiceImpl.java",
               "contains": "roleService.validateRoleList(roleIds)"
             }
           ]
@@ -437,7 +466,7 @@
     },
     {
       "id": "user-owned-notification",
-      "reason": "站内信按 user_id 与 user_type 由通知服务限定当前主体，不使用部门数据范围规则。",
+      "reason": "\u7ad9\u5185\u4fe1\u6309 user_id \u4e0e user_type \u7531\u901a\u77e5\u670d\u52a1\u9650\u5b9a\u5f53\u524d\u4e3b\u4f53\uff0c\u4e0d\u4f7f\u7528\u90e8\u95e8\u6570\u636e\u8303\u56f4\u89c4\u5219\u3002",
       "tables": [
         "system_notify_message"
       ],
@@ -450,17 +479,17 @@
           "evidence": [
             {
               "table": "system_notify_message",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/notify/NotifyMessageController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/controller/admin/notify/NotifyMessageController.java",
               "contains": "notifyMessageService.updateNotifyMessageRead(ids, getLoginUserId(), UserTypeEnum.ADMIN.getValue())"
             },
             {
               "table": "system_notify_message",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/dal/mysql/notify/NotifyMessageMapper.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/dal/mysql/notify/NotifyMessageMapper.java",
               "contains": ".eq(NotifyMessageDO::getUserId, userId)"
             },
             {
               "table": "system_notify_message",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/dal/mysql/notify/NotifyMessageMapper.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-system/src/main/java/com/basicframework/module/system/dal/mysql/notify/NotifyMessageMapper.java",
               "contains": ".eq(NotifyMessageDO::getUserType, userType)"
             }
           ]
@@ -469,7 +498,7 @@
     },
     {
       "id": "ai-conversation-data",
-      "reason": "AI 会话与消息是主体自有业务数据（L3）：归属由服务端会话身份（应用 + 主体类型 + 外部用户标识）决定，所有读写都按当前主体过滤，越权访问与不存在同语义；管理端没有跨主体读取会话正文的入口，因此不登记部门/用户数据权限列，改为按主体绑定（subject-bound）控制。",
+      "reason": "AI \u4f1a\u8bdd\u4e0e\u6d88\u606f\u662f\u4e3b\u4f53\u81ea\u6709\u4e1a\u52a1\u6570\u636e\uff08L3\uff09\uff1a\u5f52\u5c5e\u7531\u670d\u52a1\u7aef\u4f1a\u8bdd\u8eab\u4efd\uff08\u5e94\u7528 + \u4e3b\u4f53\u7c7b\u578b + \u5916\u90e8\u7528\u6237\u6807\u8bc6\uff09\u51b3\u5b9a\uff0c\u6240\u6709\u8bfb\u5199\u90fd\u6309\u5f53\u524d\u4e3b\u4f53\u8fc7\u6ee4\uff0c\u8d8a\u6743\u8bbf\u95ee\u4e0e\u4e0d\u5b58\u5728\u540c\u8bed\u4e49\uff1b\u7ba1\u7406\u7aef\u6ca1\u6709\u8de8\u4e3b\u4f53\u8bfb\u53d6\u4f1a\u8bdd\u6b63\u6587\u7684\u5165\u53e3\uff0c\u56e0\u6b64\u4e0d\u767b\u8bb0\u90e8\u95e8/\u7528\u6237\u6570\u636e\u6743\u9650\u5217\uff0c\u6539\u4e3a\u6309\u4e3b\u4f53\u7ed1\u5b9a\uff08subject-bound\uff09\u63a7\u5236\u3002",
       "tables": [
         "ai_conversation",
         "ai_conversation_message"
@@ -484,32 +513,32 @@
           "evidence": [
             {
               "table": "ai_conversation",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/conversation/AiConversationMapper.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/conversation/AiConversationMapper.java",
               "contains": ".eq(AiConversationDO::getExternalUserId, externalUserId == null ? \"\" : externalUserId)"
             },
             {
               "table": "ai_conversation",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/conversation/AiConversationServiceImpl.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/conversation/AiConversationServiceImpl.java",
               "contains": "conversationMapper.selectOwned("
             },
             {
               "table": "ai_conversation",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/conversation/AiConversationSubjectResolver.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/conversation/AiConversationSubjectResolver.java",
               "contains": "AiUserSessionCommonApi.INFO_KEY_APPLICATION_ID"
             },
             {
               "table": "ai_conversation_message",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/conversation/AiConversationServiceImpl.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/conversation/AiConversationServiceImpl.java",
               "contains": ".setApplicationId(conversation.getApplicationId())"
             },
             {
               "table": "ai_conversation_message",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/conversation/AiConversationMessageMapper.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/conversation/AiConversationMessageMapper.java",
               "contains": ".eq(AiConversationMessageDO::getConversationId, conversationId)"
             },
             {
               "table": "ai_conversation_message",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/app/v1/conversation/AiConversationController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/app/v1/conversation/AiConversationController.java",
               "contains": "@AuthenticatedOnly"
             }
           ]
@@ -518,7 +547,7 @@
     },
     {
       "id": "ai-run-data",
-      "reason": "AI 运行、幂等记录与运行任务是主体自有的执行数据：归属由服务端会话身份（应用 + 主体类型 + 外部用户标识）决定，受理、读取与分页都按当前主体过滤，越权与不存在同语义；幂等记录只保存请求摘要与运行引用，不保存正文。管理端没有跨主体读取运行正文的入口，因此不登记部门/用户数据权限列，改为按主体绑定（subject-bound）控制。",
+      "reason": "AI \u8fd0\u884c\u3001\u5e42\u7b49\u8bb0\u5f55\u4e0e\u8fd0\u884c\u4efb\u52a1\u662f\u4e3b\u4f53\u81ea\u6709\u7684\u6267\u884c\u6570\u636e\uff1a\u5f52\u5c5e\u7531\u670d\u52a1\u7aef\u4f1a\u8bdd\u8eab\u4efd\uff08\u5e94\u7528 + \u4e3b\u4f53\u7c7b\u578b + \u5916\u90e8\u7528\u6237\u6807\u8bc6\uff09\u51b3\u5b9a\uff0c\u53d7\u7406\u3001\u8bfb\u53d6\u4e0e\u5206\u9875\u90fd\u6309\u5f53\u524d\u4e3b\u4f53\u8fc7\u6ee4\uff0c\u8d8a\u6743\u4e0e\u4e0d\u5b58\u5728\u540c\u8bed\u4e49\uff1b\u5e42\u7b49\u8bb0\u5f55\u53ea\u4fdd\u5b58\u8bf7\u6c42\u6458\u8981\u4e0e\u8fd0\u884c\u5f15\u7528\uff0c\u4e0d\u4fdd\u5b58\u6b63\u6587\u3002\u7ba1\u7406\u7aef\u6ca1\u6709\u8de8\u4e3b\u4f53\u8bfb\u53d6\u8fd0\u884c\u6b63\u6587\u7684\u5165\u53e3\uff0c\u56e0\u6b64\u4e0d\u767b\u8bb0\u90e8\u95e8/\u7528\u6237\u6570\u636e\u6743\u9650\u5217\uff0c\u6539\u4e3a\u6309\u4e3b\u4f53\u7ed1\u5b9a\uff08subject-bound\uff09\u63a7\u5236\u3002",
       "tables": [
         "ai_run",
         "ai_run_idempotency",
@@ -537,37 +566,37 @@
           "evidence": [
             {
               "table": "ai_run",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/run/AiRunMapper.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/run/AiRunMapper.java",
               "contains": ".eq(AiRunDO::getExternalUserId, externalUserId == null ? \"\" : externalUserId)"
             },
             {
               "table": "ai_run",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/run/AiRunServiceImpl.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/run/AiRunServiceImpl.java",
               "contains": "runMapper.selectOwned("
             },
             {
               "table": "ai_run_idempotency",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/run/AiRunIdempotencyMapper.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/run/AiRunIdempotencyMapper.java",
               "contains": ".eq(AiRunIdempotencyDO::getIdempotencyKey, idempotencyKey)"
             },
             {
               "table": "ai_run_idempotency",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/run/AiRunServiceImpl.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/run/AiRunServiceImpl.java",
               "contains": "idempotencyMapper.selectByKey("
             },
             {
               "table": "ai_run_task",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/run/AiRunAcceptanceWriter.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/run/AiRunAcceptanceWriter.java",
               "contains": "taskMapper.insert(new AiRunTaskDO()"
             },
             {
               "table": "ai_run_task",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/app/v1/run/AiRunController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/app/v1/run/AiRunController.java",
               "contains": "@AuthenticatedOnly"
             },
             {
               "table": "ai_tool_action",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/tool/action/AiToolActionServiceImpl.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/tool/action/AiToolActionServiceImpl.java",
               "contains": "requireSameSubject("
             }
           ]
@@ -576,7 +605,7 @@
     },
     {
       "id": "ai-run-event-data",
-      "reason": "AI 运行事件是主体自有执行数据的事件源：归属随运行（应用 + 主体类型 + 外部用户标识），订阅与重放都按当前主体过滤运行，越权与不存在同语义；事件只保存受控结果块，不保存提示词或模型输入正文。管理端没有跨主体读取事件正文的入口，因此不登记部门/用户数据权限列，改为按主体绑定（subject-bound）控制。",
+      "reason": "AI \u8fd0\u884c\u4e8b\u4ef6\u662f\u4e3b\u4f53\u81ea\u6709\u6267\u884c\u6570\u636e\u7684\u4e8b\u4ef6\u6e90\uff1a\u5f52\u5c5e\u968f\u8fd0\u884c\uff08\u5e94\u7528 + \u4e3b\u4f53\u7c7b\u578b + \u5916\u90e8\u7528\u6237\u6807\u8bc6\uff09\uff0c\u8ba2\u9605\u4e0e\u91cd\u653e\u90fd\u6309\u5f53\u524d\u4e3b\u4f53\u8fc7\u6ee4\u8fd0\u884c\uff0c\u8d8a\u6743\u4e0e\u4e0d\u5b58\u5728\u540c\u8bed\u4e49\uff1b\u4e8b\u4ef6\u53ea\u4fdd\u5b58\u53d7\u63a7\u7ed3\u679c\u5757\uff0c\u4e0d\u4fdd\u5b58\u63d0\u793a\u8bcd\u6216\u6a21\u578b\u8f93\u5165\u6b63\u6587\u3002\u7ba1\u7406\u7aef\u6ca1\u6709\u8de8\u4e3b\u4f53\u8bfb\u53d6\u4e8b\u4ef6\u6b63\u6587\u7684\u5165\u53e3\uff0c\u56e0\u6b64\u4e0d\u767b\u8bb0\u90e8\u95e8/\u7528\u6237\u6570\u636e\u6743\u9650\u5217\uff0c\u6539\u4e3a\u6309\u4e3b\u4f53\u7ed1\u5b9a\uff08subject-bound\uff09\u63a7\u5236\u3002",
       "tables": [
         "ai_run_event"
       ],
@@ -589,17 +618,17 @@
           "evidence": [
             {
               "table": "ai_run_event",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/event/AiRunEventServiceImpl.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/event/AiRunEventServiceImpl.java",
               "contains": "runMapper.selectOwned("
             },
             {
               "table": "ai_run_event",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/event/AiRunEventMapper.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/event/AiRunEventMapper.java",
               "contains": ".eq(AiRunEventDO::getRunId, runId)"
             },
             {
               "table": "ai_run_event",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/app/v1/run/AiRunController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/app/v1/run/AiRunController.java",
               "contains": "@AuthenticatedOnly"
             }
           ]
@@ -608,7 +637,7 @@
     },
     {
       "id": "ai-connector-config",
-      "reason": "AI 连接器与探测结论是控制面配置：连接器由功能权限 ai:connector:* 管理，没有部门或用户行级归属；秘密只以 CredentialCipher 密文保存，查询接口只回\"是否已配置\"，探测结论只记录稳定原因码。因此不登记部门/用户数据权限列，改为功能权限控制。",
+      "reason": "AI \u8fde\u63a5\u5668\u4e0e\u63a2\u6d4b\u7ed3\u8bba\u662f\u63a7\u5236\u9762\u914d\u7f6e\uff1a\u8fde\u63a5\u5668\u7531\u529f\u80fd\u6743\u9650 ai:connector:* \u7ba1\u7406\uff0c\u6ca1\u6709\u90e8\u95e8\u6216\u7528\u6237\u884c\u7ea7\u5f52\u5c5e\uff1b\u79d8\u5bc6\u53ea\u4ee5 CredentialCipher \u5bc6\u6587\u4fdd\u5b58\uff0c\u67e5\u8be2\u63a5\u53e3\u53ea\u56de\"\u662f\u5426\u5df2\u914d\u7f6e\"\uff0c\u63a2\u6d4b\u7ed3\u8bba\u53ea\u8bb0\u5f55\u7a33\u5b9a\u539f\u56e0\u7801\u3002\u56e0\u6b64\u4e0d\u767b\u8bb0\u90e8\u95e8/\u7528\u6237\u6570\u636e\u6743\u9650\u5217\uff0c\u6539\u4e3a\u529f\u80fd\u6743\u9650\u63a7\u5236\u3002",
       "tables": [
         "ai_connector",
         "ai_connector_probe",
@@ -625,27 +654,27 @@
           "evidence": [
             {
               "table": "ai_connector",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/connector/AiConnectorController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/connector/AiConnectorController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('ai:connector:query')\")"
             },
             {
               "table": "ai_connector",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/connector/AiConnectorServiceImpl.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/connector/AiConnectorServiceImpl.java",
               "contains": "credentialCipher.encrypt("
             },
             {
               "table": "ai_connector_probe",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/connector/AiConnectorController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/connector/AiConnectorController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('ai:connector:probe')\")"
             },
             {
               "table": "ai_connector_probe",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/connector/AiConnectorServiceImpl.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/connector/AiConnectorServiceImpl.java",
               "contains": "probeMapper.insert(probe)"
             },
             {
               "table": "ai_connector_operation",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/connector/AiConnectorController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/connector/AiConnectorController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('ai:connector:operation')\")"
             }
           ]
@@ -654,7 +683,7 @@
     },
     {
       "id": "ai-theme-config",
-      "reason": "主题修订是控制面配置（应用品牌 token 与布局选项的不可变发布版本），由功能权限 ai:theme:* 管理，不具有部门或用户行级归属；运行时覆盖不落库，因此不存在可授权的行级数据。",
+      "reason": "\u4e3b\u9898\u4fee\u8ba2\u662f\u63a7\u5236\u9762\u914d\u7f6e\uff08\u5e94\u7528\u54c1\u724c token \u4e0e\u5e03\u5c40\u9009\u9879\u7684\u4e0d\u53ef\u53d8\u53d1\u5e03\u7248\u672c\uff09\uff0c\u7531\u529f\u80fd\u6743\u9650 ai:theme:* \u7ba1\u7406\uff0c\u4e0d\u5177\u6709\u90e8\u95e8\u6216\u7528\u6237\u884c\u7ea7\u5f52\u5c5e\uff1b\u8fd0\u884c\u65f6\u8986\u76d6\u4e0d\u843d\u5e93\uff0c\u56e0\u6b64\u4e0d\u5b58\u5728\u53ef\u6388\u6743\u7684\u884c\u7ea7\u6570\u636e\u3002",
       "tables": [
         "ai_theme"
       ],
@@ -667,7 +696,7 @@
           "evidence": [
             {
               "table": "ai_theme",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/theme/AiThemeController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/theme/AiThemeController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('ai:theme:query')\")"
             }
           ]
@@ -676,7 +705,7 @@
     },
     {
       "id": "ai-dataset-config",
-      "reason": "语义数据集与其版本是控制面配置（来源对象 + 语义定义快照），由功能权限 ai:dataset:* 管理，不具有部门或用户行级归属。版本行是不可变引用快照，被报表引用时删除会被拒绝（引用保护），因此不适用行级数据权限。",
+      "reason": "\u8bed\u4e49\u6570\u636e\u96c6\u4e0e\u5176\u7248\u672c\u662f\u63a7\u5236\u9762\u914d\u7f6e\uff08\u6765\u6e90\u5bf9\u8c61 + \u8bed\u4e49\u5b9a\u4e49\u5feb\u7167\uff09\uff0c\u7531\u529f\u80fd\u6743\u9650 ai:dataset:* \u7ba1\u7406\uff0c\u4e0d\u5177\u6709\u90e8\u95e8\u6216\u7528\u6237\u884c\u7ea7\u5f52\u5c5e\u3002\u7248\u672c\u884c\u662f\u4e0d\u53ef\u53d8\u5f15\u7528\u5feb\u7167\uff0c\u88ab\u62a5\u8868\u5f15\u7528\u65f6\u5220\u9664\u4f1a\u88ab\u62d2\u7edd\uff08\u5f15\u7528\u4fdd\u62a4\uff09\uff0c\u56e0\u6b64\u4e0d\u9002\u7528\u884c\u7ea7\u6570\u636e\u6743\u9650\u3002",
       "tables": [
         "ai_dataset",
         "ai_dataset_version"
@@ -691,12 +720,12 @@
           "evidence": [
             {
               "table": "ai_dataset",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/dataset/AiDatasetController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/dataset/AiDatasetController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('ai:dataset:query')\")"
             },
             {
               "table": "ai_dataset_version",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/dataset/AiDatasetController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/dataset/AiDatasetController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('ai:dataset:version:publish')\")"
             }
           ]
@@ -705,7 +734,7 @@
     },
     {
       "id": "ai-tool-registry",
-      "reason": "工具注册与版本是控制面配置（来源绑定 + 执行政策 + 输入输出 schema），由功能权限 ai:tool:* 管理，不具有部门或用户行级归属；执行政策默认 DENY，且政策属于不可变版本快照，不存在按主体差异化的行级策略。",
+      "reason": "\u5de5\u5177\u6ce8\u518c\u4e0e\u7248\u672c\u662f\u63a7\u5236\u9762\u914d\u7f6e\uff08\u6765\u6e90\u7ed1\u5b9a + \u6267\u884c\u653f\u7b56 + \u8f93\u5165\u8f93\u51fa schema\uff09\uff0c\u7531\u529f\u80fd\u6743\u9650 ai:tool:* \u7ba1\u7406\uff0c\u4e0d\u5177\u6709\u90e8\u95e8\u6216\u7528\u6237\u884c\u7ea7\u5f52\u5c5e\uff1b\u6267\u884c\u653f\u7b56\u9ed8\u8ba4 DENY\uff0c\u4e14\u653f\u7b56\u5c5e\u4e8e\u4e0d\u53ef\u53d8\u7248\u672c\u5feb\u7167\uff0c\u4e0d\u5b58\u5728\u6309\u4e3b\u4f53\u5dee\u5f02\u5316\u7684\u884c\u7ea7\u7b56\u7565\u3002",
       "tables": [
         "ai_tool",
         "ai_tool_version"
@@ -720,12 +749,12 @@
           "evidence": [
             {
               "table": "ai_tool",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/tool/AiToolController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/tool/AiToolController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('ai:tool:query')\")"
             },
             {
               "table": "ai_tool_version",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/tool/AiToolController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/tool/AiToolController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('ai:tool:version')\")"
             }
           ]
@@ -734,7 +763,7 @@
     },
     {
       "id": "ai-knowledge-config",
-      "reason": "知识库与文档元数据（ai_knowledge_base/ai_knowledge_document/ai_knowledge_document_version）是控制面配置，由功能权限 ai:knowledge:* 管理，不具有部门或用户行级归属；检索期的行级可见性由 A03 授权目录（资源类型 KNOWLEDGE_BASE，资源标识 = 知识库标识）与文档 ACL 共同决定，不在本表。派生数据（ai_knowledge_chunk/ai_knowledge_index_generation）随所属知识库与文档版本回收，同样按功能权限管理。",
+      "reason": "\u77e5\u8bc6\u5e93\u4e0e\u6587\u6863\u5143\u6570\u636e\uff08ai_knowledge_base/ai_knowledge_document/ai_knowledge_document_version\uff09\u662f\u63a7\u5236\u9762\u914d\u7f6e\uff0c\u7531\u529f\u80fd\u6743\u9650 ai:knowledge:* \u7ba1\u7406\uff0c\u4e0d\u5177\u6709\u90e8\u95e8\u6216\u7528\u6237\u884c\u7ea7\u5f52\u5c5e\uff1b\u68c0\u7d22\u671f\u7684\u884c\u7ea7\u53ef\u89c1\u6027\u7531 A03 \u6388\u6743\u76ee\u5f55\uff08\u8d44\u6e90\u7c7b\u578b KNOWLEDGE_BASE\uff0c\u8d44\u6e90\u6807\u8bc6 = \u77e5\u8bc6\u5e93\u6807\u8bc6\uff09\u4e0e\u6587\u6863 ACL \u5171\u540c\u51b3\u5b9a\uff0c\u4e0d\u5728\u672c\u8868\u3002\u6d3e\u751f\u6570\u636e\uff08ai_knowledge_chunk/ai_knowledge_index_generation\uff09\u968f\u6240\u5c5e\u77e5\u8bc6\u5e93\u4e0e\u6587\u6863\u7248\u672c\u56de\u6536\uff0c\u540c\u6837\u6309\u529f\u80fd\u6743\u9650\u7ba1\u7406\u3002",
       "tables": [
         "ai_knowledge_base",
         "ai_knowledge_chunk",
@@ -757,32 +786,32 @@
           "evidence": [
             {
               "table": "ai_knowledge_base",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/knowledge/AiKnowledgeBaseController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/knowledge/AiKnowledgeBaseController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('ai:knowledge:query')\")"
             },
             {
               "table": "ai_knowledge_document",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/knowledge/AiKnowledgeDocumentController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/knowledge/AiKnowledgeDocumentController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('ai:knowledge:query')\")"
             },
             {
               "table": "ai_knowledge_document_version",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/knowledge/AiKnowledgeDocumentController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/knowledge/AiKnowledgeDocumentController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('ai:knowledge:version')\")"
             },
             {
               "table": "ai_knowledge_index_generation",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/knowledge/AiKnowledgeDocumentController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/knowledge/AiKnowledgeDocumentController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('ai:knowledge:version')\")"
             },
             {
               "table": "ai_knowledge_chunk",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/knowledge/AiKnowledgeDocumentController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/knowledge/AiKnowledgeDocumentController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('ai:knowledge:version')\")"
             },
             {
               "table": "ai_knowledge_ingestion_task",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/knowledge/AiKnowledgeDocumentController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/knowledge/AiKnowledgeDocumentController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('ai:knowledge:query')\")"
             }
           ]
@@ -791,7 +820,7 @@
     },
     {
       "id": "ai-report-private",
-      "reason": "报表首期为**私人报表**：归属由服务端会话身份（应用 + 主体类型 + 外部用户标识）判定，读取一律按当前主体过滤（越权与不存在同语义），不参与部门/用户行级数据权限（FR-28 明确\"首期私人报表，分享发布单独迭代\"）。版本读取（含旧版本编号）逐项按 A03 范围指纹复核：当前范围无法证明覆盖保存时范围即拒绝显示。刷新尝试（R06）同样按报表归属控制：有会话时校验归属，作业以报表自身归属列为主体（不接受外部指定身份）；上一次结果（存于刷新尝试）在读取前同样逐项复核范围指纹，失权即拒绝（AT-048）。",
+      "reason": "\u62a5\u8868\u9996\u671f\u4e3a**\u79c1\u4eba\u62a5\u8868**\uff1a\u5f52\u5c5e\u7531\u670d\u52a1\u7aef\u4f1a\u8bdd\u8eab\u4efd\uff08\u5e94\u7528 + \u4e3b\u4f53\u7c7b\u578b + \u5916\u90e8\u7528\u6237\u6807\u8bc6\uff09\u5224\u5b9a\uff0c\u8bfb\u53d6\u4e00\u5f8b\u6309\u5f53\u524d\u4e3b\u4f53\u8fc7\u6ee4\uff08\u8d8a\u6743\u4e0e\u4e0d\u5b58\u5728\u540c\u8bed\u4e49\uff09\uff0c\u4e0d\u53c2\u4e0e\u90e8\u95e8/\u7528\u6237\u884c\u7ea7\u6570\u636e\u6743\u9650\uff08FR-28 \u660e\u786e\"\u9996\u671f\u79c1\u4eba\u62a5\u8868\uff0c\u5206\u4eab\u53d1\u5e03\u5355\u72ec\u8fed\u4ee3\"\uff09\u3002\u7248\u672c\u8bfb\u53d6\uff08\u542b\u65e7\u7248\u672c\u7f16\u53f7\uff09\u9010\u9879\u6309 A03 \u8303\u56f4\u6307\u7eb9\u590d\u6838\uff1a\u5f53\u524d\u8303\u56f4\u65e0\u6cd5\u8bc1\u660e\u8986\u76d6\u4fdd\u5b58\u65f6\u8303\u56f4\u5373\u62d2\u7edd\u663e\u793a\u3002\u5237\u65b0\u5c1d\u8bd5\uff08R06\uff09\u540c\u6837\u6309\u62a5\u8868\u5f52\u5c5e\u63a7\u5236\uff1a\u6709\u4f1a\u8bdd\u65f6\u6821\u9a8c\u5f52\u5c5e\uff0c\u4f5c\u4e1a\u4ee5\u62a5\u8868\u81ea\u8eab\u5f52\u5c5e\u5217\u4e3a\u4e3b\u4f53\uff08\u4e0d\u63a5\u53d7\u5916\u90e8\u6307\u5b9a\u8eab\u4efd\uff09\uff1b\u4e0a\u4e00\u6b21\u7ed3\u679c\uff08\u5b58\u4e8e\u5237\u65b0\u5c1d\u8bd5\uff09\u5728\u8bfb\u53d6\u524d\u540c\u6837\u9010\u9879\u590d\u6838\u8303\u56f4\u6307\u7eb9\uff0c\u5931\u6743\u5373\u62d2\u7edd\uff08AT-048\uff09\u3002",
       "tables": [
         "ai_report",
         "ai_report_version",
@@ -808,37 +837,37 @@
           "evidence": [
             {
               "table": "ai_report",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/report/AiReportMapper.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/report/AiReportMapper.java",
               "contains": ".eq(AiReportDO::getExternalUserId, externalUserId == null ? \"\" : externalUserId)"
             },
             {
               "table": "ai_report",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/report/persistence/AiReportServiceImpl.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/report/persistence/AiReportServiceImpl.java",
               "contains": "requireOwnedReport("
             },
             {
               "table": "ai_report_version",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/report/AiReportVersionMapper.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/report/AiReportVersionMapper.java",
               "contains": ".eq(AiReportVersionDO::getReportId, reportId)"
             },
             {
               "table": "ai_report_version",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/report/persistence/AiReportServiceImpl.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/report/persistence/AiReportServiceImpl.java",
               "contains": "reauthorizeHistorical("
             },
             {
               "table": "ai_report_version",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/app/v1/report/AiReportController.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/app/v1/report/AiReportController.java",
               "contains": "@AuthenticatedOnly"
             },
             {
               "table": "ai_report_refresh",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/report/AiReportRefreshMapper.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/report/AiReportRefreshMapper.java",
               "contains": "AiReportRefreshDO::getReportId, reportId"
             },
             {
               "table": "ai_report_refresh",
-              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/report/refresh/AiReportRefreshServiceImpl.java",
+              "path": "\u540e\u7aef\u4ee3\u7801/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/report/refresh/AiReportRefreshServiceImpl.java",
               "contains": "requireScopeStillCovers("
             }
           ]

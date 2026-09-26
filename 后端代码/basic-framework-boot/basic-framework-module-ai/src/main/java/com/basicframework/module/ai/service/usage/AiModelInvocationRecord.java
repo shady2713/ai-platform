@@ -56,6 +56,24 @@ public class AiModelInvocationRecord {
     /** 失败原因（ModelException.Reason 名称）；成功时为空 */
     private String errorReason;
 
+    /** 应用编号（Q02 落账本的聚合维度；低层调用可能为空，此时不落账本）。 */
+    private Long applicationId;
+
+    /** 服务编号（Q02 落账本的聚合维度）。 */
+    private Long serviceId;
+
+    /** 运行编号（Q02 落账本；与 taskId 二选一）。 */
+    private Long runId;
+
+    /** 任务编号（Q02 落账本；与 runId 二选一）。 */
+    private Long taskId;
+
+    /** 主体标识（应用编号 + 主体摘要；不含身份信息）。 */
+    private String subjectRef;
+
+    /** 模型标识（非秘密配置；为空时落账本用端点引用代替）。 */
+    private String modelRef;
+
     /** 是否成功。 */
     public boolean succeeded() {
         return "SUCCEEDED".equals(status);

@@ -4,7 +4,7 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V80.
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V81.
 -- Only the 49 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
@@ -2672,6 +2672,64 @@ UPDATE `system_menu` SET `status` = 0, `updater` = '1', `update_time` = '2026-09
 WHERE `id` = 4105 AND `status` = 1;
 INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
 (4110, 'Chat 集成', 'ai:application:query', 2, 13, 4000, 'chat-integration', 'ep:chat-line-round', 'ai/chat-integration/index', 'AiChatIntegration', 0, b'1', b'1', b'1', '1', '2026-09-25 05:00:00', '1', '2026-09-25 05:00:00', b'0');
+
+-- AI 用量账本与配额占位（V81）
+
+DROP TABLE IF EXISTS `ai_usage_ledger`;
+
+CREATE TABLE `ai_usage_ledger` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '记录编号',
+  `invocation_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '调用标识（一次真实上游调用一个，重复写入去重）',
+  `run_id` bigint DEFAULT NULL COMMENT '运行编号（与 task 二选一）',
+  `task_id` bigint DEFAULT NULL COMMENT '任务编号（与 run 二选一）',
+  `application_id` bigint NOT NULL COMMENT '应用编号（按应用聚合的维度）',
+  `service_id` bigint DEFAULT NULL COMMENT '服务编号（按服务聚合的维度）',
+  `subject_ref` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '主体标识（应用编号 + 主体摘要；不含身份信息）',
+  `model_ref` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '模型标识（非秘密配置）',
+  `model_revision` int DEFAULT NULL COMMENT '模型配置修订号',
+  `endpoint_ref` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '端点引用（编号/别名，不是地址或密钥）',
+  `input_tokens` bigint DEFAULT NULL COMMENT '输入 token（未知为空，不写 0）',
+  `output_tokens` bigint DEFAULT NULL COMMENT '输出 token（未知为空，不写 0）',
+  `usage_source` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '计量来源（REPORTED/ESTIMATED/UNKNOWN）',
+  `duration_ms` int DEFAULT NULL COMMENT '上游耗时（毫秒）',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '调用结果（SUCCEEDED/FAILED/CANCELLED）',
+  `occurred_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发生时间（聚合维度）',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `uk_ai_usage_ledger_invocation` (`invocation_id`),
+  KEY `idx_ai_usage_ledger_app_time` (`application_id`,`occurred_at`),
+  KEY `idx_ai_usage_ledger_service_time` (`service_id`,`occurred_at`),
+  KEY `idx_ai_usage_ledger_run` (`run_id`),
+  KEY `idx_ai_usage_ledger_task` (`task_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 用量账本（一次上游调用一条，Q02）';
+
+DROP TABLE IF EXISTS `ai_quota_lease`;
+
+CREATE TABLE `ai_quota_lease` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '占位编号',
+  `lease_key` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '占位键（应用:服务:调用标识，唯一）',
+  `application_id` bigint NOT NULL COMMENT '应用编号（并发限额的维度）',
+  `service_id` bigint DEFAULT NULL COMMENT '服务编号（可空：按应用限额）',
+  `invocation_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '调用标识（与账本同口径；重复占位不叠加）',
+  `holder_ref` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '持有者（进程/实例标识，便于排查残留占位）',
+  `state` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '状态（ACTIVE/RELEASED）',
+  `lease_until` datetime NOT NULL COMMENT '租约到期时间（到期即可回收配额）',
+  `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `uk_ai_quota_lease_key` (`lease_key`),
+  KEY `idx_ai_quota_lease_active` (`application_id`,`state`,`lease_until`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 并发配额占位（带租约，Q02）';
+
+-- 用量监控菜单与权限点（V81）
+INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
+(4115, '用量与限额', 'ai:usage:query', 2, 14, 4000, 'usage', 'ep:data-line', 'ai/usage/index', 'AiUsage', 0, b'1', b'1', b'1', '1', '2026-09-25 16:00:00', '1', '2026-09-25 16:00:00', b'0');
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
