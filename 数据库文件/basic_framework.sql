@@ -4,7 +4,7 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V81.
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V82.
 -- Only the 49 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
@@ -2727,9 +2727,11 @@ CREATE TABLE `ai_quota_lease` (
   KEY `idx_ai_quota_lease_active` (`application_id`,`state`,`lease_until`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 并发配额占位（带租约，Q02）';
 
--- 用量监控菜单与权限点（V81）
+-- 用量监控与运行监控菜单、权限点（V81/V82）
 INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
-(4115, '用量与限额', 'ai:usage:query', 2, 14, 4000, 'usage', 'ep:data-line', 'ai/usage/index', 'AiUsage', 0, b'1', b'1', b'1', '1', '2026-09-25 16:00:00', '1', '2026-09-25 16:00:00', b'0');
+(4115, '用量与限额', 'ai:usage:query', 2, 14, 4000, 'usage', 'ep:data-line', 'ai/usage/index', 'AiUsage', 0, b'1', b'1', b'1', '1', '2026-09-25 16:00:00', '1', '2026-09-25 16:00:00', b'0'),
+(4116, '运行监控', 'ai:observability:query', 2, 15, 4000, 'observability', 'ep:monitor', 'ai/observability/index', 'AiObservability', 0, b'1', b'1', b'1', '1', '2026-09-26 17:00:00', '1', '2026-09-26 17:00:00', b'0'),
+(4117, '运行重试', 'ai:observability:retry', 3, 16, 4116, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-26 17:00:00', '1', '2026-09-26 17:00:00', b'0');
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
