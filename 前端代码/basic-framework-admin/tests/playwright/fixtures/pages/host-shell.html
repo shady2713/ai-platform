@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Q06 宿主夹具</title>
+    <style>
+      /*
+       * 宿主自己的布局：挂载容器占满视口宽度（AT-054 的"窄屏铺满视口"前提），
+       * 并且**由宿主**给 iframe 定尺寸——SDK 只提供外壳结构，不注入任何样式表：
+       * `ChatFramePort` 的契约就是"iframe 由宿主创建/销毁"，尺寸自然也归宿主。
+       */
+      body {
+        margin: 0;
+        font-family: system-ui, sans-serif;
+      }
+
+      .host-grid {
+        display: grid;
+        gap: 8px;
+      }
+
+      .host-head {
+        padding: 16px;
+      }
+
+      .host-frame-point,
+      .host-mount-point {
+        box-sizing: border-box;
+        width: 100%;
+        min-height: 48px;
+        border: 1px dashed #bbb;
+      }
+
+      /*
+       * 模态外壳的定位同样归宿主：SDK 只用内联样式表达"面板要 100% 宽/高"，
+       * overlay 的定位与高度必须由宿主给出，否则百分比高度会退化成内容高度。
+       * inline 形态保持普通流（不抢宿主布局）。
+       */
+      .host-mount-point .ai-chat-overlay:not(.ai-chat-overlay--inline) {
+        position: fixed;
+        inset: 0;
+      }
+
+      .host-mount-point .ai-chat-scroll {
+        height: 100%;
+      }
+
+      .host-mount-point [data-testid='ai-chat-frame'] {
+        width: 100%;
+        height: 100%;
+        border: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="host-grid">
+      <div class="host-head">
+        <h1>第三方宿主（夹具）</h1>
+        <p id="host-status">host-fixture-loading</p>
+        <p>
+          <button id="q06-open-dialog" data-mount="dialog" type="button">
+            打开对话
+          </button>
+          <button id="q06-open-inline" data-mount="inline" type="button">
+            打开内联面板
+          </button>
+        </p>
+      </div>
+      <div class="host-mount-point" id="host-mount-point"></div>
+      <div class="host-frame-point" id="host-frame-point"></div>
+    </main>
+    <script type="module" src="/host-shell.js"></script>
+  </body>
+</html>

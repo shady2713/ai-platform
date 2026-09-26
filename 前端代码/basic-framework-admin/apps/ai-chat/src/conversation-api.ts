@@ -8,7 +8,8 @@ import { AiChatApiError } from '@vben/ai-embed-sdk';
  * 会话接口端口实现（C02）：独立 Chat 应用走**应用端**会话接口（O01 契约）。
  *
  * <p>为什么单独一层：会话 composable 只依赖端口（可单测、可换宿主），
- * 具体请求与票据读取留在应用侧；错误统一走 `parseCommonResult`（与开放客户端同一口径）。
+ * 具体请求与票据读取留在应用侧；错误统一走 `parseCommonResult`（与开放客户端同一口径），
+ * 传输层失败与非法 JSON 也在本层归一为同一错误类型与稳定原因码。
  */
 export interface ConversationApiOptions {
   /** 应用端基址，例如 https://host/app-api */
@@ -30,6 +31,47 @@ export function createConversationApi(
   const base = options.baseUrl.replace(/\/+$/, '');
   const doFetch = options.fetchImpl ?? globalThis.fetch;
 
+  /**
+   * 发出请求：传输层失败（连接被拒/DNS/断网）没有 HTTP 状态码，
+   * 统一转成 `AiChatApiError`（`status = 0`、`code = NETWORK_UNREACHABLE`）。
+   *
+   * <p>为什么不在调用点兜底：界面与日志需要**稳定原因**而不是运行时的原始
+   * `TypeError: Failed to fetch`；错误类型与信封错误一致，消费者只处理一种错误通道。
+   */
+  async function sendRequest(
+    url: string,
+    init: RequestInit,
+  ): Promise<Response> {
+    try {
+      return await doFetch(url, init);
+    } catch (error) {
+      if (error instanceof AiChatApiError) {
+        throw error;
+      }
+      throw new AiChatApiError(
+        0,
+        'NETWORK_UNREACHABLE',
+        `无法连接 AI 服务（${base}）：网络不可达`,
+      );
+    }
+  }
+
+  /**
+   * 读取 JSON 正文：正文不是合法 JSON 时同样给出稳定错误，
+   * 不回显原始正文（错误页可能是 HTML，界面只显示状态码与原因码）。
+   */
+  async function readJsonBody(response: Response): Promise<unknown> {
+    try {
+      return await response.json();
+    } catch {
+      throw new AiChatApiError(
+        response.status,
+        'MALFORMED_RESPONSE',
+        `响应不是合法 JSON（HTTP ${response.status}）`,
+      );
+    }
+  }
+
   async function request<T>(path: string, init: RequestInit): Promise<T> {
     const headers = new Headers(init.headers);
     headers.set('Accept', 'application/json');
@@ -41,10 +83,10 @@ export function createConversationApi(
     if (token) {
       headers.set('Authorization', `Bearer ${token}`);
     }
-    const response = await doFetch(`${base}${path}`, { ...init, headers });
+    const response = await sendRequest(`${base}${path}`, { ...init, headers });
     const contentType = response.headers.get('content-type') ?? '';
     const payload = contentType.includes('application/json')
-      ? await response.json()
+      ? await readJsonBody(response)
       : await response.text();
     return parseEnvelope<T>(response.status, payload);
   }

@@ -45,6 +45,7 @@
   },
   "devDependencies": {
     "@changesets/cli": "catalog:",
+    "@playwright/test": "catalog:",
     "@types/node": "catalog:",
     "@vben/commitlint-config": "workspace:*",
     "@vben/eslint-config": "workspace:*",

@@ -15,8 +15,34 @@
 |---|---|---|
 | Playwright 配置与夹具 | `前端代码/.../tests/playwright/{playwright.config.ts,tsconfig.json,README.md,fixtures/**,support/**}` | 6 个真实 Origin（端口 5290–5295：宿主页/允许域壳/攻击页/域外壳/管理端产物/Chat 产物）；桥本体用**真实** `apps/ai-chat/src/bridge/iframe-bridge.ts`（vite 打包），宿主侧用**版本化 SDK 产物**（与 C10 `host.js` 同法）；换票/票据由夹具提供（与 C10 `server.mjs` 同角色），断言对象是**票据去向与隔离**，不是平台签发 |
 | 真实浏览器用例 | `tests/playwright/specs/at-051..at-067-*.pw.ts`（7 个文件 22 例） | AT-051/052/053/054/055/056/067 |
-| 依赖 | `package.json` 增 `@playwright/test 1.63.0`（精确版本，ADR 0046 决策 4）；锁文件 +29 行 | `pnpm install --frozen-lockfile --ignore-scripts` exit 0 |
+| 依赖 | `package.json` 增 `@playwright/test`（**workspace catalog 引用 `catalog:`**，目录里锁 1.63.0）；锁文件 +29 行 | `pnpm install --frozen-lockfile --ignore-scripts` exit 0 |
 | 浏览器 | `pnpm exec playwright install chromium` | Chrome for Testing **153.0.8010.12**（chromium-1243）+ headless shell；**未用 `--with-deps`、无缺库报错** |
+
+## 1.b 主管复核记录（2026-09-27）
+
+- 本卡在独立 worktree（`分支 agent/q06`，基线 `agent/f04`）完成，主管用 `git cherry-pick -n 7a50529 6014c5c`
+  合入主仓；本证据文件本身因批量暂存被并入了 F04 的提交 `88173e9`（bookkeeping 瑕疵，内容属本卡，随本卡生效）。
+- **主管独立复跑**（主树，`pnpm install --frozen-lockfile --ignore-scripts` exit 0）：
+  - 不带重建：22 passed / **2 failed** / 3 skipped —— 独立 Chat 产物页因**陈旧 dist** 出现假失败；
+  - 带 `Q06_FORCE_REBUILD=1`：**23 passed / 1 failed（AT-067 管理端图标外发，真实缺陷）/ 3 skipped**，
+    与执行代理报告一致。**结论：本套件必须在构建产物之后运行**（配置里已提供 `Q06_FORCE_REBUILD`），
+    否则陈旧产物会造成假失败；这一点写入 `tests/playwright/README.md` 的运行前置。
+- 主管另核：改动文件最大 500 行（未触 800 行上限）；`check-explicit-any` 0；`check-typecheck-contract` 0（38 包）。
+- **第二轮（同一执行代理）**：`apps/ai-chat` 的失败态已在**卡内允许路径**修复（commit `33d7311`，
+  `conversation-api.ts` 把传输层失败归一为 `AiChatApiError(status=0, code=NETWORK_UNREACHABLE)`、
+  非法 JSON 归一为 `MALFORMED_RESPONSE` 且**不回显正文**，`HTTP_<status>` 只暴露状态码），并补 4 条失败路径用例；
+  实测 `pnpm exec vitest run --dom apps/ai-chat` 27 passed / 5 files、`apps/ai-chat` typecheck 0、eslint 0，
+  全量 `pnpm test:coverage` 368 files/1990 tests 通过且 `conversation-api.ts` 行覆盖 100%（基线 100）。
+- **两个"待授权"补丁已就绪并验证**（存放在 gitignore 的 `.local-state/`，含 sha256）：
+  - `packages/ai-chat-ui` 可见失败提示补丁（`.agent-worktrees/q06/.local-state/q06-task1-package-notice.patch`，
+    sha256 `87e4130…19fc8`，427 行）：加 `ConversationLoadFailure` 归一化、列表与 CRUD 失败不再抛未处理 rejection、
+    面板显示 `会话列表加载失败：<稳定码>` + 重试；临时应用后包测试 29 passed、Chromium 探针 `AGE ERRORS: []`
+    （修复前 `["Failed to fetch"]`）、全量浏览器套件无新增回归（23/1/3），随后已回退。
+  - 门禁接线补丁（`.agent-worktrees/q06/.local-state/q06-gate-wiring.patch`，sha256 `5e5b721…25a70`，434 行）：
+    `scripts/check-e2e-smoke.mjs` + 同名拒绝测试（**空套件/空运行/覆盖不足/unexpected 全部拒绝绿灯**）+
+    `.harness` 双 provider `smoke` 门禁 + `nightly-browser-smoke.yml` + 拓扑断言；探针实测：
+    空套件 exit 1、去掉唯一红灯后 exit 0（21 passed/2 skipped）、接线态 `check-gate-wiring` 0、
+    `check-harness-topology` 0；应用后 `sh .harness/verify.sh smoke` 的**唯一失败就是 AT-067**。
 
 ## 2. 实跑结果（`pnpm exec playwright test --config tests/playwright/playwright.config.ts`，强制重建产物）
 
@@ -41,6 +67,13 @@
   jar + MySQL/Redis + 浏览器三件同时在位；本卡交付的浏览器套件用的是**真实构建产物**（web-ele/ai-chat dist），
   对后端的端到端属未验证（见 §5）。
 
+## 3.b 工具链踩坑（门禁拦下，已修）
+
+- 依赖声明一度写成**精确版本字面量** `"@playwright/test": "1.63.0"`，被仓库 lint 规则
+  `pnpm/json-enforce-catalog` 拒绝（与 `pnpm/yaml-no-unused-catalog-item` 同时报错：目录里有条目而没人引用）。
+  按仓库约定改为 `"catalog:"` 并在 `pnpm-workspace.yaml` 的 catalog 里锁 1.63.0 后 lint 通过。
+- 该教训说明：workspace 依赖必须走 catalog，不能写字面版本（CI 与本地同一规则）。
+
 ## 4. 阻断项（**需要扩范围或改范围才能通过，按要求不标 DONE**）
 
 浏览器用例在真实运行中发现 **4 个已交付卡的缺陷**，其中 2 个直接导致验收项不过；这些文件**不在 Q06 §2 允许路径**内
@@ -52,7 +85,7 @@
 | 2 | `packages/ai-embed-sdk/src/display/mount.ts` | **`destroy()` 后 `open()` 复活外壳**（overlay/iframe 0→1，桥已 `DESTROYED`） | **AT-055（1 例 test.fail）** |
 | 3 | `packages/ai-embed-sdk/src/bridge/host-bridge.ts` | `dispatch()` 对 `NAVIGATE_REQUEST`/`REPORT_CREATED` 走 default → `MESSAGE_NOT_SUPPORTED`，C08 宿主校验器拿不到输入 | AT-051 的宿主侧导航/上报分支 |
 | 4 | `packages/effects/common-ui/src/components/captcha/verification/verify-slide.vue`（`lucide:x` 等） | 运行期请求 `https://api.iconify.design/...` | **AT-067（1 例 fail）** |
-| 5 | `apps/ai-chat`（无后端时的加载失败） | 未处理的页面错误、界面无可见失败提示 | AT-053/067 的失败态展示（**在 Q06 允许路径内**，可修，见 §6） |
+| 5 | `apps/ai-chat/src/conversation-api.ts` | 失败原因不稳定（原始 `TypeError: Failed to fetch`） | **已在卡内修复（`33d7311`）**：稳定错误码 + 不回显正文；可见提示的根因在 `packages/ai-chat-ui`，见补丁 |
 
 另有两项与实现无关但影响"全绿"：**AT-057 无真实 N-1 产物**（C10 首发只有 `ai-embed-sdk-5.6.0.js`，
 只能做基线重放）；**AT-056 需要真实后端 + 应用允许域配置**（本机无后端）。
@@ -65,12 +98,28 @@
 4. 真实网关（Nginx 头部透传、`frame-ancestors` 经反代）。
 5. 夹具票据非平台票据：断言的是票据去向与隔离；平台签发需真实后端凭据（A04）。
 
-## 6. 门禁接线方案（**未接线，原因见下**）
+## 6. 门禁接线方案（**补丁已就绪并验证，待授权后原子落地**）
 
-ADR 0046 的落地步骤（`scripts/check-e2e-smoke.mjs` + 双 provider + nightly workflow）已由本卡验证可行性，
-但**未接入 `.harness`**：一旦接入，AT-067 的图标外发缺陷会让门禁长期变红，而修该缺陷需要 `packages/**` 的
-授权（Q06 §2 未包含）。按卡片纪律"关键项未通过不得标记 DONE、不得用 skip/白名单掩盖"，本卡选择：
-先交付可复现用例与阻断清单，**待范围授权后**再接线并把浏览器门禁设为阻断。
+ADR 0046 的落地步骤已做成可一键应用的补丁（见 §1.b 第二个补丁，含 sha256）：`scripts/check-e2e-smoke.mjs`
+（拒绝"没跑用例却绿灯"：空套件/报告缺失/`expected=0`/覆盖不到全部用例文件/存在 unexpected 失败，任一即失败）、
+同名拒绝测试、`.harness/verify.sh` + `verify.ps1` 的 `smoke` 门禁（与 `verify.sh` 逐项对齐）、
+`nightly-browser-smoke.yml`（nightly + 手动触发，PR 层不引用，保持 ≤10 分钟反馈预算）与拓扑断言。
+
+**为什么不直接落地**：`check-gate-wiring.mjs` 要求每个 `check-*.mjs` 与 `*.test.mjs` 必须在双 provider 直接执行；
+只提交脚本不接线会让 contracts 门禁立刻变红，接线又会因 AT-067（跨卡缺陷 ④）长期变红。
+按卡片纪律"关键项未通过不得标 DONE、不得用 skip/白名单掩盖"，本卡选择：**补丁 + 证据先交付，待授权修完
+缺陷 ①–④ 后一次性接线**，届时 `sh .harness/verify.sh smoke` 应为 0。
+
+## 6.b 本卡门禁结果（提交前实测）
+
+| 门禁 | 退出码 | 说明 |
+|---|---|---|
+| `sh .harness/verify.sh contracts` | 0 | 含源码质量（本卡 22 个新文件均 ≤500 行）、拒绝测试、字段/生命周期/权限目录 |
+| `sh .harness/verify.sh lockfile` | 0 | `pnpm install --frozen-lockfile --ignore-scripts`（catalog 引用后的锁文件） |
+| `sh .harness/verify.sh frontend` | 0 | 类型检查、lint（含 catalog 规则）、单测与覆盖率、生产构建、产物 no-undef |
+| `node scripts/check-coverage-ratchet.mjs --update` / `all` | 0 / 0 | 登记新文件；未下调任何既有基线 |
+
+浏览器套件本身的实跑结果见 §2 与 §1.b（23 passed / 1 failed=AT-067 真实缺陷 / 3 skipped）。
 
 ## 7. 实际执行的命令与结果
 
