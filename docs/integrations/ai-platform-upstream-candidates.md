@@ -3,15 +3,19 @@
 本记录是 [F02 验证并冻结第一组上游依赖](../ai-platform/tasks/F02.md) 的交付物：候选版本、实测组合、Go/No-Go 结论与待补证据。
 所有实验在授权实验目录（`/tmp/f02-experiment`）进行，不进入交付仓库；原始日志与产物归档在 `.local-state/f02-upstream/`（Git 忽略）。
 
+**配套文件**：精确坐标/许可证/完整性/回退材料台账见 [upstream-registry.yaml](upstream-registry.yaml)；
+2026-09-26 的复验命令、退出码与未验证项见 [f02-upstream-dependency-freeze-evidence.md](f02-upstream-dependency-freeze-evidence.md)。
+本文件 §1–§8 为 2026-09-16 首次冻结记录，§10 为 2026-09-26 复验记录（复验改变了 Qdrant Java 客户端的表述，以 §10 为准）。
+
 ## 1. 结论摘要
 
 | 上游 | 冻结版本 | 结论 | 依据 |
 |---|---|---|---|
 | Spring AI | 1.1.8 | **Go** | 1.1 线最后一个发布（2026-06-12），Boot 3.5.15 基线；1.1 线全部已知安全公告的最高修复阈值即 1.1.8 |
 | Spring AI 2.x | 2.0.1（不采用） | **No-Go** | 官方发布说明写明升级到 Spring Boot 4.1.0，与平台 Boot 3.5 线不兼容 |
-| Qdrant 服务端 | qdrant/qdrant:v1.19.1 | **Go** | 与 Spring AI 1.1.8 所用 Java 客户端 1.13.0 实测 create/upsert/query/search/retrieve/delete 全链路通过 |
-| Qdrant Java 客户端 | io.qdrant:client:1.13.0 | **Go** | Spring AI 1.1.8 钉定版本；对服务端 1.19.1 实测通过 |
-| Apache Tika | 3.2.3（core 既有 + parsers 冻结） | **Go** | 两个 CRITICAL 修复于 3.2.2，3.2.3 已覆盖；解析行为验证转 K04 |
+| Qdrant 服务端 | qdrant/qdrant:v1.19.1 | **Go** | 与 Spring AI 1.1.8 所用 Java 客户端 1.13.0 实测 create/upsert/query/search/retrieve/delete 全链路通过（§5）；2026-09-26 复验镜像 digest 与最新发布状态（§10.4） |
+| Qdrant Java 客户端 | io.qdrant:client:1.13.0 | **Go（坐标）／产品未消费** | Spring AI 1.1.8 钉定版本；对服务端 1.19.1 实测通过；2026-09-26 复验离线可解析（§10.4）。产品实际走 REST 通道（K01 决策），本包仅为 BOM 声明 |
+| Apache Tika | 3.2.3（core 既有 + parsers 冻结） | **Go（core）／parsers 未采用** | 两个 CRITICAL 修复于 3.2.2，3.2.3 已覆盖；`tika-parsers-standard-package` 离线不可解析且未被消费（§10.5）。解析行为验证转 K04 |
 
 ## 2. Spring AI 维护线与安全公告核查
 
@@ -132,6 +136,10 @@ Mock 服务：本地 OpenAI 兼容端点（`/v1/chat/completions`、`/v1/embeddi
 - 真实 PDF/DOCX 解析能力、资源与超时限制：**K04**。
 - Spring AI 具体模型端点（OpenAI 兼容服务）真实调用与流式行为：M03/O04 范围；本卡只验证 mock 协议与启动。
 - Spring AI Alibaba：本卡按架构决策不引入（不作为首期必需依赖），如后续需要须单独走 F02 式验证。
+- **HIGH/CRITICAL 扫描阻断：未验证。** `dependencies` 门禁的 Trivy 在本机因漏洞库镜像不可达无法运行；本卡以 GitHub Advisory 逐条核对作部分替代，不等于 Trivy 结论（见 §10.8）。
+- **Qdrant Java 客户端与 K01 记录的差异待复核**（§10.4）：K01 记载的离线 gson 缺口在本机未复现。
+- pdfbox/poi 等解析链 jar 未与 Maven Central 校验和逐包比对（§10.7 只覆盖 4 个关键包）。
+- 发布物 LICENSE/NOTICE 未从上游仓库补齐（打包阶段处理）。
 
 ## 9. 再验证触发条件
 
@@ -139,3 +147,77 @@ Mock 服务：本地 OpenAI 兼容端点（`/v1/chat/completions`、`/v1/embeddi
 2. Qdrant 服务端或客户端任一升级；
 3. Tika 升级（尤其 core 与 parsers 出现版本线差异时）；
 4. `dependencies` 门禁出现以上组件的 HIGH/CRITICAL 命中。
+
+## 10. 复验记录（2026-09-26，F02 复验会话）
+
+工作目录：`/home/ctyun/桌面/zhongtai/ai-platform`。完整命令、退出码与归档路径见
+[f02-upstream-dependency-freeze-evidence.md](f02-upstream-dependency-freeze-evidence.md)；原始输出在 `.local-state/f02-upstream/`。
+
+### 10.1 冻结落地位置
+
+冻结值已落在 `后端代码/basic-framework-boot/basic-framework-dependencies/pom.xml`：
+`spring-ai.version=1.1.8`（import `spring-ai-bom`）、`qdrant-client.version=1.13.0`、`tika-core.version=3.2.3`
+（`tika-parsers-standard-package` 同属性）、pdfbox 3.0.5、poi 5.4.1。本次复验**未修改**该 POM（无证据支持变更）。
+
+### 10.2 Spring AI 维护线（复验）
+
+| 事实 | 证据（2026-09-26，退出码 0） |
+|---|---|
+| 1.1.8 是 1.1 线最后一个发布 | `repo1.maven.org/.../spring-ai-bom/maven-metadata.xml`：1.1.0…1.1.8 之后只有 2.0.x / 2.1.0-M1；lastUpdated=20260924 |
+| 2.x 需要 Boot 4.1.1 | `spring-ai-starter-model-openai:2.0.1` POM 依赖 `spring-boot-starter-webclient/restclient:4.1.1`；1.1.8 同 POM 依赖 `spring-boot-starter:3.5.15` |
+| 1.1 线公告覆盖 | §2.2 的 16 条 GHSA 逐条经 GitHub API 复核，受影响区间与修复阈值一致，最高修复阈值 1.1.8 |
+
+### 10.3 依赖树与版本冲突（真实产品模块，非实验工程）
+
+`./mvnw -o -pl basic-framework-server dependency:tree -Dverbose`，退出码 0（`.local-state/f02-upstream/server-tree-20260926.txt`）。
+
+- spring-ai 全部 1.1.8（model / openai / commons / retry / template-st）；Boot 全部 3.5.16；
+  Jackson core/databind/dataformat/datatype/module 2.21.4、annotations 2.21；Netty 16 个构件全部 4.2.17.Final；
+  tika-core 3.2.3；pdfbox 3.0.5；poi 5.4.1。
+- **产品树中没有 gRPC / protobuf / Qdrant 客户端**（AI 模块走 REST）。gRPC 只在独立坐标探针中检测：
+  `io.qdrant:client:1.13.0` 离线 `dependency:resolve` 退出码 0，gRPC 1.65.1 全链路统一、protobuf-java 3.25.1、
+  gson 2.10.1（经 grpc-core 传递且有 jar）。
+- 冲突收敛 6 类：error_prone_annotations 2.49.0→2.41.0（注解，降级）、commons-io→2.20.0、
+  commons-compress 1.24.0→1.27.1、mybatis-spring 2.1.2→3.0.5、objenesis 3.4→3.3（反射，降级）。
+  Boot/Jackson/Netty 无版本分裂；gRPC 无并存版本。
+
+### 10.4 Qdrant 组合（复验）
+
+- 本机镜像 digest `sha256:12364fe851b9f17356fc88189fc06d1b521262e04659ec7345975b00c9246a10` 与 §5 一致；镜像 label `image.version=v1.19.1`。
+- `gh api repos/qdrant/qdrant/releases/latest` → v1.19.1（2026-09-04），即当前最新稳定版。
+- 实跑容器 `GET /` → `{"version":"1.19.1","commit":"6ab21cac18ebb6f4ae29102c7f8f5cc11affd5de"}`；
+  digest 另登记在 `scripts/check-container-images.test.mjs` 与 `AiKnowledgeIndexQdrantIT`。
+- 客户端-服务端联调未重跑（产品无消费者）；§5 联调证据来自 2026-09-16 联网实验。
+- **与 K01 记录的差异**：`ai-platform-knowledge-index-qdrant.md` 记载「离线缺 gson jar，客户端无法编译」。
+  复验未复现：`io.qdrant:client:1.13.0` 离线解析成功、gson 2.10.1 有 jar。K01 选择 REST（零新增依赖）的结论
+  仍成立，但两处记录需主管复核后统一；本卡不改 K01 文档（超出允许范围）。
+
+### 10.5 Tika/解析链（复验）
+
+- `tika-core:3.2.3` 在产品依赖树与 module-ai SBOM 中均为 Apache-2.0；jar 内 `META-INF/LICENSE`、`META-INF/NOTICE`；
+  两个 CRITICAL（GHSA-f58c-gq56-vjjf、GHSA-p72g-pv48-7w9x）于 3.2.2 修复，3.2.3 已覆盖。
+- `tika-parsers-standard-package:3.2.3` 离线 `dependency:resolve` **退出码 1**（多个 `tika-parser-*-module` 只有 POM 无 jar）；
+  BOM 声明保留但不可作为交付解析通道，产品用 PDFBox 3.0.5 + POI 5.4.1。
+- 上游最新为 3.3.2（3.x 线）/ 4.0.0；本卡不升级，保持与框架既有 tika-core 同版本线。
+
+### 10.6 启动与 mock 协议实验（复跑）
+
+Java 17.0.20 + Boot 3.5.16 + Spring AI 1.1.8，离线（`-o`）启动 3.355 秒；文本返回 `pong from mock`，
+嵌入返回 4 维；mock 收到的请求与 §4 完全一致：`Transfer-Encoding: chunked`、`Authorization: Bearer <key>`、
+`{messages:[{role:user,content:ping}],model,stream:false,temperature:0.0}`、`{input:["hello embedding"],model}`。
+该实验只证明客户端装配与编解码，**不证明真实模型端点兼容**（M03/O04）。
+
+### 10.7 SBOM 与完整性
+
+- `cyclonedx-maven-plugin:2.9.3:makeAggregateBom -pl basic-framework-module-ai`：离线失败（goal 要求联网），
+  联网重试退出码 0，170 组件；spring-ai 1.1.8、tika-core 3.2.3、pdfbox 3.0.5、poi 5.4.1 均在列且许可 Apache-2.0。
+- 关键 jar 完整性：spring-ai-model、spring-ai-openai、io.qdrant:client、tika-core 的本地 sha1 与
+  repo1.maven.org 公布值一致（坐标↔字节）。
+
+### 10.8 复验未通过/未验证项
+
+1. `dependencies` 门禁（Trivy HIGH/CRITICAL）本机漏洞库镜像不可达，**未执行** → 验收项「HIGH/CRITICAL 扫描阻断」**未验证**；
+   GHSA 逐条核对只是部分替代，不等价。
+2. gRPC 通道端到端：产品未消费；若启用需重跑 K01 能力矩阵。
+3. pdfbox/poi 等解析链 jar 未逐包比对 Central 校验和。
+4. 真实模型端点、流式、工具调用与结构化输出：M03/O04。
