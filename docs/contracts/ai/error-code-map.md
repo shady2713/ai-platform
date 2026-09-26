@@ -165,3 +165,23 @@
 
 HTTP 语义遵循 [ADR 0003](../../adr/0003-http-status-semantics.md)；认证与授权边界见
 [ADR 0049](../../adr/0049-ai-open-identity-and-security-extension-boundaries.md)。
+
+## 评测评分子区间（Q04，`1_003_009_xxx`）
+
+| 常量 | 码 | 语义 | HTTP |
+|---|---|---|---|
+| `AI_EVAL_SUITE_NOT_EXISTS` | 1_003_009_001 | 评测套件不存在 | 404 |
+| `AI_EVAL_SUITE_CODE_DUPLICATE` | 1_003_009_002 | 同一应用下套件标识已存在 | 409 |
+| `AI_EVAL_SUITE_HAS_NO_CASE` | 1_003_009_003 | 套件没有样例，不能冻结或执行 | 422 |
+| `AI_EVAL_SUITE_FROZEN` | 1_003_009_004 | 套件已冻结，编辑请先创建新修订 | 422 |
+| `AI_EVAL_SUITE_NOT_FROZEN` | 1_003_009_005 | 套件尚未冻结，不能创建新修订 | 422 |
+| `AI_EVAL_CASE_NOT_EXISTS` | 1_003_009_006 | 评测样例不存在 | 404 |
+| `AI_EVAL_CASE_KEY_DUPLICATE` | 1_003_009_007 | 套件内样例标识已存在 | 409 |
+| `AI_EVAL_CHECK_INVALID` | 1_003_009_008 | 样例期望规则不合规 | 422 |
+| `AI_EVAL_DATA_LEVEL_NOT_ALLOWED` | 1_003_009_009 | 评测样例只允许 L1_PUBLIC/L2_INTERNAL 分级 | 422 |
+| `AI_EVAL_RUN_NOT_EXISTS` | 1_003_009_010 | 评测运行不存在 | 404 |
+| `AI_EVAL_RESULT_NOT_EXISTS` | 1_003_009_011 | 评测结果不存在 | 404 |
+| `AI_EVAL_RESULT_NOT_REVIEWABLE` | 1_003_009_012 | 该结果不需要人工复核或已复核 | 422 |
+| `AI_EVAL_RUN_NOT_EXECUTED` | 1_003_009_013 | 评测用例未能取到执行租约（队列被其它任务占用） | 422 |
+
+HTTP 状态按 ADR 0003 的命名规则推导：`*_NOT_EXISTS` 为 404，名称含 `DUPLICATE` 为 409，其余为 422。

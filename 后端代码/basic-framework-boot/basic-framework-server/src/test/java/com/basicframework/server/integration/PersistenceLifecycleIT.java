@@ -270,6 +270,9 @@ class PersistenceLifecycleIT extends AbstractPersistenceIntegrationTest {
                         "ai_conversation_message",
                         "ai_dataset",
                         "ai_dataset_version",
+                        // V83：评测套件与样例（配置面，冻结后编辑走新修订）
+                        "ai_eval_case",
+                        "ai_eval_suite",
                         "ai_file_binding",
                         "ai_knowledge_base",
                         "ai_knowledge_document",

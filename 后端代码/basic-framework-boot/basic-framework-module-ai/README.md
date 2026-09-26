@@ -33,6 +33,7 @@ com.basicframework.module.ai
 | 模型客户端解析（M02） | `adapter/model/AiModelClientResolver` | 启用端点 → 当前版本 → 解密凭据 → 组装快照 → 接缝工厂取受管客户端；`invalidate` 在改配置/轮换/停用后关闭旧客户端 |
 | 外部主体与范围（A02） | `domain/identity`、`service/subject`、`dal/*/subject` | 主体唯一键 (applicationId, subjectType, externalUserId)：同一外部用户名跨应用互不冲突；范围由可信 `SubjectScopeResolver` 在请求期解析，解析失败/空集合/超预算/主体停用统一 DENY，不接受客户端提交的角色或部门；范围来源与范围版本随主体记录，业务侧撤销同步为 DISABLED |
 | 应用与凭据（A01） | `controller/admin/application`、`service/application`、`domain/application`、`dal/*/application` | appCode 全局唯一且创建后不可修改；Origin 只接受精确来源（无路径/通配，写入前归一化）；客户端秘密只存 SHA-256 摘要、明文只在创建/轮换响应出现一次；轮换与吊销默认无重叠，旧秘密立即失效 |
+| 评测套件与执行器（Q04） | `controller/admin/evaluation`、`service/evaluation`、`dal/*/evaluation` | 套件/样例是配置（草稿→冻结→新修订），运行与结果是事实（执行即冻结套件摘要与逐例快照）；执行走与真实运行相同的运行服务与授权（套件登记的合成主体），判定由确定性规则给出（金额/日期/引用/结构/版本/无秘密），模型评分不参与 |
 | 能力探测（M04） | `service/model/AiModelCapabilityProbeService`、`controller/admin/model/AiModelCapabilityProbeController` | 真实调用探测连接/文本/流式/结构化/工具/嵌入六类能力，结论落 `ai_model_probe`（只存稳定码与耗时）；可发布范围 = 声明能力 ∩ 探测确认能力；嵌入维度首写记录、改变即拒绝写既有索引 |
 
 ## 边界约束

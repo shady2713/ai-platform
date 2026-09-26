@@ -459,4 +459,32 @@ public interface AiErrorCodeConstants {
 
     /** 业务上下文不合规（400）：不是 JSON 对象，或包含未注册字段。 */
     ErrorCode AI_CONTEXT_SCHEMA_INVALID = new ErrorCode(1_003_008_009, "业务上下文不合规：{}");
+
+    // ========== 评测（Q04，子区间 1_003_009） ==========
+
+    ErrorCode AI_EVAL_SUITE_NOT_EXISTS = new ErrorCode(1_003_009_001, "评测套件不存在");
+
+    ErrorCode AI_EVAL_SUITE_CODE_DUPLICATE = new ErrorCode(1_003_009_002, "同一应用下套件标识已存在");
+
+    ErrorCode AI_EVAL_SUITE_HAS_NO_CASE = new ErrorCode(1_003_009_003, "套件没有样例，不能冻结或执行");
+
+    ErrorCode AI_EVAL_SUITE_FROZEN = new ErrorCode(1_003_009_004, "套件已冻结，编辑请先创建新修订");
+
+    ErrorCode AI_EVAL_SUITE_NOT_FROZEN = new ErrorCode(1_003_009_005, "套件尚未冻结，不能创建新修订");
+
+    ErrorCode AI_EVAL_CASE_NOT_EXISTS = new ErrorCode(1_003_009_006, "评测样例不存在");
+
+    ErrorCode AI_EVAL_CASE_KEY_DUPLICATE = new ErrorCode(1_003_009_007, "套件内样例标识已存在");
+
+    ErrorCode AI_EVAL_CHECK_INVALID = new ErrorCode(1_003_009_008, "样例期望规则不合规");
+
+    ErrorCode AI_EVAL_DATA_LEVEL_NOT_ALLOWED = new ErrorCode(1_003_009_009, "评测样例只允许 L1_PUBLIC/L2_INTERNAL 分级");
+
+    ErrorCode AI_EVAL_RUN_NOT_EXISTS = new ErrorCode(1_003_009_010, "评测运行不存在");
+
+    ErrorCode AI_EVAL_RESULT_NOT_EXISTS = new ErrorCode(1_003_009_011, "评测结果不存在");
+
+    ErrorCode AI_EVAL_RESULT_NOT_REVIEWABLE = new ErrorCode(1_003_009_012, "该结果不需要人工复核或已复核");
+
+    ErrorCode AI_EVAL_RUN_NOT_EXECUTED = new ErrorCode(1_003_009_013, "评测用例未能取到执行租约（队列被其它任务占用）");
 }
