@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit --skipLibCheck",
     "stage:embed": "node scripts/stage-embed-assets.mjs",
-    "build:embed": "pnpm run build && pnpm run stage:embed"
+    "build:embed": "pnpm run build && pnpm run stage:embed",
+    "verify:built": "node scripts/verify-built-chat.mjs",
+    "verify:cdn": "node scripts/check-public-cdn.mjs"
   },
   "imports": {
     "#/*": "./src/*"
@@ -21,6 +23,7 @@
     "vue": "catalog:"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "catalog:"
+    "@vitejs/plugin-vue": "catalog:",
+    "happy-dom": "catalog:"
   }
 }

@@ -46,7 +46,12 @@ export interface ConversationRunApi {
     runKey: string,
     handlers: {
       afterSeq?: number;
-      onEvent: (event: { seq: number; status: string }) => void;
+      /** 事件可携带受控结果块（冻结 v1：文本/图表），界面不得丢弃图表 */
+      onEvent: (event: {
+        block?: ResultBlock;
+        seq: number;
+        status: string;
+      }) => void;
     },
   ) => Promise<{ lastSeq: number; reason: string }>;
 }
@@ -89,6 +94,16 @@ export function useConversation(options: UseConversationOptions) {
   ): void {
     sequence += 1;
     messages.value.push({ blocks, id: `m${sequence}`, role });
+  }
+
+  /**
+   * 运行事件的结果块追加到当前运行的助手消息。
+   *
+   * <p>受理成功时 `send` 已先推入本轮助手消息，所以这里直接追加到最后一条；
+   * 若宿主在运行中换会话/换用户，事件在代次过滤处已丢弃（消息列表不会被"半清空"）。
+   */
+  function appendRunBlock(block: ResultBlock): void {
+    messages.value.at(-1)?.blocks.push(block);
   }
 
   async function refreshList(): Promise<void> {
@@ -173,9 +188,14 @@ export function useConversation(options: UseConversationOptions) {
       if (options.runApi.streamRunEvents) {
         await options.runApi.streamRunEvents(accepted.runKey, {
           onEvent: (event) => {
-            if (machine.applyEvent(event, generation)) {
-              syncPhase();
+            // 代次与 seq 过滤（切用户/切会话后的旧事件在此丢弃，结果块也不会落到新会话）
+            if (!machine.applyEvent(event, generation)) {
+              return;
             }
+            if (event.block) {
+              appendRunBlock(event.block);
+            }
+            syncPhase();
           },
         });
       }

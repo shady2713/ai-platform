@@ -4,6 +4,9 @@
  *
  * <p>组件只做展示与转发：状态与并发语义都在 `useConversation` 的状态机里
  * （连续点击不重复受理、取消后晚到完成不覆盖、切用户丢弃旧响应、错误只提示一次）。
+ *
+ * <p>结果块渲染复用共享适配组件：图表走 `AiChart`（R02：懒加载 G2、降级表格、destroy 幂等），
+ * 不在会话层另写一套图表渲染；平台不提供脚本渲染入口（标题/类目一律文本插值）。
  */
 import type {
   ConversationApi,
@@ -13,6 +16,7 @@ import type {
 
 import { computed, onMounted, ref } from 'vue';
 
+import AiChart from '../chart/AiChart.vue';
 import { useConversation } from './use-conversation';
 
 const props = defineProps<{
@@ -194,9 +198,11 @@ async function confirmRename(): Promise<void> {
             >
               {{ block.message }}
             </p>
-            <p v-else data-testid="ai-conversation-block">
-              （{{ block.kind }} 结果块）
-            </p>
+            <AiChart
+              v-else
+              :spec="block.spec"
+              data-testid="ai-conversation-chart"
+            />
           </template>
         </li>
       </ol>

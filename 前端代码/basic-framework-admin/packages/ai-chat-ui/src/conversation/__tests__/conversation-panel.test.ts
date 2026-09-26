@@ -5,6 +5,17 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 
 import ConversationPanel from '../ConversationPanel.vue';
+import { chartBlock, textBlock } from './fixtures';
+
+// 厂商实例由适配层内部创建：组件测试只断言"图表块走了共享适配组件"，不加载真实 G2
+vi.mock('@antv/g2', () => ({
+  Chart: class {
+    public changeSize = vi.fn();
+    public destroy = vi.fn();
+    public options = vi.fn();
+    public render = vi.fn();
+  },
+}));
 
 function apiStub(): ConversationApi {
   const items = [
@@ -37,7 +48,12 @@ function apiStub(): ConversationApi {
   };
 }
 
-function runApiStub(): ConversationRunApi {
+function runApiStub(
+  streamRunEvents: ConversationRunApi['streamRunEvents'] = vi.fn(async () => ({
+    lastSeq: 0,
+    reason: 'closed',
+  })),
+): ConversationRunApi {
   return {
     cancelRun: vi.fn(async () => ({})),
     createRun: vi.fn(async () => ({
@@ -45,7 +61,7 @@ function runApiStub(): ConversationRunApi {
       runKey: 'run_1',
       status: 'QUEUED',
     })),
-    streamRunEvents: vi.fn(async () => ({ lastSeq: 0, reason: 'closed' })),
+    streamRunEvents,
   };
 }
 
@@ -144,5 +160,32 @@ describe('会话面板', () => {
     expect(
       wrapper.findAll('[data-testid="ai-conversation-message"]'),
     ).toHaveLength(0);
+  });
+
+  it('图表结果块用共享适配组件渲染，不落占位文本', async () => {
+    const runApi = runApiStub(
+      vi.fn(async (_runKey, handlers) => {
+        handlers.onEvent({ block: textBlock, seq: 1, status: 'RUNNING' });
+        handlers.onEvent({ block: chartBlock, seq: 2, status: 'SUCCEEDED' });
+        return { lastSeq: 2, reason: 'terminal' };
+      }),
+    );
+    const { wrapper } = await mountPanel(runApi);
+
+    await wrapper.get('[data-testid="ai-conversation-input"]').setValue('画图');
+    await wrapper.get('[data-testid="ai-conversation-send"]').trigger('submit');
+    await flushPromises();
+
+    // 文本块与图表块都在同一条助手消息里，顺序保持
+    expect(wrapper.text()).toContain('华东前十如下');
+    const chart = wrapper.get('[data-testid="ai-conversation-chart"]');
+    expect(chart.text()).toContain('月度销售额');
+    // 懒加载完成后由适配层创建图表实例（厂商被 mock），而不是占位文本
+    await vi.waitFor(() => {
+      expect(wrapper.find('[data-testid="ai-chart-canvas"]').exists()).toBe(
+        true,
+      );
+    });
+    expect(wrapper.text()).not.toContain('结果块');
   });
 });

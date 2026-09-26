@@ -1,8 +1,11 @@
+import type { ResultBlock } from '@vben/ai-contracts';
+
 import type { ConversationApi, ConversationRunApi } from '../use-conversation';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { useConversation } from '../use-conversation';
+import { createIdempotencyKey, useConversation } from '../use-conversation';
+import { chartBlock, textBlock } from './fixtures';
 
 function apiStub(): ConversationApi & {
   items: { conversationKey: string; id: number; title: string }[];
@@ -36,7 +39,11 @@ function apiStub(): ConversationApi & {
 }
 
 function runApiStub(overrides: Partial<ConversationRunApi> = {}) {
-  const events: ((event: { seq: number; status: string }) => void)[] = [];
+  const events: ((event: {
+    block?: ResultBlock;
+    seq: number;
+    status: string;
+  }) => void)[] = [];
   const api: ConversationRunApi = {
     cancelRun: vi.fn(async () => ({})),
     createRun: vi.fn(async () => ({
@@ -52,7 +59,7 @@ function runApiStub(overrides: Partial<ConversationRunApi> = {}) {
   };
   return {
     api,
-    emit: (event: { seq: number; status: string }) =>
+    emit: (event: { block?: ResultBlock; seq: number; status: string }) =>
       events.forEach((handler) => handler(event)),
   };
 }
@@ -227,5 +234,94 @@ describe('useConversation（会话逻辑）', () => {
     expect(chat.phase.value).toBe('WAITING_CONFIRMATION');
     runApi.emit({ seq: 2, status: 'SUCCEEDED' });
     expect(chat.phase.value).toBe('SUCCEEDED');
+  });
+
+  it('运行事件的结果块（文本/图表）落到助手消息，图表不被丢弃', async () => {
+    const api = apiStub();
+    const runApi = runApiStub();
+    const chat = useConversation({
+      api,
+      runApi: runApi.api,
+      serviceId: 'svc_1',
+    });
+
+    await chat.send('上个月华东前十');
+    runApi.emit({ block: textBlock, seq: 1, status: 'RUNNING' });
+    runApi.emit({ block: chartBlock, seq: 2, status: 'RUNNING' });
+    runApi.emit({ seq: 3, status: 'SUCCEEDED' });
+
+    const assistant = chat.messages.value.at(-1);
+    expect(assistant?.role).toBe('assistant');
+    expect(assistant?.blocks.map((block) => block.kind)).toEqual([
+      'text',
+      'text',
+      'chart',
+    ]);
+    expect(assistant?.blocks.at(-1)).toMatchObject({
+      kind: 'chart',
+      spec: { title: '月度销售额' },
+    });
+  });
+
+  it('切用户后事件结果块不进入新界面（代次过滤）', async () => {
+    const api = apiStub();
+    const runApi = runApiStub();
+    const chat = useConversation({
+      api,
+      runApi: runApi.api,
+      serviceId: 'svc_1',
+    });
+
+    await chat.send('旧用户的问题');
+    chat.switchUser();
+    runApi.emit({ block: chartBlock, seq: 1, status: 'RUNNING' });
+
+    expect(chat.messages.value).toHaveLength(0);
+  });
+
+  it('空闲时取消是空操作，不调用服务端取消', async () => {
+    const api = apiStub();
+    const runApi = runApiStub();
+    const chat = useConversation({
+      api,
+      runApi: runApi.api,
+      serviceId: 'svc_1',
+    });
+
+    await chat.cancel();
+
+    expect(runApi.api.cancelRun).not.toHaveBeenCalled();
+    expect(chat.phase.value).toBe('IDLE');
+  });
+
+  it('非失败态重试是空操作（不会产生第二次受理）', async () => {
+    const api = apiStub();
+    const runApi = runApiStub();
+    const chat = useConversation({
+      api,
+      runApi: runApi.api,
+      serviceId: 'svc_1',
+    });
+
+    await chat.send('你好');
+    await chat.retry();
+
+    expect(runApi.api.createRun).toHaveBeenCalledTimes(1);
+    expect(chat.phase.value).toBe('RUNNING');
+  });
+
+  it('幂等键：无 crypto.randomUUID 时退化为时间戳随机串且长度合规', () => {
+    vi.stubGlobal('crypto', {});
+    try {
+      const first = createIdempotencyKey();
+      const second = createIdempotencyKey();
+
+      expect(first).toMatch(/^chat-/u);
+      expect(first.length).toBeGreaterThanOrEqual(16);
+      expect(first.length).toBeLessThanOrEqual(128);
+      expect(first).not.toBe(second);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

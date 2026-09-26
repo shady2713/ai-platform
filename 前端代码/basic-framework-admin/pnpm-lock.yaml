@@ -547,6 +547,9 @@ importers:
       '@vitejs/plugin-vue':
         specifier: 'catalog:'
         version: 6.0.5(vite@7.3.6(@types/node@25.5.0)(jiti@2.6.1)(sass@1.98.0)(terser@5.50.0)(yaml@2.8.3))(vue@3.5.31(typescript@5.9.3))
+      happy-dom:
+        specifier: 'catalog:'
+        version: 20.11.15
 
   apps/web-ele:
     dependencies:

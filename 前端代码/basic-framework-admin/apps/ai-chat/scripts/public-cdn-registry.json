@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "registry": "公共 CDN 与外部域名登记表（F04 验收项 3）",
+  "rules": [
+    "publicCdnHosts：出现即失败——禁止公共 CDN/公共静态资源托管域",
+    "registeredHosts：非 CDN 外部域名必须登记用途（命名空间常量/文档链接/配置占位/第三方库内置文案）",
+    "未登记的域名一律失败，避免新引入的远程地址被默默放行"
+  ],
+  "publicCdnHosts": [
+    "ajax.googleapis.com",
+    "bootcdn.net",
+    "cdn.bootcdn.net",
+    "cdn.jsdelivr.net",
+    "cdn.skypack.dev",
+    "cdn.staticfile.org",
+    "cdn.tailwindcss.com",
+    "cdnjs.cloudflare.com",
+    "code.jquery.com",
+    "esm.sh",
+    "fastly.jsdelivr.net",
+    "fonts.googleapis.com",
+    "fonts.gstatic.com",
+    "jsdelivr.net",
+    "skypack.dev",
+    "staticfile.org",
+    "unpkg.com"
+  ],
+  "registeredHosts": {
+    "127.0.0.1": "apps/ai-chat/.env.development 的本地后端基址",
+    "ai.example.com": "apps/ai-chat/.env.production 的接口基址占位（部署时替换）",
+    "api.example.com": "apps/web-ele/.env.production 的接口基址占位（部署时替换）",
+    "api.iconify.design": "Iconify 运行时图标 API 回退地址（图标集已随包构建，Q06 网络断言确认无请求）",
+    "api.simplesvg.com": "Iconify 运行时图标 API 回退地址（同上）",
+    "api.unisvg.com": "Iconify 运行时图标 API 回退地址（同上）",
+    "crm.example.com": "web-ele 应用管理页“允许域”输入框的示例文案（不是请求地址）",
+    "element-plus.org": "Element Plus 内置文档链接（不自动请求）",
+    "github.com": "第三方库内置仓库/文档链接（不自动请求）",
+    "localhost": "开发/回退地址文案（第三方库内置，生产不请求）",
+    "vuejs.org": "Vue 运行时警告里的文档链接（不自动请求）",
+    "vxeui.com": "vxe-table 内置官网链接（不自动请求）",
+    "www.w3.org": "XML/SVG/MathML 命名空间常量（不是网络请求）",
+    "your-host.example.com": "web-ele Chat 集成页接入代码片段里的宿主域示例（占位符）"
+  }
+}
