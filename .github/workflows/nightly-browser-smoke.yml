@@ -1,0 +1,46 @@
+name: nightly-browser-smoke
+
+# ADR 0046：真实浏览器冒烟门禁进 nightly / release 层，PR 层保持 ≤10 分钟反馈。
+# PR 层（verify.yml）不引用本门禁；本 workflow 只有一个阻塞 job，
+# 因此不需要额外 aggregate——PR 上唯一的必需检查仍是 verify.yml 的 aggregate。
+on:
+  schedule:
+    # 04:00 Asia/Shanghai（前一天 20:00 UTC）
+    - cron: '0 20 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-browser-smoke-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  browser-smoke:
+    name: browser-smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+      - name: Install frontend dependencies
+        working-directory: 前端代码/basic-framework-admin
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+      - name: Install Chromium
+        working-directory: 前端代码/basic-framework-admin
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Run real-browser smoke gate
+        run: sh .harness/verify.sh smoke

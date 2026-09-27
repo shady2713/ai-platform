@@ -17,6 +17,7 @@ Gates:
   frontend     dependency/type/spelling checks, lint, and coverage tests
   dependencies resolved backend SBOM and frontend lockfile vulnerability scan
   integration  Docker-backed MySQL/Redis/Flyway and packaged-jar boot smoke
+  smoke        real-browser cross-origin suite (nightly/release layer; ADR 0046)
   verify       contracts + backend + frontend
   all          lockfile + verify + dependencies + integration
 EOF
@@ -59,6 +60,7 @@ gate_contracts() {
   node --test scripts/check-field-catalog.test.mjs
   node --test scripts/gate-utils.test.mjs
   node --test scripts/check-gate-rejection-tests.test.mjs
+  node --test scripts/check-e2e-smoke.test.mjs
   node scripts/check-field-injection.mjs
   node scripts/check-source-quality.mjs
   node scripts/check-starter-documentation.mjs
@@ -198,6 +200,12 @@ gate_integration() {
   node scripts/check-coverage-ratchet.mjs backend
 }
 
+# ADR 0046：真实浏览器门禁属于 nightly/release 层，PR 层不执行（反馈预算 ≤10 分钟）。
+gate_smoke() {
+  cd "$repo_root"
+  node scripts/check-e2e-smoke.mjs
+}
+
 run_gate() {
   gate=$1
   echo "== harness:${gate} =="
@@ -208,6 +216,7 @@ run_gate() {
     frontend) gate_frontend ;;
     dependencies) gate_dependencies ;;
     integration) gate_integration ;;
+    smoke) gate_smoke ;;
     verify)
       run_gate contracts
       run_gate backend

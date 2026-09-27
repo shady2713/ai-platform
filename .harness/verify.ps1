@@ -22,6 +22,7 @@ Gates:
   frontend     dependency/type/spelling checks, lint, and coverage tests
   dependencies resolved backend SBOM and frontend lockfile vulnerability scan
   integration  Docker-backed MySQL/Redis/Flyway and packaged-jar boot smoke
+  smoke        real-browser cross-origin suite (nightly/release layer; ADR 0046)
   verify       contracts + backend + frontend
   all          lockfile + verify + dependencies + integration
 '@ | Write-Output
@@ -83,6 +84,7 @@ function Invoke-ContractsGate {
         Invoke-External 'node' @('--test', 'scripts/check-field-catalog.test.mjs')
         Invoke-External 'node' @('--test', 'scripts/gate-utils.test.mjs')
         Invoke-External 'node' @('--test', 'scripts/check-gate-rejection-tests.test.mjs')
+        Invoke-External 'node' @('--test', 'scripts/check-e2e-smoke.test.mjs')
         Invoke-External 'node' @('scripts/check-field-injection.mjs')
         Invoke-External 'node' @('scripts/check-source-quality.mjs')
         Invoke-External 'node' @('scripts/check-starter-documentation.mjs')
@@ -246,6 +248,13 @@ function Invoke-IntegrationGate {
     }
 }
 
+# ADR 0046：真实浏览器门禁属于 nightly/release 层，PR 层不执行（反馈预算 ≤10 分钟）。
+function Invoke-SmokeGate {
+    Invoke-InDirectory $RepoRoot {
+        Invoke-External 'node' @('scripts/check-e2e-smoke.mjs')
+    }
+}
+
 function Invoke-HarnessGate {
     param(
         [Parameter(Mandatory = $true)]
@@ -260,6 +269,7 @@ function Invoke-HarnessGate {
         'frontend' { Invoke-FrontendGate }
         'dependencies' { Invoke-DependenciesGate }
         'integration' { Invoke-IntegrationGate }
+        'smoke' { Invoke-SmokeGate }
         'verify' {
             Invoke-HarnessGate 'contracts'
             Invoke-HarnessGate 'backend'

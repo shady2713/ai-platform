@@ -79,7 +79,10 @@ async function readPackageVersion() {
 async function ensureSdkArtifact() {
   const version = await readPackageVersion();
   const artifact = join(SDK_DIST_DIR, `ai-embed-sdk-${version}.js`);
-  if (!(await exists(artifact))) {
+  // 产物存在也可能是改动前的旧包（SDK 源码改了但没重建 → 浏览器里跑的还是旧代码），
+  // 因此 Q06_FORCE_REBUILD=1 时与两个应用一样强制重建。
+  const force = process.env.Q06_FORCE_REBUILD === '1';
+  if (force || !(await exists(artifact))) {
     process.stdout.write('[q06] 构建 @vben/ai-embed-sdk 版本化产物\n');
     await run('pnpm', ['-F', '@vben/ai-embed-sdk', 'run', 'build']);
   }

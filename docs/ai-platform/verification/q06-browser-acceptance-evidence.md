@@ -3,7 +3,7 @@
 | 项目 | 内容 |
 |---|---|
 | 任务卡 | [Q06](../tasks/Q06.md) |
-| 状态 | **部分交付（BLOCKED）**：真实浏览器套件与用例已交付并实跑；3 条验收项因**已交付卡的真实缺陷**或**本机无后端**未通过/未验证（见 §4、§5），按要求不标 DONE |
+| 状态 | **DONE（含环境缺口）**：浏览器套件、门禁接线与 4 个跨卡缺陷修复全部落地；AT-056（无后端）与 AT-057（无真实 N-1 产物）为环境未验证项，另有 1 个范围外后续项（见 §4.b） |
 | 需求 | FR-14、FR-15、FR-34、FR-40 |
 | 依赖 | C10（已交付）、Q03（已交付）、Q05（本批交付）、F04（本批交付） |
 | 工作副本 | `/home/ctyun/桌面/zhongtai/ai-platform` |
@@ -74,7 +74,33 @@
   按仓库约定改为 `"catalog:"` 并在 `pnpm-workspace.yaml` 的 catalog 里锁 1.63.0 后 lint 通过。
 - 该教训说明：workspace 依赖必须走 catalog，不能写字面版本（CI 与本地同一规则）。
 
-## 4. 阻断项（**需要扩范围或改范围才能通过，按要求不标 DONE**）
+## 4. 跨卡缺陷（**已获授权扩范围并全部修复**）
+
+用户于 2026-09-27 授权扩范围到 `packages/**`。4 个缺陷均已修复并在主仓验证：
+
+| # | 位置 | 现象 | 修复 |
+|---|---|---|---|
+| 1 | `packages/ai-embed-sdk/src/display/mount.ts` | 宿主无法把 message 事件喂进桥；`open()` 不等 iframe `load` | 新增 `receive(event)` 入口 + 等 `load` 后 `start()`；单测断言"load 前不 start、非本实例 source 被拒" |
+| 2 | 同文件 | `destroy()` 后 `open()` 复活外壳（AT-055 1 例失败） | `open()` 对 `destroyed` 幂等拒绝；语义写入该包 README；AT-055 那例从 `test.fail` 改为**正常通过** |
+| 3 | `packages/ai-embed-sdk/src/bridge/host-bridge.ts` | `NAVIGATE_REQUEST`/`REPORT_CREATED` 未路由给宿主 | 按 C06/C08 冻结协议路由（校验顺序与强度不变，未登记路由/未声明参数仍被拒） |
+| 4 | `packages/effects/common-ui/src/components/captcha/verification/*`、`components/card/*` | 运行期请求 `api.iconify.design`（AT-067 失败） | common-ui 内 9 处字符串图标改本地图标；`packages/icons` 离线注册 4 个（`RefreshCcw/ChevronUp/TrendingUp/TrendingDown`）；新增 `no-remote-icons.test.ts`（**含拒绝型探针**：未注册图标确实会外发，证明"零请求"断言非空跑） |
+| 5 | `packages/ai-chat-ui/src/conversation/*` | 列表加载失败无可见提示、未处理 rejection | 新增 `ConversationLoadFailure` 归一化 + 面板 `role="alert"` 提示与重试；AT-054 断言升级为真实断言 |
+
+修复后**真实浏览器套件（主管在主仓复跑）**：`Q06_FORCE_REBUILD=1 pnpm exec playwright test --config tests/playwright/playwright.config.ts`
+→ **24 passed / 0 failed / 3 skipped**（修复前 23/1/3）。
+
+### 4.b 范围外后续项（如实登记，未修）
+
+本轮只修了 `common-ui` 内部的外发点（AT-067 断言覆盖的登录页已零外发）。盘点后**仍会在运行期外发**的位置：
+
+- `apps/web-ele` 内约 30 处 `lucide:*` 字符串图标（cropper/upload/table-action/infra 页面等）；
+- `packages/icons` 的 mdi/ant-design 字符串图标（含登录后必渲染的 `MdiKeyboardEsc`（全局搜索）、`AntdProfileOutlined`（头像菜单））；
+- `components/icon-picker/icons.ts`：**主动**拉取 `api.iconify.design/collection`（用户触发，按设计保留）。
+
+修法与本轮相同（换 `@vben/icons` 本地组件或就地离线注册），但涉及 `apps/web-ele`/`packages/icons` 的更大范围，
+按"超出允许路径应停止并报告"的纪律登记为**后续项**（要并入 Q09/Q10 的交付范围或另开卡）。
+
+## 4.c 原阻断项（历史记录，已全部解除）
 
 浏览器用例在真实运行中发现 **4 个已交付卡的缺陷**，其中 2 个直接导致验收项不过；这些文件**不在 Q06 §2 允许路径**内
 （`packages/**` 未授权），因此本卡只提供可复现用例与定位，不擅自修改：
@@ -98,28 +124,21 @@
 4. 真实网关（Nginx 头部透传、`frame-ancestors` 经反代）。
 5. 夹具票据非平台票据：断言的是票据去向与隔离；平台签发需真实后端凭据（A04）。
 
-## 6. 门禁接线方案（**补丁已就绪并验证，待授权后原子落地**）
+## 6. 门禁接线（**已落地**）
 
 ADR 0046 的落地步骤已做成可一键应用的补丁（见 §1.b 第二个补丁，含 sha256）：`scripts/check-e2e-smoke.mjs`
 （拒绝"没跑用例却绿灯"：空套件/报告缺失/`expected=0`/覆盖不到全部用例文件/存在 unexpected 失败，任一即失败）、
 同名拒绝测试、`.harness/verify.sh` + `verify.ps1` 的 `smoke` 门禁（与 `verify.sh` 逐项对齐）、
 `nightly-browser-smoke.yml`（nightly + 手动触发，PR 层不引用，保持 ≤10 分钟反馈预算）与拓扑断言。
 
-**为什么不直接落地**：`check-gate-wiring.mjs` 要求每个 `check-*.mjs` 与 `*.test.mjs` 必须在双 provider 直接执行；
-只提交脚本不接线会让 contracts 门禁立刻变红，接线又会因 AT-067（跨卡缺陷 ④）长期变红。
-按卡片纪律"关键项未通过不得标 DONE、不得用 skip/白名单掩盖"，本卡选择：**补丁 + 证据先交付，待授权修完
-缺陷 ①–④ 后一次性接线**，届时 `sh .harness/verify.sh smoke` 应为 0。
+落地内容：`scripts/check-e2e-smoke.mjs`（拒绝"没跑用例却绿灯"：空套件/报告缺失/`expected=0`/覆盖不到全部用例文件/
+存在 unexpected 失败）、同名拒绝测试、`.harness/verify.sh` + `verify.ps1` 的 `smoke` 门禁（双 provider 对齐）、
+`nightly-browser-smoke.yml`（nightly + 手动触发，PR 层不引用，保持 ≤10 分钟反馈预算）与拓扑断言
+（"PR 层不得引用浏览器门禁"）。
 
-## 6.b 本卡门禁结果（提交前实测）
-
-| 门禁 | 退出码 | 说明 |
-|---|---|---|
-| `sh .harness/verify.sh contracts` | 0 | 含源码质量（本卡 22 个新文件均 ≤500 行）、拒绝测试、字段/生命周期/权限目录 |
-| `sh .harness/verify.sh lockfile` | 0 | `pnpm install --frozen-lockfile --ignore-scripts`（catalog 引用后的锁文件） |
-| `sh .harness/verify.sh frontend` | 0 | 类型检查、lint（含 catalog 规则）、单测与覆盖率、生产构建、产物 no-undef |
-| `node scripts/check-coverage-ratchet.mjs --update` / `all` | 0 / 0 | 登记新文件；未下调任何既有基线 |
-
-浏览器套件本身的实跑结果见 §2 与 §1.b（23 passed / 1 failed=AT-067 真实缺陷 / 3 skipped）。
+**给后续维护者的两点提醒**：① 门禁跑的是**构建产物**——改了 `packages/ai-embed-sdk` 源码后必须重建版本化产物
+（`global-setup` 已调整为在 `Q06_FORCE_REBUILD=1` 时强制重建 SDK，避免"源码修了但浏览器里跑旧包"的假失败）；
+② 本机 lefthook 的 pre-commit 在 TTY 下会因 pager 卡死，提交时需 `GIT_PAGER=cat PAGER=cat`（与本卡无关的环境问题）。
 
 ## 7. 实际执行的命令与结果
 

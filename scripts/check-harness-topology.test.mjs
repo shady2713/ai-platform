@@ -3,6 +3,10 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const workflowPath = new URL('../.github/workflows/verify.yml', import.meta.url);
+const nightlyWorkflowPath = new URL(
+  '../.github/workflows/nightly-browser-smoke.yml',
+  import.meta.url,
+);
 const powershellHarnessPath = new URL('../.harness/verify.ps1', import.meta.url);
 const shellHarnessPath = new URL('../.harness/verify.sh', import.meta.url);
 
@@ -125,4 +129,18 @@ test('management route naming boundary is blocking on both platforms', async () 
   for (const harness of [powershellHarness, shellHarness]) {
     assert.match(harness, /check-management-route-naming\.test\.mjs/);
   }
+});
+
+test('real-browser smoke gate runs nightly through the harness, never on PRs', async () => {
+  const [nightlyWorkflow, verifyWorkflow] = await Promise.all([
+    readFile(nightlyWorkflowPath, 'utf8'),
+    readFile(workflowPath, 'utf8'),
+  ]);
+
+  assert.match(nightlyWorkflow, /schedule:/);
+  assert.match(nightlyWorkflow, /workflow_dispatch:/);
+  assert.match(nightlyWorkflow, /pnpm exec playwright install --with-deps chromium/);
+  assert.match(nightlyWorkflow, /sh \.harness\/verify\.sh smoke/);
+  // PR 层（verify.yml）不得引用浏览器门禁：反馈预算 ≤10 分钟（ADR 0046 决策 3）
+  assert.ok(!verifyWorkflow.includes('verify.sh smoke'));
 });
