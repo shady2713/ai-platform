@@ -13,6 +13,7 @@ import static com.basicframework.server.integration.Q09RestoreDrillSupport.ORIGI
 import static com.basicframework.server.integration.Q09RestoreDrillSupport.QDRANT_API_KEY;
 import static com.basicframework.server.integration.Q09RestoreDrillSupport.REPORT_CODE;
 import static com.basicframework.server.integration.Q09RestoreDrillSupport.REPORT_KEY;
+import static com.basicframework.server.integration.Q09RestoreDrillSupport.RUNTIME_VOLATILE_TABLES;
 import static com.basicframework.server.integration.Q09RestoreDrillSupport.RUN_KEY;
 import static com.basicframework.server.integration.Q09RestoreDrillSupport.WRONG_KEY_BASE64;
 import static com.basicframework.server.integration.Q09RestoreDrillSupport.aliceGrantId;
@@ -22,6 +23,7 @@ import static com.basicframework.server.integration.Q09RestoreDrillSupport.appli
 import static com.basicframework.server.integration.Q09RestoreDrillSupport.backupBytes;
 import static com.basicframework.server.integration.Q09RestoreDrillSupport.backupFile;
 import static com.basicframework.server.integration.Q09RestoreDrillSupport.backupSha256;
+import static com.basicframework.server.integration.Q09RestoreDrillSupport.businessTruthFingerprint;
 import static com.basicframework.server.integration.Q09RestoreDrillSupport.chunkVector;
 import static com.basicframework.server.integration.Q09RestoreDrillSupport.collectionName;
 import static com.basicframework.server.integration.Q09RestoreDrillSupport.createIndexSnapshot;
@@ -145,6 +147,28 @@ import org.testcontainers.utility.MountableFile;
  * <p>演练口径（本机容器，非生产）：单机 Docker，MySQL/Redis/Qdrant 均为本机容器，
  * 数据规模为演练样本（见 {@code Q09-DRILL-METRIC} 输出），RTO/RPO 数字只对本口径有效。
  *
+ * <p><b>行数指纹口径：业务真相表，而不是"全库所有表"</b>（2026-09-27 修复）。恢复保真的行数比对
+ * （{@code businessTruthFingerprint}）覆盖"全库表 − 运行期/易变表"：
+ * <ul>
+ *   <li>排除 <b>QRTZ_*</b>（{@code QRTZ_BLOB_TRIGGERS}/{@code QRTZ_CALENDARS}/{@code QRTZ_CRON_TRIGGERS}/
+ *       {@code QRTZ_FIRED_TRIGGERS}/{@code QRTZ_JOB_DETAILS}/{@code QRTZ_LOCKS}/{@code QRTZ_PAUSED_TRIGGER_GRPS}/
+ *       {@code QRTZ_SCHEDULER_STATE}/{@code QRTZ_SIMPLE_TRIGGERS}/{@code QRTZ_SIMPROP_TRIGGERS}/{@code QRTZ_TRIGGERS}）：
+ *       调度器运行期存储，每 15s 检查点、每次触发/集群恢复都会增删行；整套件下同一 JVM 中其它测试类遗留上下文
+ *       的调度器仍会写本演练库（dump 实证：{@code QRTZ_SCHEDULER_STATE}/{@code QRTZ_FIRED_TRIGGERS} 的行
+ *       来自创建时刻早于本用例窗口、且不属于本用例上下文的实例），落在"读指纹 → mysqldump"之间即造成假失败；</li>
+ *   <li>排除 <b>任务日志</b> {@code infra_job_log}（{@code JobHandlerInvoker} 每次任务执行插入一行）；</li>
+ *   <li>排除 <b>会话/票据</b> {@code ai_access_ticket}/{@code system_user_session}（取票即写、按 TTL 由
+ *       {@code AiTicketCleanupJob} 清理）；</li>
+ *   <li>排除 <b>审计/访问日志</b> {@code system_operate_log}/{@code system_login_log}/{@code infra_api_access_log}/
+ *       {@code infra_api_error_log}（运行期追加、按保留期清理）；</li>
+ *   <li>排除 <b>事件流</b> {@code ai_run_event}（运行生命周期写入、按保留期清理）。</li>
+ * </ul>
+ * 排除清单是逐表显式的（{@link Q09RestoreDrillSupport#RUNTIME_VOLATILE_TABLES}），不含任何业务表；
+ * 演练真正破坏/恢复的业务真相表（授权、知识库/文档/版本/切片/索引代、文件绑定与内容、模型端点与 revision、
+ * 报表版本，见 {@link Q09RestoreDrillSupport#DRILLED_BUSINESS_TABLES}）必须留在指纹内逐表严格比对，
+ * 支持类在运行时会断言"排除清单不含被演练表、且被演练表都在指纹里"——排除它们就是削弱演练证据。
+ * 逐表口径与证据见 {@code docs/operations/q09-restore-drill.md} §1.1。
+ *
  * <p>与生产的已知偏差（如实记录，详见 {@code docs/operations/q09-restore-drill.md}）：
  * 恢复窗口内应用上下文并未真正停机（仅关闭 Quartz 调度），生产恢复顺序要求先停应用；
  * 文件存储只覆盖 DB 存储（外部对象存储/本地磁盘不在 mysqldump 内）。
@@ -225,7 +249,9 @@ class Q09RestoreDrillIT {
         assertBusinessDataUsable("播种后（备份前）");
 
         // ---- 备份：mysqldump 导出整库到宿主机；记录体积与 SHA-256 ----
-        preBackupTableCounts = tableRowCounts(jdbcTemplate);
+        // 行数指纹口径 = 业务真相表（全库表 − 运行期/易变表），理由见类注释与 docs §1.1
+        Map<String, Long> allTableCounts = tableRowCounts(jdbcTemplate);
+        preBackupTableCounts = businessTruthFingerprint(allTableCounts);
         tBackupStartMillis = System.currentTimeMillis();
         ExecResult dump = MYSQL.execInContainer(
                 "sh",
@@ -245,7 +271,9 @@ class Q09RestoreDrillIT {
         metric("backup_bytes", backupBytes);
         metric("backup_sha256", backupSha256);
         metric("backup_seconds", seconds(tBackupStartMillis, tBackupEndMillis));
+        metric("backup_tables_all", allTableCounts.size());
         metric("backup_tables", preBackupTableCounts.size());
+        metric("fingerprint_excluded_tables", RUNTIME_VOLATILE_TABLES.size());
         metric("index_snapshot_name", indexSnapshotName);
         metric("index_snapshot_bytes", indexSnapshotBytes);
 
@@ -324,9 +352,12 @@ class Q09RestoreDrillIT {
         assertThat(restore.getStdout()).as("恢复必须成功：%s", restore.getStderr()).contains("restore_exit=0");
         metric("mysql_restore_seconds", seconds(tRestoreStartMillis, tRestoreEndMillis));
 
-        // 数据保真：全库表行数与备份前完全一致
-        Map<String, Long> postRestoreTableCounts = tableRowCounts(jdbcTemplate);
-        assertThat(postRestoreTableCounts).as("恢复后全库表行数必须与备份前一致").isEqualTo(preBackupTableCounts);
+        // 数据保真：业务真相表逐表行数与备份前完全一致（运行期/易变表被排除，口径与理由见类注释与 docs §1.1；
+        // 被演练的业务真相表没有被排除，仍在这里逐表严格比对）
+        Map<String, Long> postRestoreTableCounts = businessTruthFingerprint(tableRowCounts(jdbcTemplate));
+        assertThat(postRestoreTableCounts)
+                .as("恢复后业务真相表行数必须与备份前逐表一致（被演练表见 DRILLED_BUSINESS_TABLES）")
+                .isEqualTo(preBackupTableCounts);
 
         // 业务内容真的回来了
         assertThat(jdbcTemplate.queryForList(
@@ -449,10 +480,12 @@ class Q09RestoreDrillIT {
                 .as("重启后同一密钥版本仍可解开恢复的凭据")
                 .isEqualTo(ENDPOINT_CREDENTIAL);
 
-        // 索引：快照恢复后的向量仍可检索，且载荷指向恢复后的版本
+        // 索引：快照恢复后的向量仍可检索，且载荷指向恢复后的版本。
+        // 注意：本断言依赖用例 1 执行到索引快照恢复（recoverIndexSnapshot）——用例 1 若提前失败，
+        // 集合停留在"破坏阶段被清空"的状态，这里会级联失败；两条用例是有序依赖，不是独立用例。
         List<KnowledgeIndexPort.SearchHit> hits =
                 indexPort.search(collectionName, chunkVector(1), 5, knowledgeBaseFilter());
-        assertThat(hits).isNotEmpty();
+        assertThat(hits).as("用例 1 的索引快照恢复必须已带回向量（否则用例 1 未执行完，属级联失败）").isNotEmpty();
         assertThat(hits.get(0).payload()).containsEntry("document_version_id", String.valueOf(documentVersionId));
 
         tVerifiedEndMillis = System.currentTimeMillis();

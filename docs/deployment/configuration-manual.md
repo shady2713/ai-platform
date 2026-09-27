@@ -145,7 +145,7 @@ localhost/127.x/::1（本机 `*.example.com` 之外的内网域名可正常通�
 
 | # | 组件 | 最小可用组合 | 判据（怎么知道成了） |
 |---|---|---|---|
-| 1 | MySQL | 一个 8.4 实例 + 应用账号（DML）+ 迁移账号（DDL）+ `DB_*`/`FLYWAY_*` 全部注入；**空库**启动让 Flyway 跑完整迁移链 | `flyway_schema_history` 末版本 = `db/migration` 最大编号（当前 **V83**，82 个文件）；启动日志 `Successfully applied ... now at version v83`；`PersistenceLifecycleIT` 同口径 |
+| 1 | MySQL | 一个 8.4 实例 + 应用账号（DML）+ 迁移账号（DDL）+ `DB_*`/`FLYWAY_*` 全部注入；**空库**启动让 Flyway 跑完整迁移链 | `flyway_schema_history` 末版本 = `db/migration` 最大编号（当前 **V84**，83 个文件）；启动日志 `Successfully applied ... now at version v84`；`PersistenceLifecycleIT` 同口径 |
 | 2 | Redis | 一个 7.x 实例 + `REDIS_PASSWORD`；`REDIS_HOST/PORT` | 健康检查 UP 且能登录（验证码/会话走 Redis） |
 | 3 | 对象存储/文件通道 | 管理端新建一个**主配置**（本地磁盘或 S3 兼容）并保存；S3 私有桶另配 `.pending/` 生命周期（[Runbook §1](../deployment.md)） | 文件上传成功且 `infra_file_config` 有 1 行 `master=1`；未配置时 `getMasterFileClient()` 返回 null |
 | 4 | 模型端点 | `ai.enabled=true` + `capabilities` 至少含 `TEXT`；`ai.http.allowed-hosts` 列入端点主机（内网再加 `allow-private-targets=true`）；管理端建端点并注入凭据 | 管理端"连接测试/能力探测"通过；运行一次对话得到终态 run（能力探测确认的集合才是可发布范围） |

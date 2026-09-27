@@ -69,7 +69,7 @@ docker run -d --name bf-redis -p 6379:6379 \
   `run_flyway baseline -baselineVersion=<快照文件头声明版本>`，再启动应用；**禁止**把快照按版本 1 接管；
 - 已有 Flyway 历史的库直接升级，不执行 baseline。
 
-判据：应用日志 `Successfully applied ... now at version v83`（本机迁移链最大 V83，82 个文件）、
+判据：应用日志 `Successfully applied ... now at version v84`（本机迁移链最大 V84，83 个文件）、
 `flyway_schema_history` 末版本 = 文件最大编号；种子管理员校验（跑完快照后）：
 
 ```sql

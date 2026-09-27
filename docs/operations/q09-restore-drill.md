@@ -13,6 +13,7 @@
 
 - **本机容器口径**：单台开发机上的 Docker 容器（Testcontainers 随机端口），MySQL/Redis/Qdrant 与应用同机竞争 CPU/磁盘。
   样本量很小：**83 张表、1 个应用、2 个主体、1 个知识库文档（2 切片/2 向量）、1 个报表、1 个模型端点**，整库 dump 约 270 KiB。
+  行数指纹覆盖 83 张表中的 **64 张业务真相表**，另有 **19 张运行期/易变表被排除**（逐表清单与理由见 §1.1）。
 - **RTO 定义**：从「破坏完成」到「新应用上下文（模拟进程重启）上业务断言通过」的墙钟时间；另给出其中的 MySQL 回放耗时。
 - **RPO 定义**：备份完成之后、破坏之前写入的数据量。演练用一条真实业务写入（Bob 的授权）做探针，恢复后必须不存在。
   本演练是**全量逻辑备份**（mysqldump 单事务），因此生产 RPO 上限 = 备份周期，本卡不验证备份调度与 binlog 时间点恢复。
@@ -20,6 +21,45 @@
   恢复用真实 `mysql` 客户端回放；恢复后由**新启动的 Spring 上下文**跑授权/引用/报表/文件/索引断言。
 - **与生产的已知偏差**（见 §7）：恢复窗口内应用上下文并未真正停机（只关 Quartz 调度）；文件只覆盖 DB 存储形态；
   Redis 未做备份恢复；未使用生产规模数据。
+
+### 1.1 行数指纹口径：业务真相表（排除运行期/易变表）
+
+恢复保真的行数比对**不是"全库所有表"**，而是**业务真相表**：取全库表行数、剔除下表的运行期/易变表后，
+其余表逐表严格比对。排除的唯一理由是：这些表的行数由运行期设施在后台持续写入而变化，不承载
+"备份-恢复是否保真"的信息。**被演练的业务真相表不在排除清单内，仍是逐表严格比对**——用例运行时还会断言
+"排除清单与被演练表无交集、且被演练表都在指纹里"，清单写错会直接失败，不会静默放宽断言。
+
+| 排除的表 | 为什么排除（谁是写入方） |
+|---|---|
+| `QRTZ_*`（11 张：`QRTZ_BLOB_TRIGGERS`/`QRTZ_CALENDARS`/`QRTZ_CRON_TRIGGERS`/`QRTZ_FIRED_TRIGGERS`/`QRTZ_JOB_DETAILS`/`QRTZ_LOCKS`/`QRTZ_PAUSED_TRIGGER_GRPS`/`QRTZ_SCHEDULER_STATE`/`QRTZ_SIMPLE_TRIGGERS`/`QRTZ_SIMPROP_TRIGGERS`/`QRTZ_TRIGGERS`） | Quartz 调度器运行期存储：每 15s 集群检查点、每次触发/集群恢复/锁竞争都会增删行 |
+| `infra_job_log` | 任务执行日志：`JobHandlerInvoker` 每次任务执行插入一行 |
+| `ai_access_ticket` | 访问票据（会话类、带 TTL）：取票即写，`AiTicketCleanupJob` 按 TTL 清理 |
+| `system_user_session` | 登录会话：刷新/轮换写入，保留期清理删除 |
+| `system_operate_log` / `system_login_log` | 审计日志：运行期追加、保留期清理 |
+| `infra_api_access_log` / `infra_api_error_log` | API 访问/错误日志：运行期追加、保留期清理 |
+| `ai_run_event` | 运行事件流：运行生命周期写入、保留期清理 |
+
+**为什么改成这个口径**（2026-09-27 整套件失败实证）：原断言 `恢复后全库行数 == 备份前行数` 在
+`mvn -Pintegration clean verify`（267 例）下失败——`QRTZ_FIRED_TRIGGERS` 备份前 1 行、恢复后 2 行
+（其余 82 张表逐表一致），而该用例单独跑必过。根因：整套件下同一 forked JVM 中先前测试类遗留的
+Spring 上下文（test profile 为 `spring.quartz.auto-startup=true`）的调度器仍在运行，并把调度器状态
+写进了本演练库。失败运行的 dump（`/tmp/q09-drill-backup.sql`）里：
+
+- `QRTZ_SCHEDULER_STATE` 的两行属于调度器实例 `…1790519356983`、`…1790519402474`，创建时刻为 22:29:16、22:30:02，
+  **早于本用例窗口**（22:30:17 起，容器 22:30:41 才就绪），且不属于本用例——本用例自己的两个上下文实例
+  `…1790519479284`、`…1790519520095` 设了 `spring.quartz.auto-startup=false`，日志中从未出现 `started`、
+  也从未在库里注册；
+- `QRTZ_FIRED_TRIGGERS` 里那次 `aiKnowledgeIngestionJob` 触发发生在 22:31:30.182，恰好落在
+  "读取指纹 → 执行 mysqldump"之间，于是备份前读到 1 行、dump 里是 2 行，恢复后自然对不上。
+
+把这类后台写入算进行数指纹，整套件下必然抖动；单跑时没有其它上下文写本库，所以单跑必过。
+
+**口径边界**：指纹是"行数"比对，排除只针对这些表的行数；被演练表的**内容**证据（授权放行、切片/版本引用、
+报表数据、文件原文、密文可解、RPO 探针缺失）不受影响，见 §4。运行期表另有各自 IT 覆盖其语义。
+
+**级联说明**：用例 2（重启后业务可用性）的索引断言依赖用例 1 执行到索引快照恢复；用例 1 若提前失败，
+集合停留在破坏阶段被清空的状态，用例 2 会在 `search(…).isNotEmpty()` 处级联失败——那是同一根因的
+次生失败，不是第二个独立缺陷（2026-09-27 整套件失败即如此）。
 
 ## 2. 复现命令与依赖的 Docker 环境
 
@@ -56,10 +96,10 @@ umask 022 && export JAVA_HOME=$HOME/.local/opt/jdk17/usr/lib/jvm/java-17-openjdk
 | # | 阶段 | 实际动作 | 关键输出 |
 |---|---|---|---|
 | 1 | 播种 | 真实服务写入：应用+凭据（A01）、主体+两条授权（A02/A03）、知识库+文档版本+2 切片（K02）、DB 存储文件（A07）、模型端点密文、报表版本（R04）、Qdrant 集合与 2+1 个向量点 | 播种后业务断言全部可用 |
-| 2 | 备份 | 容器内 `mysqldump --single-transaction --routines --events --triggers --hex-blob` 导出整库到宿主机 `/tmp/q09-drill-backup.sql`；Qdrant 建快照 | **276,860 B（270 KiB）**，SHA-256 `da42928241282ebe45def260aeda918740a5603109d9c3412060986f3308d93b`，耗时 **2.290 s**，覆盖 **83 张表**；索引快照 **147,456 B**（`kb_it-q09-kb_g1-*.snapshot`） |
+| 2 | 备份 | 容器内 `mysqldump --single-transaction --routines --events --triggers --hex-blob` 导出整库到宿主机 `/tmp/q09-drill-backup.sql`；Qdrant 建快照 | **276,860 B（270 KiB）**，SHA-256 `da42928241282ebe45def260aeda918740a5603109d9c3412060986f3308d93b`，耗时 **2.290 s**，覆盖 **83 张表**（行数指纹 64 张业务真相表，口径见 §1.1）；索引快照 **147,456 B**（`kb_it-q09-kb_g1-*.snapshot`） |
 | 3 | RPO 探针 | 备份完成后写入 Bob 的授权（真实业务行） | 备份完成→破坏开始窗口 **690 ms** |
 | 4 | 破坏 | 删除 2 条授权、文档/版本/切片/索引代/知识库行、文件绑定与文件内容（按 `config_id+path` 定位）、模型端点与 revision；改写报表版本内容；`deleteAll` 清空向量 | 删除/改写 **14 行** + 索引清空，耗时 **0.313 s**；破坏后：判定拒绝、切片行 0、报表失权拒绝（AT-048）、检索为空 |
-| 5 | 恢复 | `mysql < dump` 整库回放（含 DROP/CREATE 83 张表）→ 全库表行数与备份前**逐表一致** → Qdrant 快照 `recover` | MySQL 回放 **18.595 s**；索引快照恢复 **1.735 s**；恢复后检索命中 2 个点，载荷的 `document_version_id`/`knowledge_base_id` 与恢复后的行一致 |
+| 5 | 恢复 | `mysql < dump` 整库回放（含 DROP/CREATE 83 张表）→ 业务真相表行数与备份前**逐表一致**（§1.1 口径）→ Qdrant 快照 `recover` | MySQL 回放 **18.595 s**；索引快照恢复 **1.735 s**；恢复后检索命中 2 个点，载荷的 `document_version_id`/`knowledge_base_id` 与恢复后的行一致 |
 | 6 | 重启后业务断言 | 关闭旧上下文（`@DirtiesContext`）→ 新上下文启动（等价进程重启）→ 仅凭恢复的数据跑断言 | **2/2 用例通过**，Maven 退出码 0；**RTO 合计 48.602 s**（其中"恢复开始→断言通过" 47.204 s） |
 
 ### 3.1 六次连续运行的稳定性（同一台机器）
@@ -145,8 +185,8 @@ umask 022 && export JAVA_HOME=$HOME/.local/opt/jdk17/usr/lib/jvm/java-17-openjdk
 
 | 文件 | 类型 | 说明 |
 |---|---|---|
-| `后端代码/basic-framework-boot/basic-framework-server/src/test/java/com/basicframework/server/integration/Q09RestoreDrillIT.java` | 新增（测试） | 演练用例：真实 mysqldump 备份 → 破坏 → MySQL/索引恢复 → 重启后业务断言；输出 `Q09-DRILL-METRIC`（684 行） |
-| `后端代码/basic-framework-boot/basic-framework-server/src/test/java/com/basicframework/server/integration/Q09RestoreDrillSupport.java` | 新增（测试支持类） | 拆分出的共享装配（容器/动态属性/演练常量/跨阶段状态）与工具（表行数指纹、Qdrant 快照调用、SHA-256、指标输出），不含用例（332 行） |
+| `后端代码/basic-framework-boot/basic-framework-server/src/test/java/com/basicframework/server/integration/Q09RestoreDrillIT.java` | 新增（测试） | 演练用例：真实 mysqldump 备份 → 破坏 → MySQL/索引恢复 → 重启后业务断言；输出 `Q09-DRILL-METRIC`（717 行；2026-09-27 起行数指纹改为业务真相表口径，见 §1.1） |
+| `后端代码/basic-framework-boot/basic-framework-server/src/test/java/com/basicframework/server/integration/Q09RestoreDrillSupport.java` | 新增（测试支持类） | 拆分出的共享装配（容器/动态属性/演练常量/跨阶段状态）与工具（业务真相表行数指纹与排除清单 `RUNTIME_VOLATILE_TABLES`、被演练表清单 `DRILLED_BUSINESS_TABLES`、Qdrant 快照调用、SHA-256、指标输出），不含用例（420 行） |
 | `scripts/drill-backup-restore.sh` | 新增（脚本） | 可复现编排：Docker/JDK 预检 → 跑演练 → 提取指标；不新增 `check-*` |
 | `docs/operations/q09-restore-drill.md` | 新增（文档） | 本文件 |
 
@@ -162,3 +202,6 @@ umask 022 && export JAVA_HOME=$HOME/.local/opt/jdk17/usr/lib/jvm/java-17-openjdk
 ```
 
 （本切片只新增测试与脚本，未触碰生产代码；上述回归用于确认共享测试基础设施无副作用。）
+
+**2026-09-27 口径修复后的整套件复验**（门禁口径，`./mvnw -o -pl basic-framework-server verify -Pintegration`）：
+见 §3.2。

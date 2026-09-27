@@ -146,6 +146,64 @@ final class Q09RestoreDrillSupport {
     /** 另一个 32 字节 Base64 主密钥：用于证明"换了密钥版本就解不开"（fail-closed）。 */
     static final String WRONG_KEY_BASE64 = "QkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkI=";
 
+    // ===== 行数指纹口径：业务真相表 vs 运行期/易变表 =====
+
+    /**
+     * 不进入"业务真相行数指纹"的运行期/易变表（排除清单，逐表理由见下）。
+     *
+     * <p>排除的原因只有一条：这些表的行数由运行期设施在后台持续写入而变化，不代表"备份-恢复是否保真"。
+     * 特别是整套件下同一 forked JVM 中其它测试类遗留的 Spring 上下文（test profile 的
+     * {@code spring.quartz.auto-startup=true}）仍可能把调度器状态写进本演练库：2026-09-27 的整套件失败中，
+     * 本库 dump 里的 {@code QRTZ_SCHEDULER_STATE}/{@code QRTZ_FIRED_TRIGGERS} 行来自两个创建时刻早于
+     * 本用例窗口、且不属于本用例上下文（本用例自己的两个上下文设 {@code auto-startup=false}，从未注册）的
+     * 调度器实例，其中一次 {@code aiKnowledgeIngestionJob} 触发正好落在"读取指纹 → mysqldump"之间。
+     * 逐表口径与证据见 {@code docs/operations/q09-restore-drill.md} §1.1。
+     */
+    static final Set<String> RUNTIME_VOLATILE_TABLES = Set.of(
+            // ---- Quartz 调度器运行期存储：触发、检查点（每 15s）、锁与集群恢复都会增删行 ----
+            "QRTZ_BLOB_TRIGGERS",
+            "QRTZ_CALENDARS",
+            "QRTZ_CRON_TRIGGERS",
+            "QRTZ_FIRED_TRIGGERS",
+            "QRTZ_JOB_DETAILS",
+            "QRTZ_LOCKS",
+            "QRTZ_PAUSED_TRIGGER_GRPS",
+            "QRTZ_SCHEDULER_STATE",
+            "QRTZ_SIMPLE_TRIGGERS",
+            "QRTZ_SIMPROP_TRIGGERS",
+            "QRTZ_TRIGGERS",
+            // ---- 任务执行日志：JobHandlerInvoker 每次任务执行都会插入一行（不是业务真相） ----
+            "infra_job_log",
+            // ---- 会话/票据类：取票即写、按 TTL 由 AiTicketCleanupJob 清理 ----
+            "ai_access_ticket",
+            "system_user_session",
+            // ---- 审计/访问日志类：运行期追加、按保留期清理 ----
+            "system_operate_log",
+            "system_login_log",
+            "infra_api_access_log",
+            "infra_api_error_log",
+            // ---- 运行事件流：运行生命周期写入、按保留期清理 ----
+            "ai_run_event");
+
+    /**
+     * 演练真正破坏/恢复、必须留在指纹里逐表严格比对的业务真相表。
+     *
+     * <p>该清单是"不得削弱断言"的运行期护栏：排除清单与它不允许有任何交集，且它必须全部出现在指纹键集合里。
+     */
+    static final Set<String> DRILLED_BUSINESS_TABLES = Set.of(
+            "ai_resource_grant",
+            "ai_knowledge_base",
+            "ai_knowledge_document",
+            "ai_knowledge_document_version",
+            "ai_knowledge_chunk",
+            "ai_knowledge_index_generation",
+            "ai_file_binding",
+            "infra_file",
+            "infra_file_content",
+            "ai_model_endpoint",
+            "ai_model_endpoint_revision",
+            "ai_report_version");
+
     // ===== 跨上下文重启保留的演练状态 =====
 
     static Long applicationId;
@@ -274,7 +332,11 @@ final class Q09RestoreDrillSupport {
         return "http://" + QDRANT.getHost() + ":" + QDRANT.getMappedPort(6333);
     }
 
-    /** 全库表行数指纹：恢复保真的第一层证据（配合针对被破坏行的内容断言）。 */
+    /**
+     * 全库表行数（含运行期表）：仅用于口径度量/诊断，不作为恢复保真断言（运行期表会抖动）。
+     *
+     * <p>恢复保真断言请用 {@link #businessTruthFingerprint(Map)}。
+     */
     static Map<String, Long> tableRowCounts(JdbcTemplate jdbcTemplate) {
         List<String> tables = jdbcTemplate.queryForList(
                 "SELECT table_name FROM information_schema.tables WHERE table_schema = ? AND table_type = 'BASE TABLE'"
@@ -286,6 +348,32 @@ final class Q09RestoreDrillSupport {
             counts.put(table, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM `" + table + "`", Long.class));
         }
         return counts;
+    }
+
+    /**
+     * 业务真相行数指纹：从全库表行数中剔除 {@link #RUNTIME_VOLATILE_TABLES}，其余表逐表严格比对。
+     *
+     * <p>运行期护栏（防止口径被悄悄放宽）：
+     * <ol>
+     *   <li>排除清单必须命中真实存在的表——表改名/下线后必须同步维护，不能"排了个不存在的表"而静默失效；</li>
+     *   <li>被演练的业务真相表（{@link #DRILLED_BUSINESS_TABLES}）必须全部留在指纹里——排除它们就是削弱演练证据；</li>
+     *   <li>排除清单与业务真相表不允许交集。</li>
+     * </ol>
+     */
+    static Map<String, Long> businessTruthFingerprint(Map<String, Long> allTableCounts) {
+        assertThat(RUNTIME_VOLATILE_TABLES)
+                .as("排除清单与业务真相表不得有交集（排除被演练表即削弱演练证据）")
+                .doesNotContainAnyElementsOf(DRILLED_BUSINESS_TABLES);
+        assertThat(allTableCounts.keySet())
+                .as("排除清单必须全部命中真实表（表改名/删除后必须同步维护，禁止静默失效）")
+                .containsAll(RUNTIME_VOLATILE_TABLES);
+        Map<String, Long> fingerprint = new TreeMap<>(allTableCounts);
+        RUNTIME_VOLATILE_TABLES.forEach(fingerprint::remove);
+        assertThat(fingerprint.keySet())
+                .as("被演练的业务真相表必须留在指纹内逐表严格比对")
+                .containsAll(DRILLED_BUSINESS_TABLES)
+                .doesNotContainAnyElementsOf(RUNTIME_VOLATILE_TABLES);
+        return fingerprint;
     }
 
     static String sha256(Path file) throws Exception {

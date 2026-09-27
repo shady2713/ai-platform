@@ -7,7 +7,7 @@
 | 不写什么 | 操作细节不重复：[部署 Runbook](../deployment.md)（compose/健康检查/Flyway 失败处置/备份恢复）、[部署与回退说明](../deployment/deployment-and-rollback.md)（交付包→运行、回退命令）、[恢复演练报告模板](drill-report-template.md) |
 | 与上游依赖升级的关系 | **上游依赖**（Spring AI / AntV / Qdrant / Tika 等）版本置换走 [Q08 升级演练方案](../upgrades/q08-upgrade-rehearsal-and-rollback.md) §3/§4；本单处理的是**平台自身发布**（新迁移 + 新二进制 + 新产品前端）的上线，两者可同窗执行但材料与判据不同 |
 | 执行状态 | **本切片只写文档，未执行任何升级**（无生产授权、无第二套环境）。下文命令均标注来源；凡本卡另两片应产出的材料，写"待补：见 Q09 证据 §…"，不编造内容 |
-| 版本落点（2026-09-27 本机） | 迁移链 82 个文件、最大 **V83**、快照声明 `through V83`；后端 `basic-framework-server.jar`；前端 `apps/web-ele/dist` + `apps/ai-chat/dist`（嵌入产物另暂存） |
+| 版本落点（2026-09-27 本机） | 迁移链 83 个文件、最大 V84、快照声明 `through V84`；后端 `basic-framework-server.jar`；前端 `apps/web-ele/dist` + `apps/ai-chat/dist`（嵌入产物另暂存） |
 
 ## 0. 角色与前置
 
@@ -54,7 +54,7 @@ docker compose exec -T mysql sh -c \
 
 ```bash
 cd /home/ctyun/桌面/zhongtai/ai-platform
-# 编号唯一性：输出为空 = 无碰撞；再看最大编号（本机 V83）
+# 编号唯一性：输出为空 = 无碰撞；再看最大编号（本机 V84）
 ls 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/*.sql \
   | sed 's/.*\/V\([0-9]*\)__.*/\1/' | sort -n | uniq -d
 ls 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/*.sql | wc -l
