@@ -25,7 +25,7 @@
 - `index.ts`：`createOpenApiClient({ baseUrl, accessToken, exchangeTicket, fetchImpl })`：
   `acceptRun`（带 `Idempotency-Key`，`reused` 表示命中幂等）、`getRun`、`cancelRun`（乐观锁版本）、`pageRuns`、
   `streamRunEvents`（fetch + SSE，返回 `{lastSeq, reason}`；`reason=closed` 由调用方按 `afterSeq` 重连；
-  重放窗口过期 `1003004009` → 读取快照）。
+  重放窗口过期 `1003004006（契约 1_003_004_006）` → 读取快照）。
 - `README.md`：模块说明、用法与行为约定。
 - `__tests__/client.test.ts`（7 例）。
 

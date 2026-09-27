@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Q08 渲染回归探针（真实 Chromium + AntV/G2 5.4.8）</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: sans-serif;
+      }
+      .probe-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 12px;
+      }
+      .probe-chart {
+        width: 560px;
+        height: 300px;
+        border: 1px solid #ddd;
+      }
+      .probe-report {
+        width: 720px;
+        overflow: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="targets" class="probe-row">
+      <div id="chart-ai-chart" class="probe-chart" data-probe="ai-chart"></div>
+      <div
+        id="chart-renderer"
+        class="probe-chart"
+        data-probe="chartrenderer"
+      ></div>
+      <div id="chart-line" class="probe-chart" data-probe="line"></div>
+    </div>
+    <div id="report" class="probe-report" data-probe="report"></div>
+    <script type="module" src="/probe.js"></script>
+  </body>
+</html>
