@@ -64,8 +64,8 @@ export interface AiChatClient {
 
 const TERMINAL_STATUSES = new Set(['CANCELLED', 'FAILED', 'SUCCEEDED']);
 
-/** 重放窗口过期（服务端稳定错误码）：改为读取快照。 */
-const RUN_EVENT_WINDOW_EXPIRED = '1003004009';
+/** 重放窗口过期（服务端稳定错误码，契约 `1_003_004_006`）：改为读取快照。 */
+const RUN_EVENT_WINDOW_EXPIRED = '1003004006';
 
 /** 业务键（`svc_xxx` / `run_xxx`）→ 数值编号（开放 API 的编号列）。 */
 function numericId(key: string): number {

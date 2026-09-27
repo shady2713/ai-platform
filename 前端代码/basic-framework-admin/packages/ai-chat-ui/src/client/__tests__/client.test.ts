@@ -195,6 +195,8 @@ describe('共享开放客户端', () => {
   });
 
   it('重放窗口过期改为读取快照（不重新发起运行）', async () => {
+    // 契约冻结值（docs/contracts/ai/error-code-map.md）：AI_RUN_EVENT_WINDOW_EXPIRED = 1_003_004_006
+    expect(RUN_EVENT_WINDOW_EXPIRED).toBe('1003004006');
     const urls: string[] = [];
     const client = createOpenApiClient({
       baseUrl: 'https://host/app-api',
@@ -203,7 +205,7 @@ describe('共享开放客户端', () => {
         if (String(input).includes('/events')) {
           return Response.json(
             {
-              code: Number(RUN_EVENT_WINDOW_EXPIRED),
+              code: 1_003_004_006,
               msg: '重放窗口过期',
             },
             {

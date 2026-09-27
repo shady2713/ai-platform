@@ -148,7 +148,8 @@ describe('createAiChatClient', () => {
     const client = clientWith((async (input: string | URL) => {
       urls.push(String(input));
       if (String(input).includes('/events')) {
-        return jsonResponse({ code: 1_003_004_009, msg: '重放窗口过期' }, 409);
+        // 契约冻结值：AI_RUN_EVENT_WINDOW_EXPIRED = 1_003_004_006（error-code-map.md）
+        return jsonResponse({ code: 1_003_004_006, msg: '重放窗口过期' }, 409);
       }
       return jsonResponse({
         code: 0,
@@ -225,7 +226,7 @@ describe('createAiChatClient', () => {
     // 窗口过期但快照读取也失败：把快照错误如实抛出
     const snapshotFails = clientWith((async (input: string | URL) => {
       if (String(input).includes('/events')) {
-        return jsonResponse({ code: 1_003_004_009, msg: '重放窗口过期' }, 409);
+        return jsonResponse({ code: 1_003_004_006, msg: '重放窗口过期' }, 409);
       }
       return jsonResponse({ code: 1_003_004_001, msg: '运行不存在' }, 404);
     }) as unknown as typeof fetch);

@@ -36,7 +36,7 @@ await client.streamRunEvents(accepted.runId, {
 
 ## 行为约定（与验收对应）
 
-- **AT-014 断线重连**：`streamRunEvents` 返回 `{ lastSeq, reason }`；`reason=closed` 时用 `afterSeq: lastSeq` 重连（服务端只补发更大的 seq，客户端再按 seq 去重）；重放窗口过期（`1003004009`）时改为读取快照， **不重新发起运行**。
+- **AT-014 断线重连**：`streamRunEvents` 返回 `{ lastSeq, reason }`；`reason=closed` 时用 `afterSeq: lastSeq` 重连（服务端只补发更大的 seq，客户端再按 seq 去重）；重放窗口过期（`1003004006`，契约 `1_003_004_006`）时改为读取快照， **不重新发起运行**。
 - **AT-015 开流后错误**：`run.failed` 是终态事件（`reason=terminal` 后停止订阅）；HTTP/业务失败抛稳定错误（`status` + `code`），不返回"看起来成功"的空结果。
 - **票据不在 URL/storage**：令牌只通过 `Authorization` 头传递；本模块不写任何存储、不拼接 URL 参数。
 - **401 只换票一次**：由宿主 `exchangeTicket()` 提供新票据并重试一次；再次 401 直接失败。

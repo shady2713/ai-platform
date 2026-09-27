@@ -35,8 +35,8 @@ const TERMINAL_STATUSES = new Set<RunStatus>([
   'SUCCEEDED',
 ]);
 
-/** 重放窗口过期（服务端稳定错误码）：改为读取快照。 */
-export const RUN_EVENT_WINDOW_EXPIRED = '1003004009';
+/** 重放窗口过期（服务端稳定错误码，契约 `1_003_004_006`）：改为读取快照。 */
+export const RUN_EVENT_WINDOW_EXPIRED = '1003004006';
 
 export interface OpenApiClientOptions {
   /** 内存票据提供者（宿主负责换票与失效；本模块不持久化任何令牌） */
