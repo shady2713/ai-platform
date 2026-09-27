@@ -9,6 +9,10 @@ import type { ChartSpec } from '@vben/ai-contracts';
  *
  * <p>与后端权威 Schema（`docs/contracts/ai/report-spec.schema.json`）保持一致：
  * 本文件是它的**消费者**，不新增字段语义；块类型四类（metric/text/table/chart）与 12 列栅格同值。
+ * 指标块的权威形状是 `binding{datasetRef,field}`（2026-09-27 起按 Schema 接受，并归一化为内部
+ * `metricField`，渲染层不需要分支）；既有库中旧行的顶层 `datasetRef` + `metricField` 继续可读，
+ * 避免回退期数据不可读。`datasetRefs[].asOf` 按 Schema 作为 date-time 校验；旧行缺省时容忍
+ * （历史版本行没有该字段，服务端当前也只做可选校验）。
  *
  * <p>校验器是**手写**的（不引入新依赖）：本包只依赖 vue 与 `@vben/ai-contracts`，
  * 与 chart 适配层同一取舍。
@@ -16,6 +20,8 @@ import type { ChartSpec } from '@vben/ai-contracts';
 
 const IDENTIFIER = /^[a-z][a-z0-9_]{0,63}$/;
 const DECIMAL_TEXT = /^-?\d+(?:\.\d+)?$/;
+const DATE_TIME =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 const SCRIPT_MARKER =
   /<\s*script|<\/\s*script|javascript:|<\s*style|<\s*iframe/i;
 
@@ -105,6 +111,8 @@ export interface ReportLayoutItem {
 export interface ReportSpec {
   blocks: ReportBlock[];
   datasetRefs: {
+    /** 数据截至时间（RFC3339 date-time；Schema 必填，历史旧行可能缺省） */
+    asOf?: string;
     columns: ReportResultColumn[];
     completeness: string;
     id: string;
@@ -213,6 +221,18 @@ function integer(value: unknown, min: number, max: number): number {
   return value;
 }
 
+/** RFC3339 date-time（Schema 的 asOf 格式）。 */
+function dateTime(value: unknown): string {
+  if (
+    typeof value !== 'string' ||
+    !DATE_TIME.test(value) ||
+    Number.isNaN(Date.parse(value))
+  ) {
+    return fail('数据截至时间不合法');
+  }
+  return value;
+}
+
 function enumeration(value: unknown, allowed: Set<string>): string {
   if (typeof value !== 'string' || !allowed.has(value)) {
     return fail('取值不在允许域内');
@@ -253,6 +273,7 @@ function block(value: unknown): ReportBlock {
     'type',
     'text',
     'datasetRef',
+    'binding',
     'metricField',
     'rowIndex',
     'format',
@@ -270,11 +291,28 @@ function block(value: unknown): ReportBlock {
     return { ...base, type: 'text', text: text(node.text, 5000, false) };
   }
   if (type === 'metric') {
+    // 冻结 Schema：metric 用 binding{datasetRef,field}；
+    // 兼容既有库旧行：顶层 datasetRef + metricField。
+    const binding =
+      node.binding === undefined
+        ? null
+        : object(node.binding, ['datasetRef', 'field']);
+    const datasetRef = identifier(
+      binding ? binding.datasetRef : node.datasetRef,
+    );
+    // 两种写法同时出现时必须指向同一数据集，否则拒绝（不猜哪个是真来源）
+    if (
+      binding &&
+      node.datasetRef !== undefined &&
+      identifier(node.datasetRef) !== datasetRef
+    ) {
+      return fail('指标绑定数据集不一致');
+    }
     return {
       ...base,
       type: 'metric',
-      datasetRef: identifier(node.datasetRef),
-      metricField: identifier(node.metricField),
+      datasetRef,
+      metricField: identifier(binding ? binding.field : node.metricField),
       rowIndex: integer(node.rowIndex, 0, 1_000_000),
       format: enumeration(node.format, FORMATS),
       ...(node.unit === undefined ? {} : { unit: text(node.unit, 32) }),
@@ -370,6 +408,7 @@ export function parseReportSpec(input: unknown): ReportSpec {
         'queryRef',
         'columns',
         'rowCount',
+        'asOf',
         'completeness',
       ]);
       return {
@@ -378,6 +417,7 @@ export function parseReportSpec(input: unknown): ReportSpec {
         queryRef: identifier(node.queryRef),
         columns: array(node.columns, 1, 50).map((item) => resultColumn(item)),
         rowCount: integer(node.rowCount, 0, 100_000_000),
+        ...(node.asOf === undefined ? {} : { asOf: dateTime(node.asOf) }),
         completeness: enumeration(node.completeness, COMPLETENESS),
       };
     }),

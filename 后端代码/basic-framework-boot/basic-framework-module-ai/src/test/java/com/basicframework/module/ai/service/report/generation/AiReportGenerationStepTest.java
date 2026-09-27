@@ -1,14 +1,18 @@
 package com.basicframework.module.ai.service.report.generation;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.basicframework.framework.common.exception.ServiceException;
+import com.basicframework.framework.common.util.json.JsonUtils;
+import com.basicframework.module.ai.domain.report.AiReportSpec;
 import com.basicframework.module.ai.domain.result.AiReportResultBlock;
 import com.basicframework.module.ai.enums.AiErrorCodeConstants;
 import com.basicframework.module.ai.service.report.generation.dto.AiReportGenerationResultDTO;
 import com.basicframework.module.ai.service.report.validation.AiReportDataBinder;
 import com.basicframework.module.ai.service.report.validation.AiReportSpecValidator;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -81,6 +85,32 @@ class AiReportGenerationStepTest {
             """;
 
     private static final String EMPTY_SPEC = VALID_SPEC.replace("\"rowCount\": 2", "\"rowCount\": 0");
+
+    /**
+     * 含 metric 块的规格：冻结 Schema 的 metric 块只认 {@code binding{datasetRef,field}}，
+     * 顶层不得出现 {@code datasetRef}（模型输入就按 Schema 写）。
+     */
+    private static final String METRIC_SPEC =
+            """
+            {"schemaVersion": "1.0", "title": "区域净额",
+             "themeRef": {"themeId": "thm_default", "revision": 1},
+             "layout": {"columns": 12, "gap": 16, "items": [
+               {"blockId": "intro", "row": 0, "column": 0, "span": 12},
+               {"blockId": "total", "row": 1, "column": 0, "span": 4}]},
+             "blocks": [
+               {"id": "intro", "title": "统计口径", "type": "text", "text": "8 月、华东，按客户汇总净额。"},
+               {"id": "total", "title": "净额合计", "type": "metric",
+                "binding": {"datasetRef": "sales_result", "field": "net_amount"},
+                "rowIndex": 0, "format": "CURRENCY", "unit": "CNY"}],
+             "datasetRefs": [
+               {"id": "sales_result", "resultRef": "run_1/result/0", "queryRef": "sales_query",
+                "columns": [{"field": "customer_name", "label": "客户", "dataType": "STRING"},
+                            {"field": "net_amount", "label": "净额", "dataType": "DECIMAL", "unit": "CNY"}],
+                "asOf": "2026-09-16T00:00:00Z", "rowCount": 2, "completeness": "COMPLETE"}],
+             "queryRefs": [{"id": "sales_query", "plan": {"schemaVersion": "1.0"}}],
+             "sources": [{"id": "src", "kind": "DATASET", "resourceId": "dset_sales", "resourceVersion": 1,
+                          "description": "语义数据集"}]}
+            """;
 
     private static Map<String, AiReportDataBinder.ExecutionResult> results() {
         return Map.of(
@@ -157,6 +187,60 @@ class AiReportGenerationStepTest {
         // 数字块标 verified，文本块不标
         assertThat(block.data()).anySatisfy(data -> assertThat(data.verified()).isTrue());
         assertThat(block.data()).anySatisfy(data -> assertThat(data.verified()).isFalse());
+    }
+
+    @Test
+    void canonicalSpecJsonCarriesLayoutColumnsAsOfAndMetricBinding() {
+        AiReportGenerationResultDTO result =
+                step(new ScriptedModel(List.of(METRIC_SPEC))).generate("上个月华东净额", results(), null);
+
+        Map<String, Object> spec = JsonUtils.parseObject(result.getBlock().specJson(), Map.class);
+
+        // 冻结 Schema：layout 必填 columns（固定 12 列）
+        Map<String, Object> layout = node(spec.get("layout"));
+        assertThat(layout).containsKeys("columns", "gap", "items");
+        assertThat(layout.get("columns")).as("layout.columns 必须是 12 列栅格").isEqualTo(12);
+
+        // 冻结 Schema：datasetRefs[] 必填 asOf（date-time）；同一份报表共享同一生成时刻
+        List<Map<String, Object>> datasetRefs = nodes(spec.get("datasetRefs"));
+        assertThat(datasetRefs).isNotEmpty();
+        String firstAsOf = null;
+        for (Map<String, Object> datasetRef : datasetRefs) {
+            assertThat(datasetRef).as("datasetRefs[] 必须带 asOf").containsKey("asOf");
+            String asOf = String.valueOf(datasetRef.get("asOf"));
+            assertThatCode(() -> Instant.parse(asOf))
+                    .as("asOf 必须是 RFC3339 date-time")
+                    .doesNotThrowAnyException();
+            if (firstAsOf == null) {
+                firstAsOf = asOf;
+            } else {
+                assertThat(asOf).as("同一份报表的所有数据集引用共享同一 asOf").isEqualTo(firstAsOf);
+            }
+        }
+
+        // 冻结 Schema：metric 块只认 binding{datasetRef,field}，不写顶层 datasetRef
+        Map<String, Object> metric = nodes(spec.get("blocks")).stream()
+                .filter(block -> "metric".equals(block.get("type")))
+                .findFirst()
+                .orElseThrow();
+        assertThat(metric).containsKey("binding").doesNotContainKey("datasetRef");
+        assertThat(node(metric.get("binding")))
+                .containsEntry("datasetRef", "sales_result")
+                .containsEntry("field", "net_amount");
+
+        // 规范产物必须能被自家解析器/校验器读回（形状自洽）
+        AiReportSpec parsed = AiReportSpec.parse(result.getBlock().specJson());
+        assertThat(new AiReportSpecValidator().validate(parsed).blocks()).hasSize(2);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> node(Object value) {
+        return (Map<String, Object>) value;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, Object>> nodes(Object value) {
+        return (List<Map<String, Object>>) value;
     }
 
     @Test

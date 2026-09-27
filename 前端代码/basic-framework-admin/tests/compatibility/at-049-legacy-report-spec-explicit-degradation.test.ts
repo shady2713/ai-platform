@@ -1,21 +1,22 @@
 /**
- * AT-049（Q08 前端切片）：旧 ReportSpec 加载 —— 明确降级，不静默按新版本渲染。
+ * AT-049（Q08 前端切片）：ReportSpec 版本与形状兼容 —— 冻结样例/后端产物可加载，旧版本明确拒绝。
  *
  * 口径（必须明文保留，禁止把本结论说成"真实 N-1 报表联调"）：
  *  - 仓库里**没有** `schemaVersion` 早于 `1.0` 的真实历史报表产物：`docs/contracts/ai/samples/report-spec.valid.json`
  *    是 F07（2026-09-17）冻结的 v1 样例，版本戳仍是 `1.0`；
  *  - 因此"旧版本"用**冻结样例的等值变体**（只替换 schemaVersion 戳）驱动，验证"不支持的版本必须明确提示"；
- *  - 冻结样例本身（真实冻结产物）与后端 R03 的**规范序列化产物**也逐条驱动：当前实现必须显式拒绝
- *    （不抛未捕获异常、不渲染任何块），而不是静默按新版本尽力渲染。
+ *  - 冻结样例本身（真实冻结产物）与后端 R03 的**规范序列化产物**（metric 用 `binding`、`layout.columns`、
+ *    `datasetRefs[].asOf`）必须能被前端加载与渲染 —— 这是 2026-09-27 契约缺陷修复后的正式断言；
+ *  - 修复前的错误行为（冻结样例被 `未知字段 asOf` 拒绝、R03 产物被 `布局必须是 12 列栅格` /
+ *    `未知字段 binding` 拒绝）不再以 tripwire 形式固化；渲染期"未知字段拒绝"的严格性由独立用例保持。
  *
- * 断言对象是 `packages/ai-chat-ui/src/report`（只读引用；本切片未改一行产品源码）。
- * 若本文件里的"记录既有实现"用例变红，说明实现已变化：必须同步更新 `it.fails` tripwire 与交接记录。
+ * 断言对象是 `packages/ai-chat-ui/src/report`（修复后只读引用其产品源码）。
  */
 import { join } from 'node:path';
 
 import { mount } from '@vue/test-utils';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import AiReportView from '../../packages/ai-chat-ui/src/report/AiReportView.vue';
 import {
@@ -23,6 +24,17 @@ import {
   safeParseReportSpec,
 } from '../../packages/ai-chat-ui/src/report/reportSpec';
 import { readJsonFile, repositoryRoot } from './support/workspace';
+
+// 图表适配层在测试里用替身：本套件验证"规格能否加载/布局能否渲染"，厂商图表行为由 R02 测试覆盖
+vi.mock('@antv/g2', () => ({
+  Chart: class {
+    public changeSize = vi.fn();
+    public destroy = vi.fn();
+    public options = vi.fn();
+    public render = vi.fn();
+    public constructor(public config: Record<string, unknown>) {}
+  },
+}));
 
 interface ReportSpecFixture {
   [key: string]: unknown;
@@ -159,9 +171,9 @@ const SUPPORTED_DATA = {
 };
 
 /**
- * 后端 R03 的规范序列化产物（逐键对齐 `AiReportGenerationStep.specJson`：
- * metric 块写 `binding{datasetRef,field}`、`layout` 只有 `{gap,items}`、`datasetRefs` 无 `asOf`）。
- * 这里只是把该实现**已冻结的产物形状**变成可执行探针，不是新造协议。
+ * 后端 R03 的规范序列化产物（逐键对齐修复后的 `AiReportGenerationStep.specJson`：
+ * metric 块只写 `binding{datasetRef,field}`、`layout` 带 `columns=12`、`datasetRefs[]` 带 `asOf`）。
+ * asOf 取固定时间戳（后端按生成时刻写入 RFC3339 date-time），这里只冻结形状、不冻结真实运行时刻。
  */
 const BACKEND_R03_CANONICAL_PROBE = {
   schemaVersion: '1.0',
@@ -178,7 +190,6 @@ const BACKEND_R03_CANONICAL_PROBE = {
       id: 'total',
       type: 'metric',
       title: '净销售额合计',
-      datasetRef: 'sales_result',
       binding: { datasetRef: 'sales_result', field: 'net_amount' },
       rowIndex: 0,
       format: 'CURRENCY',
@@ -199,10 +210,12 @@ const BACKEND_R03_CANONICAL_PROBE = {
         },
       ],
       rowCount: 2,
+      asOf: '2026-09-27T06:00:00Z',
       completeness: 'COMPLETE',
     },
   ],
   layout: {
+    columns: 12,
     gap: 16,
     items: [
       { blockId: 'intro', row: 0, column: 0, span: 12 },
@@ -223,6 +236,79 @@ const BACKEND_R03_CANONICAL_PROBE = {
       resourceVersion: 1,
       queryRef: 'sales_query',
       description: '合成销售数据集；数据截至时间为测试固定时点。',
+    },
+  ],
+};
+
+/** 冻结样例（F07）对应的版本数据：图/表取值来自绑定结果。 */
+const FROZEN_V1_DATA = {
+  kind: 'REPORT',
+  data: [
+    { blockId: 'intro', type: 'text', verified: false },
+    {
+      blockId: 'sales_chart',
+      type: 'chart',
+      verified: true,
+      points: [
+        { customer_name: 'alice', net_amount: '290.00' },
+        { customer_name: 'bob', net_amount: '450.00' },
+      ],
+    },
+    {
+      blockId: 'sales_table',
+      type: 'table',
+      verified: true,
+      rows: [
+        { customer_name: 'alice', net_amount: '290.00' },
+        {
+          customer_name: 'bob',
+          net_amount: '450.00',
+          internal_note: '不可见列',
+        },
+      ],
+    },
+  ],
+  datasets: [
+    {
+      datasetRef: 'sales_result',
+      columns: [
+        { field: 'customer_name', label: '客户', dataType: 'STRING' },
+        {
+          field: 'net_amount',
+          label: '净销售额',
+          dataType: 'DECIMAL',
+          unit: 'CNY',
+        },
+      ],
+      rows: [
+        { customer_name: 'alice', net_amount: '290.00' },
+        { customer_name: 'bob', net_amount: '450.00' },
+      ],
+      completeness: 'COMPLETE',
+    },
+  ],
+};
+
+/** 后端 R03 产物对应的版本数据（metric 取绑定结果里的真实值）。 */
+const BACKEND_R03_DATA = {
+  kind: 'REPORT',
+  data: [
+    { blockId: 'intro', type: 'text', verified: false },
+    { blockId: 'total', type: 'metric', verified: true, value: '740.00' },
+  ],
+  datasets: [
+    {
+      datasetRef: 'sales_result',
+      columns: [
+        {
+          field: 'net_amount',
+          label: '净销售额',
+          dataType: 'DECIMAL',
+          unit: 'CNY',
+        },
+      ],
+      rows: [{ net_amount: '740.00' }],
+      completeness: 'COMPLETE',
     },
   ],
 };
@@ -318,42 +404,109 @@ describe('旧报表规格（AT-049）：明确降级 —— 基线夹具验证�
   });
 
   /**
-   * 以下两条是"记录既有实现"的**缺陷证据**，不是验收通过项：
-   * 冻结的权威 v1 样例（F07）与后端 R03 的规范产物都无法被当前前端解析。
-   * 影响：报表页/消息层会用"报表规格不合法"提示替代整张报表（不静默，但用户看不到报表）。
-   * 修复必须在契约拥有方（前端解析器或后端序列化，二选一先改权威 Schema）落地，本切片不改源码。
+   * 以下两条是 2026-09-27 契约缺陷修复后的**正式断言**（修复前必红）：
+   * 冻结的权威 v1 样例（F07）与后端 R03 的规范产物都必须能被前端加载并渲染；
+   * 修复前它们分别被 `未知字段 asOf` 与 `布局必须是 12 列栅格` / `未知字段 binding` 拒绝，
+   * 报表页会以"报表规格不合法"替代整张报表（用户看不到报表）——缺陷的根因与修复见交接记录。
    */
-  it('记录既有实现：F07 冻结 v1 样例被前端拒绝（拒绝原因可复核）', () => {
-    const error = captureError(() => parseReportSpec(FROZEN_V1_SAMPLE));
-    expect(error.message).toBe('报表数据不合法：未知字段 asOf');
-    expect(safeParseReportSpec(FROZEN_V1_SAMPLE)).toBeNull();
-  });
+  it('冻结 v1 样例（F07）可被前端加载并渲染出图/表/文字块', () => {
+    const spec = parseReportSpec(FROZEN_V1_SAMPLE);
+    expect(spec.title).toBe('2026年8月华东客户净销售额');
+    expect(spec.layout.columns).toBe(12);
+    expect(spec.datasetRefs[0]?.asOf).toBe('2026-09-16T00:00:00Z');
+    expect(safeParseReportSpec(FROZEN_V1_SAMPLE)).not.toBeNull();
 
-  it('记录既有实现：后端 R03 规范序列化产物被前端拒绝（布局缺 columns，拒绝原因可复核）', () => {
-    const error = captureError(() =>
-      parseReportSpec(BACKEND_R03_CANONICAL_PROBE),
+    const wrapper = mount(AiReportView, {
+      props: {
+        data: JSON.stringify(FROZEN_V1_DATA),
+        spec: JSON.stringify(FROZEN_V1_SAMPLE),
+      },
+    });
+    expect(wrapper.find('[data-testid="ai-report-invalid"]').exists()).toBe(
+      false,
     );
-    expect(error.message).toBe('报表数据不合法：布局必须是 12 列栅格');
-    expect(safeParseReportSpec(BACKEND_R03_CANONICAL_PROBE)).toBeNull();
+    expect(wrapper.get('[data-testid="ai-report-title"]').text()).toBe(
+      '2026年8月华东客户净销售额',
+    );
+    expect(wrapper.find('[data-testid="ai-report-grid"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="ai-report-text"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="ai-report-chart"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="ai-report-table"]').text()).toContain(
+      'alice',
+    );
+    expect(wrapper.get('[data-testid="ai-report-table"]').text()).not.toContain(
+      '不可见列',
+    );
   });
 
-  it('记录既有实现：metric 块的 binding 形状单独驱动也被前端拒绝（未知字段 binding）', () => {
-    // 只补上 R03 缺失的 layout.columns，让 metric 形状成为唯一变量：
-    // 冻结 Schema 与后端 R03 写的是 binding{datasetRef,field}，前端 R07 要求 metricField。
-    const withColumns = {
+  it('后端 R03 规范产物（binding + layout.columns + asOf）可被前端加载并渲染指标', () => {
+    const spec = parseReportSpec(BACKEND_R03_CANONICAL_PROBE);
+    expect(spec.title).toBe('2026年8月华东客户净销售额');
+    expect(spec.layout.columns).toBe(12);
+    expect(safeParseReportSpec(BACKEND_R03_CANONICAL_PROBE)).not.toBeNull();
+
+    const wrapper = mount(AiReportView, {
+      props: {
+        data: JSON.stringify(BACKEND_R03_DATA),
+        spec: JSON.stringify(BACKEND_R03_CANONICAL_PROBE),
+      },
+    });
+    expect(wrapper.find('[data-testid="ai-report-invalid"]').exists()).toBe(
+      false,
+    );
+    expect(wrapper.get('[data-testid="ai-report-metric"]').text()).toBe(
+      '740 CNY',
+    );
+  });
+
+  it('既有库旧行兼容：metricField（含缺 asOf 的历史行）仍可加载，不被回退修复误伤', () => {
+    // SUPPORTED_SPEC 即旧行形状：metric 块用顶层 datasetRef + metricField，datasetRefs 无 asOf
+    const legacy = parseReportSpec(SUPPORTED_SPEC);
+    const metric = legacy.blocks.find((block) => block.type === 'metric');
+    expect(metric).toMatchObject({
+      type: 'metric',
+      datasetRef: 'sales_result',
+      metricField: 'net_amount',
+    });
+    expect(legacy.datasetRefs[0]?.asOf).toBeUndefined();
+  });
+
+  it('渲染期严格性保持：binding 内与数据集引用里的未知键仍被拒绝', () => {
+    const metricWithUnknownBindingKey = {
       ...BACKEND_R03_CANONICAL_PROBE,
-      layout: { ...BACKEND_R03_CANONICAL_PROBE.layout, columns: 12 },
+      blocks: [
+        {
+          id: 'total',
+          type: 'metric',
+          title: '净销售额合计',
+          binding: {
+            datasetRef: 'sales_result',
+            field: 'net_amount',
+            note: '未知键',
+          },
+          rowIndex: 0,
+          format: 'CURRENCY',
+        },
+      ],
+      layout: {
+        columns: 12,
+        gap: 16,
+        items: [{ blockId: 'total', row: 0, column: 0, span: 4 }],
+      },
     };
-    const error = captureError(() => parseReportSpec(withColumns));
-    expect(error.message).toBe('报表数据不合法：未知字段 binding');
-    expect(safeParseReportSpec(withColumns)).toBeNull();
-  });
+    expect(
+      captureError(() => parseReportSpec(metricWithUnknownBindingKey)).message,
+    ).toBe('报表数据不合法：未知字段 note');
 
-  it.fails(
-    '【已确认缺陷 tripwire】冻结 v1 样例与后端 R03 产物都应可被前端加载（修复后本用例会转红，须同步更新记录）',
-    () => {
-      expect(safeParseReportSpec(FROZEN_V1_SAMPLE)).not.toBeNull();
-      expect(safeParseReportSpec(BACKEND_R03_CANONICAL_PROBE)).not.toBeNull();
-    },
-  );
+    const datasetRefWithUnknownKey = {
+      ...BACKEND_R03_CANONICAL_PROBE,
+      datasetRefs: [
+        { ...BACKEND_R03_CANONICAL_PROBE.datasetRefs[0], as_of: '别名键' },
+      ],
+    };
+    expect(
+      captureError(() => parseReportSpec(datasetRefWithUnknownKey)).message,
+    ).toBe('报表数据不合法：未知字段 as_of');
+    expect(safeParseReportSpec(datasetRefWithUnknownKey)).toBeNull();
+  });
 });

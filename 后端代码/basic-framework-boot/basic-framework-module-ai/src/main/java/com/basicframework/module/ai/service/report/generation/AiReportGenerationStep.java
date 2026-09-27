@@ -12,6 +12,8 @@ import com.basicframework.module.ai.domain.result.AiReportResultBlock;
 import com.basicframework.module.ai.service.report.generation.dto.AiReportGenerationResultDTO;
 import com.basicframework.module.ai.service.report.validation.AiReportDataBinder;
 import com.basicframework.module.ai.service.report.validation.AiReportSpecValidator;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -124,8 +126,11 @@ public class AiReportGenerationStep {
         if (repaired) {
             notes.add("模型输出经过修复后通过校验");
         }
+        // 数据截至时间：上游执行结果未携带 asOf，取**报表生成时刻**（绑定发生在本轮真实执行结果之上，
+        // 这是当前链路上可如实给出的下界）；同一份报表的所有数据集引用共享同一时刻。
+        String asOf = DateTimeFormatter.ISO_INSTANT.format(Instant.now());
         AiReportResultBlock block = new AiReportResultBlock(
-                AiReportResultBlock.KIND_REPORT, spec.title(), specJson(spec), data, sources, notes);
+                AiReportResultBlock.KIND_REPORT, spec.title(), specJson(spec, asOf), data, sources, notes);
         return new AiReportGenerationResultDTO()
                 .setBlock(block)
                 .setBound(bound)
@@ -135,8 +140,12 @@ public class AiReportGenerationStep {
                 .setGenerated(true);
     }
 
-    /** 规格回写为 JSON（结果块里保存**已校验**的规格，渲染方不需要再解析模型输出）。 */
-    private static String specJson(AiReportSpec spec) {
+    /**
+     * 规格回写为 JSON（与冻结 Schema 逐键对齐：{@code layout} 带 {@code columns=12}，
+     * metric 块写 {@code binding{datasetRef,field}}（不写顶层 {@code datasetRef}），
+     * {@code datasetRefs[]} 带 {@code asOf}）；结果块里保存**已校验**的规格，渲染方不需要再解析模型输出。
+     */
+    private static String specJson(AiReportSpec spec, String asOf) {
         Map<String, Object> canonical = new LinkedHashMap<>();
         canonical.put("schemaVersion", AiReportSpec.SCHEMA_VERSION);
         canonical.put("title", spec.title());
@@ -147,9 +156,10 @@ public class AiReportGenerationStep {
         canonical.put(
                 "datasetRefs",
                 spec.datasetRefs().stream()
-                        .map(AiReportGenerationStep::datasetJson)
+                        .map(dataset -> datasetJson(dataset, asOf))
                         .toList());
-        canonical.put("layout", Map.of("gap", spec.gap(), "items", spec.layout()));
+        canonical.put(
+                "layout", Map.of("columns", AiReportSpec.LAYOUT_COLUMNS, "gap", spec.gap(), "items", spec.layout()));
         canonical.put(
                 "queryRefs",
                 spec.queryRefs().stream()
@@ -164,19 +174,21 @@ public class AiReportGenerationStep {
         json.put("id", block.id());
         json.put("type", block.type());
         json.put("title", block.title());
-        if (block.datasetRef() != null) {
-            json.put("datasetRef", block.datasetRef());
-        }
-        if (block.text() != null) {
-            json.put("text", block.text());
-        }
         if (block.metricField() != null) {
+            // 冻结 Schema：metric 块只认 binding{datasetRef,field}，顶层 datasetRef 不是合法键
             json.put("binding", Map.of("datasetRef", block.datasetRef(), "field", block.metricField()));
             json.put("rowIndex", block.rowIndex());
             json.put("format", block.format());
             if (block.unit() != null) {
                 json.put("unit", block.unit());
             }
+            return json;
+        }
+        if (block.datasetRef() != null) {
+            json.put("datasetRef", block.datasetRef());
+        }
+        if (block.text() != null) {
+            json.put("text", block.text());
         }
         if (block.columns() != null) {
             json.put("columns", block.columns());
@@ -188,13 +200,14 @@ public class AiReportGenerationStep {
         return json;
     }
 
-    private static Map<String, Object> datasetJson(AiReportSpec.DatasetRef dataset) {
+    private static Map<String, Object> datasetJson(AiReportSpec.DatasetRef dataset, String asOf) {
         Map<String, Object> json = new LinkedHashMap<>();
         json.put("id", dataset.id());
         json.put("resultRef", dataset.resultRef());
         json.put("queryRef", dataset.queryRef());
         json.put("columns", dataset.columns());
         json.put("rowCount", dataset.rowCount());
+        json.put("asOf", asOf);
         json.put("completeness", dataset.completeness());
         return json;
     }
