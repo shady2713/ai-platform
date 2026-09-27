@@ -49,3 +49,5 @@ docker.env
 **/__pycache__/
 **/.venv/
 **/.env.*.local
+# Q09：交付包/嵌入产物是构建生成物（不进仓库）
+前端代码/basic-framework-admin/apps/ai-chat/embed-assets/

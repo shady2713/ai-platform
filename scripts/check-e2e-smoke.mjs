@@ -107,7 +107,9 @@ function runPlaywright() {
     : ['exec', 'playwright', 'test', '--config', PLAYWRIGHT_CONFIG];
   const child = spawn(executable, arguments_, {
     cwd: FRONTEND_ROOT,
-    env: process.env,
+    // 门禁必须在**当次构建**的产物上跑：陈旧 dist 会造成"源码已修但浏览器里是旧包"的假失败
+    // （Q09 实测：不加此项时 AT-017/059/067 会因旧产物红）。
+    env: { ...process.env, Q06_FORCE_REBUILD: '1' },
     stdio: ['inherit', 'pipe', 'pipe'],
   });
   let output = '';
