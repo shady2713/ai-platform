@@ -53,6 +53,26 @@ public interface AiErrorCodeConstants {
     /** 资源等级不允许外发到该端点（403）：策略拒绝发生在任何网络调用之前。 */
     ErrorCode AI_MODEL_OUTBOUND_BLOCKED = new ErrorCode(1_003_002_006, "该资源等级不允许外发到所选模型端点");
 
+    /** 端点未开通媒体能力（400，X01）：未声明或未通过探测确认；在任何网络请求之前拒绝，不回退其它模型。 */
+    ErrorCode AI_MODEL_CAPABILITY_NOT_ENABLED = new ErrorCode(1_003_002_007, "模型端点未开通所需能力");
+
+    // ========== 多模态媒体 1_003_010_xxx（X01） ==========
+
+    /** 媒体请求不合规（400）：尺寸/张数/格式/音色/文本长度等超出平台或端点声明范围。 */
+    ErrorCode AI_MEDIA_REQUEST_INVALID = new ErrorCode(1_003_010_000, "多模态请求不合规");
+
+    /** 媒体输入类型不被该能力接受（400）：格式不在端点声明的白名单内。 */
+    ErrorCode AI_MEDIA_INPUT_TYPE_UNSUPPORTED = new ErrorCode(1_003_010_001, "媒体输入类型不支持");
+
+    /** 媒体输入超过端点声明的单文件上限（400）。 */
+    ErrorCode AI_MEDIA_INPUT_TOO_LARGE = new ErrorCode(1_003_010_002, "媒体输入超过端点声明的单文件上限");
+
+    /** 音频时长超过端点声明上限（400）。 */
+    ErrorCode AI_MEDIA_INPUT_DURATION_EXCEEDED = new ErrorCode(1_003_010_003, "音频时长超过端点声明上限");
+
+    /** 上游成功但没有媒体产物（502）：拒绝交付与落私有文件，不生成空产物占位。 */
+    ErrorCode AI_MEDIA_OUTPUT_EMPTY = new ErrorCode(1_003_010_004, "上游未返回媒体产物");
+
     // ========== 知识库 1_003_005_xxx ==========
 
     /** 知识库不存在（404）：越权与不存在同语义。 */

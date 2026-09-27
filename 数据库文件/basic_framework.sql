@@ -4,7 +4,7 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V83.
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V84.
 -- Only the 51 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
@@ -1504,7 +1504,7 @@ CREATE TABLE `ai_model_endpoint_revision` (
   `endpoint_id` bigint NOT NULL COMMENT '端点编号',
   `revision` int NOT NULL COMMENT '非秘密配置版本（从 1 递增，写入后不可变）',
   `model_id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '模型标识',
-  `capabilities` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '能力集合（逗号分隔：TEXT,EMBEDDING）',
+  `capabilities` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '能力集合（逗号分隔：TEXT,...,TEXT_TO_SPEECH）',
   `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
@@ -1693,7 +1693,7 @@ CREATE TABLE `ai_service` (
   `prompt_template` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '提示词模板',
   `input_schema` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '输入 JSON Schema（平台校验后注入）',
   `output_schema` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT '输出 JSON Schema（结构化输出时必填）',
-  `required_capabilities` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '所需能力（逗号分隔：TEXT,STRUCTURED_OUTPUT）',
+  `required_capabilities` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '所需能力（逗号分隔：TEXT,...,TEXT_TO_SPEECH）',
   `run_subject_type` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '运行主体类型（APP/USER）',
   `eval_threshold` int NOT NULL DEFAULT '0' COMMENT '发布要求的评测得分门槛（0-100）',
   `draft_revision` int NOT NULL DEFAULT '1' COMMENT '草稿修订号：配置变更递增',
@@ -1718,7 +1718,7 @@ CREATE TABLE `ai_service_release` (
   `prompt_template` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '发布时固定的提示词模板',
   `input_schema` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '发布时固定的输入 Schema',
   `output_schema` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT '发布时固定的输出 Schema',
-  `required_capabilities` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '发布时固定的能力集合',
+  `required_capabilities` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '发布时固定的能力集合（最多 TEXT,...,TEXT_TO_SPEECH 全量）',
   `eval_threshold` int NOT NULL DEFAULT '0' COMMENT '发布时冻结的评测得分门槛（0-100）',
   `content_hash` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '发布内容摘要（评测与回退的稳定标识）',
   `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '状态（CANDIDATE/ACTIVE/RETIRED）',

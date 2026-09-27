@@ -34,7 +34,19 @@ public class ModelException extends RuntimeException {
         /** 嵌入批次超过平台上限（批次长度异常，调用方或输入侧错误）。 */
         BATCH_TOO_LARGE,
         /** 嵌入响应内向量维度不一致或为空；上游协议错误。 */
-        EMBEDDING_DIMENSION_MISMATCH
+        EMBEDDING_DIMENSION_MISMATCH,
+        /** 媒体能力未开通（X01）：端点未声明该能力，或声明了但未通过探测确认；在任何网络请求之前拒绝。 */
+        CAPABILITY_NOT_ENABLED,
+        /** 媒体请求或输入不合规（X01）：尺寸/张数/格式/音色/文本长度等不在平台或端点声明范围。 */
+        MEDIA_INPUT_INVALID,
+        /** 媒体输入类型不被该能力接受（X01）：格式不在端点声明的白名单内；拒绝且不外发。 */
+        MEDIA_INPUT_TYPE_UNSUPPORTED,
+        /** 媒体输入超过端点声明的单文件上限（X01）；拒绝且不外发。 */
+        MEDIA_INPUT_TOO_LARGE,
+        /** 音频时长超过端点声明上限（X01）；拒绝且不外发。 */
+        MEDIA_INPUT_DURATION_EXCEEDED,
+        /** 上游成功返回但没有媒体产物（X01）：拒绝交付与落私有文件。 */
+        MEDIA_OUTPUT_EMPTY
     }
 
     private final Reason reason;

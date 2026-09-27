@@ -32,12 +32,19 @@ describe('ai model endpoint page data', () => {
   });
 
   it('offers the full capability vocabulary from the backend enum', () => {
+    // X01 追加多模态媒体能力：与后端 ModelCapability 的完整取值集合一致
     expect(CAPABILITY_OPTIONS.map((item) => item.value)).toEqual([
       'TEXT',
       'TEXT_STREAM',
       'STRUCTURED_OUTPUT',
       'TOOL_CALLING',
       'EMBEDDING',
+      'IMAGE_UNDERSTANDING',
+      'IMAGE_OCR',
+      'IMAGE_GENERATION',
+      'IMAGE_EDIT',
+      'SPEECH_TO_TEXT',
+      'TEXT_TO_SPEECH',
     ]);
     expect(Object.keys(PROBE_KIND_LABELS)).toEqual([
       'CONNECTIVITY',
@@ -46,6 +53,12 @@ describe('ai model endpoint page data', () => {
       'STRUCTURED_OUTPUT',
       'TOOL_CALLING',
       'EMBEDDING',
+      'IMAGE_UNDERSTANDING',
+      'IMAGE_OCR',
+      'IMAGE_GENERATION',
+      'IMAGE_EDIT',
+      'SPEECH_TO_TEXT',
+      'TEXT_TO_SPEECH',
     ]);
   });
 

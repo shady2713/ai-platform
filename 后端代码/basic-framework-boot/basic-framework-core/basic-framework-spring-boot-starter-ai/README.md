@@ -7,8 +7,9 @@ Spring AI 的位置，业务代码只消费自有契约，不感知厂商类型�
 
 | 契约 | 位置 | 说明 |
 | --- | --- | --- |
-| `ModelPort` | `com.basicframework.framework.ai.core.model` | 模型提供方端口：`capabilities`、`generate`、`stream`、`generateStructured` |
-| `ModelCapability` | `com.basicframework.framework.ai.core.model` | 能力词汇（`TEXT`、`TEXT_STREAM`、`STRUCTURED_OUTPUT`、`EMBEDDING`），后续多模态按同一枚举扩展 |
+| `ModelPort` | `com.basicframework.framework.ai.core.model` | 模型提供方端口：`capabilities`、`generate`、`stream`、`generateStructured`、`embed`、`probe`，以及媒体方法 `understandImage`/`recognizeImageText`/`generateImage`/`editImage`/`transcribeSpeech`/`synthesizeSpeech` |
+| `ModelCapability` | `com.basicframework.framework.ai.core.model` | 能力词汇（`TEXT`、`TEXT_STREAM`、`STRUCTURED_OUTPUT`、`TOOL_CALLING`、`EMBEDDING`，X01 追加 `IMAGE_UNDERSTANDING`、`IMAGE_OCR`、`IMAGE_GENERATION`、`IMAGE_EDIT`、`SPEECH_TO_TEXT`、`TEXT_TO_SPEECH`）；`isMedia()` 标记媒体能力，`probeKind()` 给出 1:1 探测项 |
+| 媒体契约 | `com.basicframework.framework.ai.core.model.media` | 平台自有媒体请求/响应：`MediaFileRef`（私有文件引用）、`MediaArtifact`（字节产物 + 摘要 + 尺寸/时长）、图片理解/OCR/生成/编辑与 STT/TTS 的请求响应类型；不含厂商类型与临时 URL |
 | `ModelRequest` / `ModelResponse` | `com.basicframework.framework.ai.core.model` | 调用与结果：`ModelUsage` 区分"上游未提供（UNKNOWN）"与真实计量；工具调用只作为数据 |
 | `ModelStream` / `ModelEvent` | `com.basicframework.framework.ai.core.model` | 文本流事件（`DELTA`、`TOOL_CALL`、`COMPLETED`），失败以 `ModelException` 抛出 |
 | `StructuredModelRequest` / `StructuredModelResult` | `com.basicframework.framework.ai.core.model` | 结构化输出：要求单个 JSON 对象，平台校验后才交业务 |
@@ -87,6 +88,25 @@ basic-framework.ai:
 - **流关闭释放连接**：`ModelStream.close()` 取消上游订阅、丢弃未消费事件，重复调用幂等；
   空闲超时、输出越界与上游错误都会先释放连接再抛稳定错误。
 
+## 多模态媒体契约（X01）
+
+图片理解/OCR/生成/编辑与非实时 STT/TTS 按同一 `ModelCapability` 枚举扩展，能力与探测项 1:1：
+
+- **默认拒绝**：`ModelPort` 的六个媒体方法都有默认实现，未覆盖时抛
+  `ModelException.Reason.CAPABILITY_NOT_ENABLED`（消息只含能力名），**不静默降级为文本调用**、
+  不自动切换端点或供应商。
+- **平台自有类型**：请求/响应只含平台语义（私有文件 `fileId` 引用、字节产物、用量），
+  构造即校验 MIME 形状、SHA-256 自洽、图片尺寸 1-8192、张数 1-8、格式白名单、
+  TTS 文本上限 4096；厂商 multipart/base64/异步轮询差异只允许出现在 `provider.springai`。
+- **产物接管**：适配器只返回 `MediaArtifact` 字节；落私有文件、生成 fileId 引用由调用方完成，
+  不返回厂商临时地址（FR-35）。
+- **准入在三道校验之后**：端点启用 → 能力已声明 → 该能力探测结论 `SUPPORTED` 且配置版本一致；
+  未开通时在解析客户端与任何网络请求之前拒绝（准入闸门在 `module-ai` 的
+  `AiMediaCapabilityGate`，AT-068）。准入/输入输出错误码见
+  [error-code-map](../../../../docs/contracts/ai/error-code-map.md)，逐能力声明字段与实测状态见
+  [多模态端点准入矩阵](../../../../docs/integrations/ai-platform-multimodal-endpoints.md)。
+- **实时语音不在本契约内**：FR-37 的会话协商与短期凭证需要独立 ADR（V1.2），不预留占位枚举。
+
 ## 约束
 
 - **厂商类型不出接缝**：`org.springframework.ai` 类型只能出现在 `provider.springai` 包内，
@@ -110,6 +130,8 @@ cd 后端代码/basic-framework-boot
 - 装配：`BasicFrameworkAiAutoConfigurationTest` 覆盖默认关闭、启用后缺能力声明、缺提供方、
   提供方能力为空、能力不足、多实现六种装配结果。
 - 护栏：`AiModelPropertiesTest` 覆盖默认值、覆盖值与越界值启动失败。
-- 契约：`ModelContractTest`、`ModelEventTest`、`ModelPortDefaultsTest`、`StructuredJsonOutputTest`。
+- 契约：`ModelContractTest`、`ModelEventTest`、`ModelPortDefaultsTest`、`StructuredJsonOutputTest`、
+  `MultimodalVocabularyTest`、`MediaPortDefaultsTest`、`MediaFileRefTest`、`MediaArtifactTest`、
+  `ImageMediaContractTest`、`SpeechMediaContractTest`。
 - 调用：`SpringAiModelClientCoverageTest`、`SpringAiModelStreamTest`、`SpringAiModelRetryTest`、
   `SpringAiStructuredOutputTest`、`SpringAiEndpointIsolationTest`。

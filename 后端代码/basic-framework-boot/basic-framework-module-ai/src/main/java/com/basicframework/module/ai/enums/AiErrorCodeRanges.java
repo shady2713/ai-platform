@@ -16,6 +16,7 @@ package com.basicframework.module.ai.enums;
  *   1_003_007_xxx  报表与 Chat（报表、主题、嵌入）
  *   1_003_008_xxx  服务配置（服务发布、评测门槛、运行快照、版本回退）
  *   1_003_009_xxx  评测（套件、样例、评测运行与结果、人工复核）
+ *   1_003_010_xxx  多模态媒体（图片理解/OCR/生成/编辑、非实时 STT/TTS 的输入输出准入）
  * </pre>
  *
  * <p>HTTP 映射遵循 [ADR 0003](http-status-semantics) 与 [ADR 0049](identity-boundaries)：
@@ -54,6 +55,9 @@ public final class AiErrorCodeRanges {
 
     /** 评测评分子区间（Q04）。 */
     public static final int DOMAIN_EVALUATION = 1_003_009;
+
+    /** 多模态媒体子区间（X01）：媒体能力准入与媒体输入输出校验。 */
+    public static final int DOMAIN_MEDIA = 1_003_010;
 
     private AiErrorCodeRanges() {}
 }

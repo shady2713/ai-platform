@@ -12,13 +12,19 @@ export const AI_MODEL_ENDPOINT_PERMISSIONS = {
   probe: 'ai:model-endpoint:probe',
 } as const;
 
-/** 支持的能力词汇（与后端 ModelCapability 一致；后续多模态按同一枚举扩展） */
+/** 支持的能力词汇（与后端 ModelCapability 一致；X01 追加 6 个多模态媒体能力，同一枚举扩展） */
 export const CAPABILITY_OPTIONS = [
   { label: '文本生成', value: 'TEXT' },
   { label: '文本流式生成', value: 'TEXT_STREAM' },
   { label: '结构化输出', value: 'STRUCTURED_OUTPUT' },
   { label: '工具调用', value: 'TOOL_CALLING' },
   { label: '文本嵌入', value: 'EMBEDDING' },
+  { label: '图片理解', value: 'IMAGE_UNDERSTANDING' },
+  { label: '图片文字识别', value: 'IMAGE_OCR' },
+  { label: '图片生成', value: 'IMAGE_GENERATION' },
+  { label: '图片编辑', value: 'IMAGE_EDIT' },
+  { label: '语音转写', value: 'SPEECH_TO_TEXT' },
+  { label: '语音合成', value: 'TEXT_TO_SPEECH' },
 ];
 
 /** 探测状态展示文案 */
@@ -36,6 +42,12 @@ export const PROBE_KIND_LABELS: Record<string, string> = {
   STRUCTURED_OUTPUT: '结构化输出',
   TOOL_CALLING: '工具调用',
   EMBEDDING: '嵌入',
+  IMAGE_UNDERSTANDING: '图片理解',
+  IMAGE_OCR: '图片文字识别',
+  IMAGE_GENERATION: '图片生成',
+  IMAGE_EDIT: '图片编辑',
+  SPEECH_TO_TEXT: '语音转写',
+  TEXT_TO_SPEECH: '语音合成',
 };
 
 /** 提供方标识（当前只支持 OpenAI 兼容协议） */

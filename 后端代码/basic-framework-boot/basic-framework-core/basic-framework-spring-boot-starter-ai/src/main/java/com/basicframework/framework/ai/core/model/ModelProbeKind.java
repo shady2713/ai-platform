@@ -5,6 +5,11 @@ package com.basicframework.framework.ai.core.model;
  *
  * <p>探测结果把"模型声明"与"适配结果"分开记录，两者共同决定可发布范围：
  * 端点声明的能力与探测确认的能力取交集，才不会把"配了但用不了"的能力发布给业务。
+ *
+ * <p>X01 追加媒体探测项（图片理解/OCR/生成/编辑、STT/TTS）：每项与
+ * {@link ModelCapability} 中的同名能力 1:1 对应（{@link ModelCapability#probeKind()}）。
+ * 媒体探测必须使用**平台内置的最小合成夹具**（小尺寸图片、短音频），不得使用真实用户数据；
+ * 文本协议可用**不能**推断媒体能力可用，必须逐项真实探测。
  */
 public enum ModelProbeKind {
 
@@ -24,5 +29,23 @@ public enum ModelProbeKind {
     TOOL_CALLING,
 
     /** 文本嵌入：批量嵌入返回向量且维度一致。 */
-    EMBEDDING
+    EMBEDDING,
+
+    /** 图片理解：最小图片夹具真实调用返回非空文本（不校验语义正确性）。 */
+    IMAGE_UNDERSTANDING,
+
+    /** 图片文字识别：含已知文字的合成图片夹具返回非空文本（不要求逐字匹配，避免误判字体差异）。 */
+    IMAGE_OCR,
+
+    /** 图片生成：最小文生图调用返回至少 1 个非空图片产物。 */
+    IMAGE_GENERATION,
+
+    /** 图片编辑：以合成图片夹具为输入的最小编辑调用返回非空图片产物。 */
+    IMAGE_EDIT,
+
+    /** 语音转写：短合成音频夹具返回非空文本；不校验识别准确率。 */
+    SPEECH_TO_TEXT,
+
+    /** 语音合成：最小文本合成返回非空音频产物。 */
+    TEXT_TO_SPEECH
 }

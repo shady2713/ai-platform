@@ -1,5 +1,15 @@
 package com.basicframework.framework.ai.core.model;
 
+import com.basicframework.framework.ai.core.model.media.ImageEditRequest;
+import com.basicframework.framework.ai.core.model.media.ImageGenerationRequest;
+import com.basicframework.framework.ai.core.model.media.ImageOcrRequest;
+import com.basicframework.framework.ai.core.model.media.ImageResult;
+import com.basicframework.framework.ai.core.model.media.ImageUnderstandingRequest;
+import com.basicframework.framework.ai.core.model.media.MediaTextResponse;
+import com.basicframework.framework.ai.core.model.media.SpeechSynthesisRequest;
+import com.basicframework.framework.ai.core.model.media.SpeechSynthesisResponse;
+import com.basicframework.framework.ai.core.model.media.SpeechTranscriptionRequest;
+import com.basicframework.framework.ai.core.model.media.SpeechTranscriptionResponse;
 import java.util.Set;
 
 /**
@@ -10,8 +20,10 @@ import java.util.Set;
  * 其他包引用厂商类型会被模块边界门禁的 vendor 规则拒绝。
  *
  * <p>接口按任务扩展但保持向后兼容，不复制第二套并行契约：M02 增加一次性调用，
- * M03 增加文本流与结构化输出，M04 增加批量嵌入与能力探测；未覆盖的能力在默认实现里
- * 按"能力缺失"拒绝并指明能力名，而不是静默降级。
+ * M03 增加文本流与结构化输出，M04 增加批量嵌入与能力探测，X01 增加多模态媒体调用
+ * （{@link #understandImage}、{@link #recognizeImageText}、{@link #generateImage}、
+ * {@link #editImage}、{@link #transcribeSpeech}、{@link #synthesizeSpeech}）；
+ * 未覆盖的能力在默认实现里按"能力未开通"拒绝并指明能力名，而不是静默降级或回退到别的模型。
  */
 public interface ModelPort {
 
@@ -69,5 +81,61 @@ public interface ModelPort {
      */
     default ModelProbeResult probe(ModelProbeKind kind) {
         return ModelProbeResult.unsupported(kind, ModelProbeResult.CODE_ADAPTER_NOT_IMPLEMENTED);
+    }
+
+    // ========== 多模态媒体（X01） ==========
+    //
+    // 六个媒体方法都按"能力未开通"的默认实现拒绝：适配器未覆盖时调用方得到
+    // CAPABILITY_NOT_ENABLED 与能力名，不会静默降级为文本调用，也不会自动切换到别的端点/供应商。
+    // 实现方覆盖时必须先核对 capabilities() 是否包含对应能力，并遵循请求里的超时语义。
+
+    /**
+     * 图片理解（X01）：返回描述/问答文本；默认按"能力未开通"拒绝。
+     */
+    default MediaTextResponse understandImage(ImageUnderstandingRequest request) {
+        throw capabilityNotEnabled(ModelCapability.IMAGE_UNDERSTANDING);
+    }
+
+    /**
+     * 图片文字识别（X01，OCR）：返回识别文本；默认按"能力未开通"拒绝。
+     *
+     * <p>与 {@link #understandImage} 分开：适配器不得用图片理解能力代替 OCR 探测或调用。
+     */
+    default MediaTextResponse recognizeImageText(ImageOcrRequest request) {
+        throw capabilityNotEnabled(ModelCapability.IMAGE_OCR);
+    }
+
+    /**
+     * 图片生成（X01，文生图）：返回非空图片产物；默认按"能力未开通"拒绝。
+     */
+    default ImageResult generateImage(ImageGenerationRequest request) {
+        throw capabilityNotEnabled(ModelCapability.IMAGE_GENERATION);
+    }
+
+    /**
+     * 图片编辑（X01，含图生图）：以平台私有底图生成新图片；默认按"能力未开通"拒绝。
+     */
+    default ImageResult editImage(ImageEditRequest request) {
+        throw capabilityNotEnabled(ModelCapability.IMAGE_EDIT);
+    }
+
+    /**
+     * 语音转写（X01，非实时 STT）：返回全文与可选分段字幕；默认按"能力未开通"拒绝。
+     */
+    default SpeechTranscriptionResponse transcribeSpeech(SpeechTranscriptionRequest request) {
+        throw capabilityNotEnabled(ModelCapability.SPEECH_TO_TEXT);
+    }
+
+    /**
+     * 语音合成（X01，非实时 TTS）：返回音频产物；默认按"能力未开通"拒绝。
+     */
+    default SpeechSynthesisResponse synthesizeSpeech(SpeechSynthesisRequest request) {
+        throw capabilityNotEnabled(ModelCapability.TEXT_TO_SPEECH);
+    }
+
+    /** 媒体能力未开通的稳定拒绝：消息只含能力名，不含输入内容与上游信息。 */
+    private static ModelException capabilityNotEnabled(ModelCapability capability) {
+        return new ModelException(
+                ModelException.Reason.CAPABILITY_NOT_ENABLED, "端点未开通能力：" + capability + "（需先声明并通过探测）");
     }
 }

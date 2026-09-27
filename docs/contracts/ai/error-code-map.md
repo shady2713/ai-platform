@@ -15,6 +15,8 @@
 | `1_003_006_xxx` | 数据与工具 | 连接器、查询计划、工具执行 |
 | `1_003_007_xxx` | 报表与 Chat | 报表、主题、嵌入会话 |
 | `1_003_008_xxx` | 服务配置 | 服务发布、评测门槛、运行快照、版本回退 |
+| `1_003_009_xxx` | 评测 | 套件、样例、评测运行与结果、人工复核 |
+| `1_003_010_xxx` | 多模态媒体（X01） | 媒体能力准入与媒体输入输出校验（图片理解/OCR/生成/编辑、非实时 STT/TTS） |
 
 框架与基础设施占用 `1_001_xxx_xxx`，system 模块占用 `1_002_xxx_xxx`；AI 中台独占 `1_003`，不与既有区间交叉。
 
@@ -35,6 +37,7 @@
 | 1_003_002_004 | AI_MODEL_ENDPOINT_NAME_DUPLICATE | 400 | 端点名称重复 |
 | 1_003_002_005 | AI_MODEL_EMBEDDING_DIMENSION_CHANGED | 409 | 嵌入维度与既有索引记录不一致，拒绝写入既有索引 |
 | 1_003_002_006 | AI_MODEL_OUTBOUND_BLOCKED | 403 | 资源等级不允许外发到该端点（策略拒绝先于网络调用） |
+| 1_003_002_007 | AI_MODEL_CAPABILITY_NOT_ENABLED | 400 | 端点未开通媒体能力（未声明或未通过探测确认，X01）：拒绝先于客户端解析与网络调用，不回退其它模型 |
 | 1_003_003_000 | AI_APPLICATION_NOT_FOUND | 404 | 应用不存在 |
 | 1_003_003_001 | AI_APPLICATION_CODE_DUPLICATE | 409 | 应用标识重复（appCode 唯一且不可改） |
 | 1_003_003_002 | AI_APPLICATION_ORIGIN_INVALID | 400 | Origin 非法（只接受精确来源） |
@@ -192,3 +195,22 @@ HTTP 语义遵循 [ADR 0003](../../adr/0003-http-status-semantics.md)；认证�
 | `AI_EVAL_PUBLISH_BELOW_THRESHOLD` | 1_003_009_020 | 评测通过率低于发布门槛 | 422 |
 
 HTTP 状态按 ADR 0003 的命名规则推导：`*_NOT_EXISTS` 为 404，名称含 `DUPLICATE` 为 409，其余为 422。
+
+## 多模态媒体子区间（X01，`1_003_010_xxx`）
+
+媒体能力（图片理解/OCR/生成/编辑、非实时 STT/TTS）的准入与输入输出校验。准入拒绝
+（`AI_MODEL_CAPABILITY_NOT_ENABLED`，模型中心子区间）与媒体输入输出错误分开：
+
+| 常量 | 码 | 语义 | HTTP |
+|---|---|---|---|
+| `AI_MEDIA_REQUEST_INVALID` | 1_003_010_000 | 媒体请求不合规（尺寸/张数/格式/音色/文本长度） | 400 |
+| `AI_MEDIA_INPUT_TYPE_UNSUPPORTED` | 1_003_010_001 | 输入媒体类型不在该能力声明的白名单内 | 400 |
+| `AI_MEDIA_INPUT_TOO_LARGE` | 1_003_010_002 | 输入媒体超过端点声明的单文件上限 | 400 |
+| `AI_MEDIA_INPUT_DURATION_EXCEEDED` | 1_003_010_003 | 音频时长超过端点声明上限 | 400 |
+| `AI_MEDIA_OUTPUT_EMPTY` | 1_003_010_004 | 上游成功但未返回媒体产物，拒绝交付与落私有文件 | 502 |
+
+映射路径固定：`ModelException.Reason` → 平台错误码由 `AiMediaCapabilityGate` 统一完成
+（`CAPABILITY_NOT_ENABLED` → 1_003_002_007；`MEDIA_INPUT_INVALID` → 1_003_010_000；
+`MEDIA_INPUT_TYPE_UNSUPPORTED` → 1_003_010_001；`MEDIA_INPUT_TOO_LARGE` → 1_003_010_002；
+`MEDIA_INPUT_DURATION_EXCEEDED` → 1_003_010_003；`MEDIA_OUTPUT_EMPTY` → 1_003_010_004；
+其余原因沿用 `AiModelFailureCodes` 的既有映射）。媒体失败响应不回传上游报文、输入内容或凭据。

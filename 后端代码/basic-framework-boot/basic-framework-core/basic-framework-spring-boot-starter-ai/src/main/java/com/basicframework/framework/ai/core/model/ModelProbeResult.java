@@ -33,6 +33,12 @@ public record ModelProbeResult(
     /** 工具调用探测没有得到工具调用请求。 */
     public static final String CODE_TOOL_CALL_NOT_RETURNED = "TOOL_CALL_NOT_RETURNED";
 
+    /** 图片探测没有得到非空图片产物（X01：生成/编辑探测）。 */
+    public static final String CODE_NO_IMAGE_RETURNED = "NO_IMAGE_RETURNED";
+
+    /** 音频探测没有得到非空音频产物（X01：TTS 探测）。 */
+    public static final String CODE_NO_AUDIO_RETURNED = "NO_AUDIO_RETURNED";
+
     /** 探测状态。 */
     public enum Status {
         /** 探测成功。 */

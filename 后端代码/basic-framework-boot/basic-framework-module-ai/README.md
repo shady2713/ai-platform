@@ -35,6 +35,7 @@ com.basicframework.module.ai
 | 应用与凭据（A01） | `controller/admin/application`、`service/application`、`domain/application`、`dal/*/application` | appCode 全局唯一且创建后不可修改；Origin 只接受精确来源（无路径/通配，写入前归一化）；客户端秘密只存 SHA-256 摘要、明文只在创建/轮换响应出现一次；轮换与吊销默认无重叠，旧秘密立即失效 |
 | 评测套件与执行器（Q04） | `controller/admin/evaluation`、`service/evaluation`、`dal/*/evaluation` | 套件/样例是配置（草稿→冻结→新修订），运行与结果是事实（执行即冻结套件摘要与逐例快照）；执行走与真实运行相同的运行服务与授权（套件登记的合成主体），判定由确定性规则给出（金额/日期/引用/结构/版本/无秘密），模型评分不参与 |
 | 能力探测（M04） | `service/model/AiModelCapabilityProbeService`、`controller/admin/model/AiModelCapabilityProbeController` | 真实调用探测连接/文本/流式/结构化/工具/嵌入六类能力，结论落 `ai_model_probe`（只存稳定码与耗时）；可发布范围 = 声明能力 ∩ 探测确认能力；嵌入维度首写记录、改变即拒绝写既有索引 |
+| 多模态媒体准入（X01） | `adapter/model/AiMediaCapabilityGate` | 媒体调用（图片理解/OCR/生成/编辑、非实时 STT/TTS）的唯一入口：端点启用 → 能力已声明 → 该能力探测结论 `SUPPORTED` 且配置版本一致，全部通过才解析客户端；未开通时在任何网络请求前抛 `AI_MODEL_CAPABILITY_NOT_ENABLED`（400），不退化为文本调用、不切换其它端点/供应商。媒体请求/响应契约与词汇见 `basic-framework-spring-boot-starter-ai`；媒体探测项由 X02–X04 在 `provider` 实现，`probeAll` 纳入媒体探测项由 X02 同步 |
 
 ## 边界约束
 

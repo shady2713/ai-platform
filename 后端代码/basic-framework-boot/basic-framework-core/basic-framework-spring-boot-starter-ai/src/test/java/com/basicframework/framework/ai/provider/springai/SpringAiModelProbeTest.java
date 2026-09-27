@@ -10,6 +10,7 @@ import com.basicframework.framework.ai.core.model.ModelProbeResult;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
@@ -231,5 +232,41 @@ class SpringAiModelProbeTest {
         ModelProbeResult probe = client.probe(ModelProbeKind.CONNECTIVITY);
 
         assertThat(probe.detailCode()).isEqualTo("UPSTREAM_FAILED");
+    }
+
+    /**
+     * X01：媒体能力已登记但当前供应商客户端未实现适配——探测必须**如实报“适配器未实现”**，
+     * 且**不得**触发任何上游调用（不降级为文本、不改用其它端点）。
+     */
+    @Test
+    void mediaProbesReportAdapterNotImplementedWithoutCallingUpstream() {
+        AtomicInteger upstreamCalls = new AtomicInteger();
+        SpringAiModelClient client = new SpringAiModelClient(
+                snapshot(
+                        ModelCapability.IMAGE_UNDERSTANDING,
+                        ModelCapability.IMAGE_OCR,
+                        ModelCapability.IMAGE_GENERATION,
+                        ModelCapability.IMAGE_EDIT,
+                        ModelCapability.SPEECH_TO_TEXT,
+                        ModelCapability.TEXT_TO_SPEECH),
+                prompt -> {
+                    upstreamCalls.incrementAndGet();
+                    return VendorChatResponses.text("pong");
+                });
+
+        for (ModelProbeKind kind : List.of(
+                ModelProbeKind.IMAGE_UNDERSTANDING,
+                ModelProbeKind.IMAGE_OCR,
+                ModelProbeKind.IMAGE_GENERATION,
+                ModelProbeKind.IMAGE_EDIT,
+                ModelProbeKind.SPEECH_TO_TEXT,
+                ModelProbeKind.TEXT_TO_SPEECH)) {
+            ModelProbeResult probe = client.probe(kind);
+            assertThat(probe.isSupported()).as("%s 未实现适配时不得判为可用", kind).isFalse();
+            assertThat(probe.detailCode())
+                    .as("%s 必须给出稳定原因码", kind)
+                    .isEqualTo(ModelProbeResult.CODE_ADAPTER_NOT_IMPLEMENTED);
+        }
+        assertThat(upstreamCalls).as("媒体探测不得触发任何上游调用").hasValue(0);
     }
 }

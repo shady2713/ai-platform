@@ -205,6 +205,10 @@ public class SpringAiModelClient implements ModelPort {
                 case STRUCTURED_OUTPUT -> probeStructuredOutput(startedAt);
                 case TOOL_CALLING -> probeToolCalling(startedAt);
                 case EMBEDDING -> probeEmbedding(startedAt);
+                // X01 媒体探测项由 X02–X04 实现：本适配器未实现时返回"适配器未实现"的稳定结论，
+                // 不发起任何厂商调用（因此不会产生隐藏外发），也不回退为文本探测。
+                case IMAGE_UNDERSTANDING, IMAGE_OCR, IMAGE_GENERATION, IMAGE_EDIT, SPEECH_TO_TEXT, TEXT_TO_SPEECH ->
+                    ModelProbeResult.unsupported(kind, ModelProbeResult.CODE_ADAPTER_NOT_IMPLEMENTED);
             };
         } catch (ModelException exception) {
             if (exception.getReason() == ModelException.Reason.CAPABILITY_UNSUPPORTED) {
