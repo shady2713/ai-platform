@@ -7,6 +7,7 @@ import com.basicframework.framework.mybatis.core.query.LambdaQueryWrapperX;
 import com.basicframework.module.ai.dal.dataobject.application.AiApplicationDO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 
 @Mapper
 public interface AiApplicationMapper extends BaseMapperX<AiApplicationDO> {
@@ -14,6 +15,15 @@ public interface AiApplicationMapper extends BaseMapperX<AiApplicationDO> {
     default AiApplicationDO selectByAppCode(String appCode) {
         return selectOne(AiApplicationDO::getAppCode, appCode);
     }
+
+    /**
+     * 行锁：按应用维度串行化"判定 + 占位"（Q07 AT-059）。
+     *
+     * <p>配额判定必须在同一临界区内完成，应用行是天然的按应用粒度锁点：同一应用的并发申请在此排队，
+     * 后到者拿到锁后能看到前者已提交的占位。返回 null 表示该应用行不存在（无行可锁，调用方需退化处理）。
+     */
+    @Select("SELECT id FROM ai_application WHERE id = #{id} FOR UPDATE")
+    Long lockByIdForUpdate(@Param("id") Long id);
 
     default PageResult<AiApplicationDO> selectPage(PageParam pageParam, String appCode, Boolean enabled) {
         return selectPage(

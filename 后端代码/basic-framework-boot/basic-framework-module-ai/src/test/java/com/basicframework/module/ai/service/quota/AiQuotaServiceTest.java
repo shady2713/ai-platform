@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -12,11 +13,13 @@ import static org.mockito.Mockito.when;
 
 import com.basicframework.framework.common.exception.ServiceException;
 import com.basicframework.module.ai.dal.dataobject.usage.AiQuotaLeaseDO;
+import com.basicframework.module.ai.dal.mysql.application.AiApplicationMapper;
 import com.basicframework.module.ai.dal.mysql.usage.AiQuotaLeaseMapper;
 import com.basicframework.module.ai.service.quota.dto.AiQuotaAcquireDTO;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.springframework.dao.DuplicateKeyException;
 
 /** Q02 配额占位：上限、幂等重入、租约到期回收、续租与释放。 */
@@ -24,7 +27,9 @@ class AiQuotaServiceTest {
 
     private final AiQuotaLeaseMapper mapper = mock(AiQuotaLeaseMapper.class);
 
-    private final AiQuotaServiceImpl service = new AiQuotaServiceImpl(mapper);
+    private final AiApplicationMapper applicationMapper = mock(AiApplicationMapper.class);
+
+    private final AiQuotaServiceImpl service = new AiQuotaServiceImpl(mapper, applicationMapper);
 
     private static AiQuotaAcquireDTO request(int limit) {
         return new AiQuotaAcquireDTO()
@@ -48,13 +53,46 @@ class AiQuotaServiceTest {
     @Test
     void acquiresWhenUnderLimitAndRejectsWithExpiredLeasesNotCounted() {
         when(mapper.selectByLeaseKey(any())).thenReturn(null);
-        when(mapper.countActive(anyLong(), any())).thenReturn(1L);
+        when(applicationMapper.lockByIdForUpdate(anyLong())).thenReturn(1L);
+        when(mapper.countActiveForUpdate(anyLong(), any())).thenReturn(1L);
         when(mapper.insert(any(AiQuotaLeaseDO.class))).thenReturn(1);
         assertThat(service.acquire(request(2))).isTrue();
 
         // 已达上限：不排队不阻塞，返回未获得（调用方回 429 并说明原因）
-        when(mapper.countActive(anyLong(), any())).thenReturn(2L);
+        when(mapper.countActiveForUpdate(anyLong(), any())).thenReturn(2L);
         assertThat(service.acquire(request(2))).isFalse();
+    }
+
+    @Test
+    void acquireLocksApplicationRowBeforeCountingAndInserting() {
+        when(mapper.selectByLeaseKey(any())).thenReturn(null);
+        when(applicationMapper.lockByIdForUpdate(anyLong())).thenReturn(1L);
+        when(mapper.countActiveForUpdate(anyLong(), any())).thenReturn(0L);
+        when(mapper.insert(any(AiQuotaLeaseDO.class))).thenReturn(1);
+
+        assertThat(service.acquire(request(2))).isTrue();
+
+        // 判定与占位必须在应用行锁内串行：先锁应用行，再计数（加锁读），最后插入
+        InOrder order = inOrder(applicationMapper, mapper);
+        order.verify(applicationMapper).lockByIdForUpdate(1L);
+        order.verify(mapper).countActiveForUpdate(anyLong(), any());
+        order.verify(mapper).insert(any(AiQuotaLeaseDO.class));
+    }
+
+    @Test
+    void acquireFallsBackToQuotaGateWhenApplicationRowIsAbsent() {
+        // 未注册的应用标识：没有应用行可锁，退化为全局闸门行，仍先锁再判定
+        when(mapper.selectByLeaseKey(any())).thenReturn(null);
+        when(applicationMapper.lockByIdForUpdate(anyLong())).thenReturn(null);
+        when(mapper.countActiveForUpdate(anyLong(), any())).thenReturn(0L);
+        when(mapper.insert(any(AiQuotaLeaseDO.class))).thenReturn(1);
+
+        assertThat(service.acquire(request(1))).isTrue();
+
+        InOrder order = inOrder(applicationMapper, mapper);
+        order.verify(applicationMapper).lockByIdForUpdate(1L);
+        order.verify(mapper).lockQuotaGate();
+        order.verify(mapper).countActiveForUpdate(anyLong(), any());
     }
 
     @Test
@@ -63,7 +101,8 @@ class AiQuotaServiceTest {
         // 申请时按"重新占用"处理
         when(mapper.selectByLeaseKey(any()))
                 .thenReturn(lease("ACTIVE", LocalDateTime.now().minusMinutes(1), 3));
-        when(mapper.countActive(anyLong(), any())).thenReturn(0L);
+        when(applicationMapper.lockByIdForUpdate(anyLong())).thenReturn(1L);
+        when(mapper.countActiveForUpdate(anyLong(), any())).thenReturn(0L);
         when(mapper.insert(any(AiQuotaLeaseDO.class))).thenReturn(1);
         assertThat(service.acquire(request(1))).isTrue();
 

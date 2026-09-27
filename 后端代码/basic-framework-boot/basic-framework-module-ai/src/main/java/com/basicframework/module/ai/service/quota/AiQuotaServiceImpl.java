@@ -4,6 +4,7 @@ import static com.basicframework.framework.common.exception.util.ServiceExceptio
 import static com.basicframework.module.ai.enums.AiErrorCodeConstants.AI_REQUEST_INVALID;
 
 import com.basicframework.module.ai.dal.dataobject.usage.AiQuotaLeaseDO;
+import com.basicframework.module.ai.dal.mysql.application.AiApplicationMapper;
 import com.basicframework.module.ai.dal.mysql.usage.AiQuotaLeaseMapper;
 import com.basicframework.module.ai.service.quota.dto.AiQuotaAcquireDTO;
 import java.time.Duration;
@@ -20,6 +21,10 @@ import org.springframework.util.StringUtils;
  * <p>为什么不只用"计数"：计数在进程崩溃时无法回收（AT-059 的"不永久占位"）。
  * 这里的占位是**带租约的行**，判定口径与查询口径一致："未释放且未到期"才算占用；
  * 到期占位在下一次申请时被顺带回收（懒清理），不依赖额外的清理任务。
+ *
+ * <p>为什么"判定 + 占位"不会超发（Q07 AT-059 修复）：申请先在**应用行上加行锁**（`ai_application.id`），
+ * 同一应用的并发申请在该锁上串行；拿到锁后用**加锁读**统计有效占位数再插入，因此后到者看到的是
+ * 最新已提交的占位。锁只在毫秒级临界区内持有，且只按应用维度互斥，不引入长事务、不排队等名额。
  */
 @Service
 @RequiredArgsConstructor
@@ -28,6 +33,8 @@ public class AiQuotaServiceImpl implements AiQuotaService {
     private static final Duration MAX_LEASE = Duration.ofHours(2);
 
     private final AiQuotaLeaseMapper quotaLeaseMapper;
+
+    private final AiApplicationMapper applicationMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -53,8 +60,14 @@ public class AiQuotaServiceImpl implements AiQuotaService {
             // 已释放或已到期：同一调用标识重新占用（用于重试），仍需受并发上限约束
         }
 
-        if (quotaLeaseMapper.countActive(request.getApplicationId(), now) >= request.getLimit()) {
-            // 并发已满：不排队、不阻塞，由调用方回 429 并说明原因
+        // 判定与占位在同一临界区内完成：先取应用行锁（同应用并发申请在此排队），
+        // 再用加锁读统计（RR 下普通读会复用事务首个读的旧快照，加锁读才能看到前者已提交的占位）。
+        if (applicationMapper.lockByIdForUpdate(request.getApplicationId()) == null) {
+            // 应用行不存在（未注册的应用标识）：无行可锁，退化为全局闸门行，保证该路径同样不被并发击穿
+            quotaLeaseMapper.lockQuotaGate();
+        }
+        if (quotaLeaseMapper.countActiveForUpdate(request.getApplicationId(), now) >= request.getLimit()) {
+            // 并发已满：不排队等名额、不阻塞调用方，由调用方回 429 并说明原因
             return false;
         }
 
