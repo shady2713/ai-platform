@@ -1,0 +1,2 @@
+# 交付包输出目录（由 deploy/package-delivery.mjs 生成），不入库。
+/dist/
