@@ -4,7 +4,11 @@ import type { ConversationApi, ConversationRunApi } from '../use-conversation';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { createIdempotencyKey, useConversation } from '../use-conversation';
+import {
+  createIdempotencyKey,
+  toLoadFailure,
+  useConversation,
+} from '../use-conversation';
 import { chartBlock, textBlock } from './fixtures';
 
 function apiStub(): ConversationApi & {
@@ -323,5 +327,68 @@ describe('useConversation（会话逻辑）', () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+
+  it('列表加载失败记录稳定原因且不抛出，成功后清除', async () => {
+    const api = apiStub();
+    const chat = useConversation({
+      api,
+      runApi: runApiStub().api,
+      serviceId: 'svc_1',
+    });
+    vi.mocked(api.list).mockRejectedValueOnce(
+      Object.assign(new Error('无法连接 AI 服务（/app-api）：网络不可达'), {
+        code: 'NETWORK_UNREACHABLE',
+        status: 0,
+      }),
+    );
+
+    // 挂载即加载由组件发起：失败的 promise 不能再向宿主冒泡（未处理 rejection）
+    await expect(chat.refreshList()).resolves.toBeUndefined();
+    expect(chat.loadFailure.value).toEqual({
+      code: 'NETWORK_UNREACHABLE',
+      message: '无法连接 AI 服务（/app-api）：网络不可达',
+    });
+    expect(chat.conversations.value).toHaveLength(0);
+
+    await chat.refreshList();
+    expect(chat.loadFailure.value).toBeUndefined();
+    expect(chat.conversations.value).toHaveLength(1);
+  });
+
+  it('列表操作失败同样记录原因，不向宿主抛未处理 rejection', async () => {
+    const api = apiStub();
+    const chat = useConversation({
+      api,
+      runApi: runApiStub().api,
+      serviceId: 'svc_1',
+    });
+    api.create = vi.fn(async () => {
+      throw Object.assign(new Error('无权在该会话下新建'), {
+        code: 'HTTP_403',
+        status: 403,
+      });
+    });
+
+    await expect(chat.createConversation('新会话')).resolves.toBeUndefined();
+    expect(chat.loadFailure.value).toEqual({
+      code: 'HTTP_403',
+      message: '无权在该会话下新建',
+    });
+  });
+
+  it('非标准异常归一为兜底原因码（优先 code，其次状态码，最后 REQUEST_FAILED）', () => {
+    expect(toLoadFailure('boom')).toEqual({
+      code: 'REQUEST_FAILED',
+      message: '会话列表加载失败，请稍后重试',
+    });
+    expect(toLoadFailure({ status: 503 })).toEqual({
+      code: 'HTTP_503',
+      message: '会话列表加载失败，请稍后重试',
+    });
+    expect(toLoadFailure({ code: 'AI_RUN_NOT_FOUND' })).toEqual({
+      code: 'AI_RUN_NOT_FOUND',
+      message: '会话列表加载失败，请稍后重试',
+    });
   });
 });

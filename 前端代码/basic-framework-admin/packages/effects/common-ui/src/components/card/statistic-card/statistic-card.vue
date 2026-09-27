@@ -1,6 +1,8 @@
 <script lang="ts" setup>
 import type { StatisticCardProps } from './types';
 
+import { CircleAlert, TrendingDown, TrendingUp } from '@vben/icons';
+
 import {
   Card,
   CardContent,
@@ -9,7 +11,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
   VbenCountToAnimator,
-  VbenIcon,
 } from '@vben-core/shadcn-ui';
 
 /** 统计卡片 */
@@ -28,10 +29,7 @@ withDefaults(defineProps<StatisticCardProps>(), {
         <TooltipProvider v-if="tooltip">
           <Tooltip>
             <TooltipTrigger>
-              <VbenIcon
-                icon="lucide:circle-alert"
-                class="text-muted-foreground size-4 cursor-help"
-              />
+              <CircleAlert class="text-muted-foreground size-4 cursor-help" />
             </TooltipTrigger>
             <TooltipContent>
               <p>{{ tooltip }}</p>
@@ -57,14 +55,8 @@ withDefaults(defineProps<StatisticCardProps>(), {
           class="flex items-center gap-0.5"
         >
           {{ Math.abs(Number(percent ?? 0)).toFixed(2) }}%
-          <VbenIcon
-            :icon="
-              Number(percent) > 0
-                ? 'lucide:trending-up'
-                : 'lucide:trending-down'
-            "
-            class="size-3"
-          />
+          <TrendingUp v-if="Number(percent) > 0" class="size-3" />
+          <TrendingDown v-else class="size-3" />
         </span>
       </div>
     </CardContent>

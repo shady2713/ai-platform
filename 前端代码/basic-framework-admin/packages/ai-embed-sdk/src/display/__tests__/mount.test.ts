@@ -1,7 +1,18 @@
-import type { ChatDisplayMode, ChatFramePort } from '../mount';
+import type { BridgeMessage } from '@vben/ai-contracts';
+
+import type {
+  HostNavigationAccepted,
+  HostRouteRegistry,
+} from '../../events/host-events';
+import type {
+  ChatDisplayMode,
+  ChatFramePort,
+  ChatMountOptions,
+} from '../mount';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { createHostEventHandlers } from '../../events/host-events';
 import { createChatMount } from '../mount';
 
 const ORIGIN = 'https://crm.example.com';
@@ -14,11 +25,18 @@ const ORIGIN = 'https://crm.example.com';
  */
 const FAKE_TICKET = ['aitkt', 'once', 'abcdefg'].join('_');
 
+interface FrameWindow {
+  postMessage: ReturnType<typeof vi.fn>;
+}
+
 interface Harness {
   container: HTMLDivElement;
   created: ReturnType<typeof vi.fn>;
   destroyFrame: ReturnType<typeof vi.fn>;
   frame: ChatFramePort;
+  frameElement: () => HTMLIFrameElement;
+  frameWindow: () => FrameWindow;
+  getAccessToken: ReturnType<typeof vi.fn>;
   mounted: ReturnType<typeof createChatMount>;
   panel: () => HTMLElement | null;
   scroll: () => HTMLElement | null;
@@ -26,31 +44,38 @@ interface Harness {
 }
 
 function harness(
-  options: { maxHeight?: number; mode?: ChatDisplayMode } = {},
+  options: {
+    maxHeight?: number;
+    mode?: ChatDisplayMode;
+    onNavigate?: ChatMountOptions['onNavigate'];
+  } = {},
 ): Harness {
   const container = document.createElement('div');
   document.body.append(container);
   const viewport = { height: 800, width: 1200 };
+  let createdFrame: HTMLIFrameElement | null = null;
   const created = vi.fn(() => {
     const element = document.createElement('iframe');
-    const contentWindow = { postMessage: vi.fn() };
+    const contentWindow: FrameWindow = { postMessage: vi.fn() };
     Object.defineProperty(element, 'contentWindow', {
       configurable: true,
       value: contentWindow,
     });
+    createdFrame = element;
     return element;
   });
   const destroyFrame = vi.fn();
   const frame: ChatFramePort = { create: created, destroy: destroyFrame };
+  const getAccessToken = vi.fn(async () => ({
+    expiresAt: '2026-09-25T10:00:00Z',
+    token: FAKE_TICKET,
+  }));
   const mounted = createChatMount({
     allowedOrigins: [ORIGIN],
     appCode: 'crm-portal',
     container,
     frame,
-    getAccessToken: async () => ({
-      expiresAt: '2026-09-25T10:00:00Z',
-      token: FAKE_TICKET,
-    }),
+    getAccessToken,
     instanceId: 'inst-1',
     layout: { minSidebarWidth: 360, narrowBreakpoint: 768 },
     mode: options.mode ?? 'inline',
@@ -59,12 +84,24 @@ function harness(
     ...(options.maxHeight === undefined
       ? {}
       : { maxHeight: options.maxHeight }),
+    ...(options.onNavigate === undefined
+      ? {}
+      : { onNavigate: options.onNavigate }),
   });
+  const frameElement = (): HTMLIFrameElement => {
+    if (createdFrame === null) {
+      throw new Error('iframe 尚未创建');
+    }
+    return createdFrame;
+  };
   return {
     container,
     created,
     destroyFrame,
     frame,
+    frameElement,
+    frameWindow: () => frameElement().contentWindow as unknown as FrameWindow,
+    getAccessToken,
     mounted,
     panel: () =>
       container.querySelector<HTMLElement>('[data-testid="ai-chat-panel"]'),
@@ -72,6 +109,15 @@ function harness(
       container.querySelector<HTMLElement>('[data-testid="ai-chat-scroll"]'),
     viewport,
   };
+}
+
+/** 触发 iframe 的 load：宿主只应在文档就绪后开始握手。 */
+function fireFrameLoad(harnessed: Harness): void {
+  harnessed.frameElement().dispatchEvent(new Event('load'));
+}
+
+function readyMessage() {
+  return { instanceId: 'inst-1', protocolVersion: '1.0', type: 'READY' };
 }
 
 describe('chat 展示形态与生命周期（C07）', () => {
@@ -276,6 +322,150 @@ describe('chat 展示形态与生命周期（C07）', () => {
       again.container.querySelectorAll('[data-testid="ai-chat-panel"]'),
     ).toHaveLength(1);
     again.mounted.destroy();
+  });
+
+  it('宿主事件入口：load 前不 start，且只接受本实例 iframe 来源的消息', async () => {
+    const harnessed = harness();
+    harnessed.mounted.open();
+
+    // iframe 未 load：不发 HELLO（发早了会掉进尚未就绪的文档，握手凭空丢失）
+    expect(harnessed.frameWindow().postMessage).not.toHaveBeenCalled();
+
+    // 其它来源（宿主页里的另一个 frame）即使 origin 正确也不进桥
+    const foreign = new MessageEvent('message', {
+      data: readyMessage(),
+      origin: ORIGIN,
+      source: window.parent,
+    });
+    expect(harnessed.mounted.receive(foreign)).toBe(false);
+    expect(harnessed.getAccessToken).not.toHaveBeenCalled();
+
+    fireFrameLoad(harnessed);
+    expect(harnessed.frameWindow().postMessage).toHaveBeenCalledTimes(1);
+    const [hello, helloOrigin] = harnessed.frameWindow().postMessage.mock
+      .calls[0] as [BridgeMessage, string];
+    expect(hello.type).toBe('HELLO');
+    expect(hello.instanceId).toBe('inst-1');
+    // 精确 targetOrigin：绝不是 '*'
+    expect(helloOrigin).toBe(ORIGIN);
+
+    // 重复 open 幂等；关闭后重新打开也不再重放 HELLO（start 只在 CREATED 生效）
+    harnessed.mounted.open();
+    harnessed.mounted.close();
+    harnessed.mounted.open();
+    expect(harnessed.frameWindow().postMessage).toHaveBeenCalledTimes(1);
+
+    // 本实例 iframe 的合法 READY 被采纳：换票并回 AUTH（复用同一条 receive 入口）
+    const genuine = new MessageEvent('message', {
+      data: readyMessage(),
+      origin: ORIGIN,
+      source: harnessed.frameWindow() as unknown as MessageEventSource,
+    });
+    expect(harnessed.mounted.receive(genuine)).toBe(true);
+    await vi.waitFor(() =>
+      expect(harnessed.getAccessToken).toHaveBeenCalledTimes(1),
+    );
+
+    harnessed.mounted.destroy();
+  });
+
+  it('业务事件入口：导航按登记路由校验后交给宿主回调，未登记路由仍被拒', async () => {
+    const navigations: HostNavigationAccepted[] = [];
+    const routes: HostRouteRegistry = {
+      'order.detail': { params: { id: 'string' } },
+    };
+    const handlers = createHostEventHandlers({
+      onNavigate: (event) => navigations.push(event),
+      routes,
+    });
+    const harnessed = harness({ onNavigate: handlers.navigate });
+    harnessed.mounted.open();
+    fireFrameLoad(harnessed);
+    const fromFrame = harnessed.frameWindow() as unknown as MessageEventSource;
+
+    harnessed.mounted.receive(
+      new MessageEvent('message', {
+        data: readyMessage(),
+        origin: ORIGIN,
+        source: fromFrame,
+      }),
+    );
+    // HELLO/AUTH/INIT 三条都发出 ⇒ 桥已进入 INITIALIZED（业务事件的前提）
+    await vi.waitFor(() =>
+      expect(
+        harnessed.frameWindow().postMessage.mock.calls.length,
+      ).toBeGreaterThanOrEqual(3),
+    );
+    expect(harnessed.getAccessToken).toHaveBeenCalledTimes(1);
+
+    // 合法导航（登记路由 + 声明参数）
+    expect(
+      harnessed.mounted.receive(
+        new MessageEvent('message', {
+          data: {
+            instanceId: 'inst-1',
+            params: { id: 'order-1' },
+            protocolVersion: '1.0',
+            route: 'order.detail',
+            type: 'NAVIGATE_REQUEST',
+          },
+          origin: ORIGIN,
+          source: fromFrame,
+        }),
+      ),
+    ).toBe(true);
+    expect(navigations).toEqual([
+      { ok: true, params: { id: 'order-1' }, route: 'order.detail' },
+    ]);
+
+    // 未登记路由：不放宽路由注册校验，宿主回调不执行
+    expect(
+      harnessed.mounted.receive(
+        new MessageEvent('message', {
+          data: {
+            instanceId: 'inst-1',
+            protocolVersion: '1.0',
+            route: 'evil.route',
+            type: 'NAVIGATE_REQUEST',
+          },
+          origin: ORIGIN,
+          source: fromFrame,
+        }),
+      ),
+    ).toBe(false);
+    expect(navigations).toHaveLength(1);
+
+    harnessed.mounted.destroy();
+  });
+
+  it('destroy 后 open 幂等拒绝：不重建 DOM、不复活外壳、状态不变', () => {
+    const harnessed = harness({ mode: 'dialog' });
+    harnessed.mounted.open();
+    expect(harnessed.panel()).not.toBeNull();
+    const createdBefore = harnessed.created.mock.calls.length;
+
+    harnessed.mounted.destroy();
+    harnessed.mounted.open();
+    harnessed.mounted.open();
+
+    // 状态与 DOM 都不变：不新建 overlay/panel/iframe，isOpen 保持 false
+    expect(harnessed.mounted.isOpen()).toBe(false);
+    expect(harnessed.created.mock.calls.length).toBe(createdBefore);
+    expect(harnessed.destroyFrame).toHaveBeenCalledTimes(1);
+    expect(
+      harnessed.container.querySelector('[data-testid="ai-chat-overlay"]'),
+    ).toBeNull();
+    expect(
+      harnessed.container.querySelector('[data-testid="ai-chat-panel"]'),
+    ).toBeNull();
+    expect(harnessed.container.querySelectorAll('iframe')).toHaveLength(0);
+    expect(harnessed.frameElement().isConnected).toBe(false);
+    // 已销毁的实例不再接受宿主事件
+    expect(
+      harnessed.mounted.receive(
+        new MessageEvent('message', { data: readyMessage(), origin: ORIGIN }),
+      ),
+    ).toBe(false);
   });
 
   it('未打开时 Esc/Tab 不干预宿主页面', () => {

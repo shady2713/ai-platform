@@ -19,7 +19,7 @@ import {
   toRefs,
 } from 'vue';
 
-import { IconifyIcon } from '@vben/icons';
+import { RefreshCcw } from '@vben/icons';
 import { $t } from '@vben/locales';
 
 import {
@@ -239,7 +239,7 @@ defineExpose({ init, refresh });
           style="z-index: 3"
           @click="refresh"
         >
-          <IconifyIcon icon="lucide:refresh-ccw" class="mr-2 size-5" />
+          <RefreshCcw class="mr-2 size-5" />
         </div>
         <img
           :src="pointBackImgBase"

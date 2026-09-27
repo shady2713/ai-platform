@@ -1,5 +1,6 @@
 import type { BridgeMessage, Theme } from '@vben/ai-contracts';
 
+import type { HostEventHandlers } from '../events/host-events';
 import type { BridgeState } from '../types';
 
 import {
@@ -26,7 +27,10 @@ export type { BridgeState };
  *   <li><b>两个 app 不串 token</b>：每个实例持有自己的实例标识与允许域，AUTH 只发给本实例的 iframe
  *       （AT-052 的宿主侧版本）；</li>
  *   <li><b>旧实例/旧代次消息丢弃</b>：`resetSession()` 使代次 +1，晚到的异步结果与事件按代次过滤
- *       （AT-053，与 C02 的会话状态机同一口径）。</li>
+ *       （AT-053，与 C02 的会话状态机同一口径）；</li>
+ *   <li><b>业务事件按实例路由</b>：`NAVIGATE_REQUEST`/`REPORT_CREATED` 只在 INITIALIZED 后、且
+ *       origin/source/instanceId/协议版本/schema 全部通过时才交给宿主回调；导航的路由注册与
+ *       参数类型由 C08 的宿主事件处理器（`createHostEventHandlers`）判定，未登记一律拒绝。</li>
  * </ol>
  */
 export class HostBridge {
@@ -203,6 +207,38 @@ export class HostBridge {
         void this.authenticate(generation, origin);
         return true;
       }
+      case 'NAVIGATE_REQUEST': {
+        // 业务事件只在 INITIALIZED 后受理（与 CONTEXT_UPDATE 的提前拒绝同一口径）
+        if (this.currentState !== 'INITIALIZED') {
+          return this.unsupported(message.type, origin, '启动阶段不接受消息');
+        }
+        const navigate = this.options.onNavigate;
+        if (navigate === undefined) {
+          // 宿主没有登记导航处理：明确拒绝，不静默吞掉
+          return this.unsupported(message.type, origin, '宿主未登记处理');
+        }
+        // 路由注册与参数类型由 C08 的宿主校验器判定（未登记路由/夹带 URL 一律拒绝）
+        const result = navigate({
+          params: message.params,
+          route: message.route,
+        });
+        if (!result.ok) {
+          this.options.onRejected?.(result.reason);
+          return false;
+        }
+        return true;
+      }
+      case 'REPORT_CREATED': {
+        if (this.currentState !== 'INITIALIZED') {
+          return this.unsupported(message.type, origin, '启动阶段不接受消息');
+        }
+        const reportCreated = this.options.onReportCreated;
+        if (reportCreated === undefined) {
+          return this.unsupported(message.type, origin, '宿主未登记处理');
+        }
+        reportCreated(message);
+        return true;
+      }
       case 'TOKEN_REQUIRED': {
         if (this.currentState !== 'INITIALIZED') {
           return false;
@@ -212,12 +248,7 @@ export class HostBridge {
       }
       default: {
         // 白名单里但本阶段尚未实现的业务消息：明确拒绝，不静默吞掉
-        this.fail(
-          'MESSAGE_NOT_SUPPORTED',
-          `启动阶段不接受消息 ${message.type}`,
-          origin,
-        );
-        return false;
+        return this.unsupported(message.type, origin, '本版本尚未处理消息');
       }
     }
   }
@@ -287,6 +318,21 @@ export class HostBridge {
   private stale(generation: number): boolean {
     return generation !== this.generation || this.currentState === 'DESTROYED';
   }
+
+  /**
+   * 明确拒绝一条白名单内但本实例不处理的消息：回 ERROR 并记录稳定错误码。
+   *
+   * <p>不静默丢弃是刻意的：宿主侧"没有接这个能力"必须可观测，否则真实接线里
+   * 事件会无声消失（C08 宿主校验器拿不到输入时曾经如此）。
+   */
+  private unsupported(
+    type: BridgeMessage['type'],
+    origin: string,
+    reason: string,
+  ): false {
+    this.fail('MESSAGE_NOT_SUPPORTED', `${reason} ${type}`, origin);
+    return false;
+  }
 }
 
 /** 宿主事件（调用方从 window 的 message 事件里挑出这三个字段）。 */
@@ -314,9 +360,22 @@ export interface HostBridgeOptions {
   /** 实例标识（同一页面挂多个实例时用于隔离）。 */
   instanceId: string;
   onError?: (error: { errorCode: string; message: string }) => void;
+  /**
+   * C08 宿主事件入口：iframe 的导航请求（`createHostEventHandlers(...).navigate`）。
+   *
+   * <p>只在 INITIALIZED 后受理，且 origin/source/instanceId/协议版本/schema 全部通过后才调用；
+   * 未登记路由与未声明参数由该回调按登记表拒绝（拒绝原因经 `onRejected` 可观测）。
+   * 不提供即视为宿主未登记该能力：回 `MESSAGE_NOT_SUPPORTED`（不静默吞掉）。
+   */
+  onNavigate?: HostEventHandlers['navigate'];
   onReady?: () => void;
   /** 被拒绝的消息原因（观测用；不含消息正文）。 */
   onRejected?: (reason: string) => void;
+  /**
+   * C08 宿主事件入口：报表已创建通知（`createHostEventHandlers(...).reportCreated`）。
+   * 不提供即回 `MESSAGE_NOT_SUPPORTED`。
+   */
+  onReportCreated?: HostEventHandlers['reportCreated'];
   /** 桥协议版本（默认当前版本）。 */
   protocolVersion?: string;
   /** INIT 携带的服务标识（可空：由服务端发布配置决定）。 */

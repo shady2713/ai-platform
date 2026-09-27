@@ -1,6 +1,8 @@
 <script lang="ts" setup>
 import type { SummaryCardProps } from './types';
 
+import { ChevronDown, ChevronUp, CircleAlert } from '@vben/icons';
+
 import {
   Card,
   CardContent,
@@ -34,10 +36,7 @@ defineProps<SummaryCardProps>();
           <TooltipProvider v-if="tooltip">
             <Tooltip>
               <TooltipTrigger>
-                <VbenIcon
-                  icon="lucide:circle-alert"
-                  class="text-muted-foreground size-3"
-                />
+                <CircleAlert class="text-muted-foreground size-3" />
               </TooltipTrigger>
               <TooltipContent>
                 <p>{{ tooltip }}</p>
@@ -63,14 +62,8 @@ defineProps<SummaryCardProps>();
             class="flex items-center"
           >
             <span class="text-sm">{{ Math.abs(Number(percent)) }}%</span>
-            <VbenIcon
-              :icon="
-                Number(percent) > 0
-                  ? 'lucide:chevron-up'
-                  : 'lucide:chevron-down'
-              "
-              class="ml-0.5 size-3"
-            />
+            <ChevronUp v-if="Number(percent) > 0" class="ml-0.5 size-3" />
+            <ChevronDown v-else class="ml-0.5 size-3" />
           </span>
         </div>
       </div>

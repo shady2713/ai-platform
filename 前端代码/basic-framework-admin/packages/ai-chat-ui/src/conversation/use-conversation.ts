@@ -70,6 +70,36 @@ export function createIdempotencyKey(): string {
   return `chat-${random}`.slice(0, 128).padEnd(16, '0');
 }
 
+/** 列表面的失败快照：稳定原因码 + 可读消息（消息只按文本渲染，不回显 HTML）。 */
+export interface ConversationLoadFailure {
+  code: string;
+  message: string;
+}
+
+/** 从任意异常归一化失败快照：优先稳定原因码，其次由状态码派生，最后兜底。 */
+export function toLoadFailure(error: unknown): ConversationLoadFailure {
+  const record =
+    typeof error === 'object' && error !== null
+      ? (error as Record<string, unknown>)
+      : {};
+  const code =
+    typeof record.code === 'string' && record.code.length > 0
+      ? record.code
+      : null;
+  const status =
+    typeof record.status === 'number' && record.status > 0
+      ? record.status
+      : null;
+  const message =
+    error instanceof Error && error.message.trim() !== ''
+      ? error.message
+      : null;
+  return {
+    code: code ?? (status === null ? 'REQUEST_FAILED' : `HTTP_${status}`),
+    message: message ?? '会话列表加载失败，请稍后重试',
+  };
+}
+
 export interface UseConversationOptions {
   api: ConversationApi;
   runApi: ConversationRunApi | null;
@@ -81,6 +111,7 @@ export function useConversation(options: UseConversationOptions) {
   const conversations = ref<ConversationSummary[]>([]);
   const active = ref<ConversationSummary>();
   const messages = ref<ConversationMessage[]>([]);
+  const loadFailure = ref<ConversationLoadFailure>();
   const phase = ref(machine.snapshot().phase);
   let sequence = 0;
 
@@ -107,30 +138,56 @@ export function useConversation(options: UseConversationOptions) {
   }
 
   async function refreshList(): Promise<void> {
-    conversations.value = await options.api.list();
-  }
-
-  async function createConversation(title?: string): Promise<void> {
-    const created = await options.api.create(title);
-    await refreshList();
-    await selectConversation(created.id);
-  }
-
-  async function renameConversation(id: number, title: string): Promise<void> {
-    await options.api.rename(id, title);
-    await refreshList();
-  }
-
-  async function deleteConversation(id: number): Promise<void> {
-    await options.api.remove(id);
-    if (active.value?.id === id) {
-      // 删除当前会话：清空界面并换代（旧响应不再进入界面）
-      machine.switchGeneration();
-      active.value = undefined;
-      messages.value = [];
-      syncPhase();
+    try {
+      conversations.value = await options.api.list();
+      loadFailure.value = undefined;
+    } catch (error) {
+      // 列表加载失败：记录稳定原因由界面展示，不向宿主抛出未处理的 rejection
+      // （挂载即加载由组件发起，宿主没有可用的捕获点）。
+      loadFailure.value = toLoadFailure(error);
     }
-    await refreshList();
+  }
+
+  /**
+   * 列表面的操作（新建/重命名/删除）统一在此捕获失败：
+   * 失败原因进 `loadFailure` 并由界面展示；操作本身不向宿主抛未处理的 rejection。
+   */
+  async function performListAction(action: () => Promise<void>): Promise<void> {
+    try {
+      await action();
+      loadFailure.value = undefined;
+    } catch (error) {
+      loadFailure.value = toLoadFailure(error);
+    }
+  }
+
+  function createConversation(title?: string): Promise<void> {
+    return performListAction(async () => {
+      const created = await options.api.create(title);
+      await refreshList();
+      await selectConversation(created.id);
+    });
+  }
+
+  function renameConversation(id: number, title: string): Promise<void> {
+    return performListAction(async () => {
+      await options.api.rename(id, title);
+      await refreshList();
+    });
+  }
+
+  function deleteConversation(id: number): Promise<void> {
+    return performListAction(async () => {
+      await options.api.remove(id);
+      if (active.value?.id === id) {
+        // 删除当前会话：清空界面并换代（旧响应不再进入界面）
+        machine.switchGeneration();
+        active.value = undefined;
+        messages.value = [];
+        syncPhase();
+      }
+      await refreshList();
+    });
   }
 
   /** 选择会话：换代 + 清空消息（AT-053 的会话内版本）。 */
@@ -245,6 +302,7 @@ export function useConversation(options: UseConversationOptions) {
     conversations: computed(() => conversations.value),
     createConversation,
     deleteConversation,
+    loadFailure: computed(() => loadFailure.value),
     messages: computed(() => messages.value),
     phase: computed(() => phase.value),
     refreshList,

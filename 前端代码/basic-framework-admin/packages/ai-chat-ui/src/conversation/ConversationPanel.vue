@@ -139,6 +139,25 @@ async function confirmRename(): Promise<void> {
           </span>
         </li>
       </ul>
+      <p
+        v-if="chat.loadFailure.value"
+        class="ai-conversation__list-error"
+        data-testid="ai-conversation-list-error"
+        role="alert"
+      >
+        <span data-testid="ai-conversation-list-error-detail">
+          会话列表加载失败：{{ chat.loadFailure.value.code }}（{{
+            chat.loadFailure.value.message
+          }}）
+        </span>
+        <button
+          data-testid="ai-conversation-list-retry"
+          type="button"
+          @click="chat.refreshList()"
+        >
+          重试
+        </button>
+      </p>
       <form
         v-if="renameTarget"
         class="ai-conversation__rename"
@@ -258,6 +277,17 @@ async function confirmRename(): Promise<void> {
 
 .ai-conversation__list li.is-active {
   font-weight: 600;
+}
+
+.ai-conversation__list-error {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+  margin: 8px 0 0;
+  color: #dc2626;
+  overflow-wrap: anywhere;
 }
 
 .ai-conversation__main {

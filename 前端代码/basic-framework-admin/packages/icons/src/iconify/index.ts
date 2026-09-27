@@ -1,5 +1,7 @@
 import { createIconifyIcon } from '@vben-core/icons';
 
+export * from './offline-lucide';
+
 export * from '@vben-core/icons';
 
 export const MdiKeyboardEsc = createIconifyIcon('mdi:keyboard-esc');

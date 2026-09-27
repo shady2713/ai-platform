@@ -228,9 +228,9 @@ test.describe('AT-054 主题与窄屏可用性', () => {
   test('Chat 生产产物页在窄屏 375x812 结构完整且无横向滚动', async ({
     page,
   }) => {
-    // 记录页面级错误，但不作为本用例的失败条件：本环境**没有后端**
-    // （model-dependent: not configured in this environment），会话列表请求被拒是预期现象；
-    // 该现象本身作为 finding 记录（见 README 的缺陷清单与运行日志）。
+    // 本环境**没有后端**（model-dependent: not configured in this environment），
+    // Chat 页没有票据，会话列表请求必然失败；失败必须是"可见的稳定提示"，
+    // 不能是未处理的页面错误 + 空白列表（缺陷 7 的回归断言）。
     const pageErrors: string[] = [];
     page.on('pageerror', (error) => pageErrors.push(error.message));
     await page.setViewportSize(NARROW);
@@ -241,6 +241,22 @@ test.describe('AT-054 主题与窄屏可用性', () => {
       .textContent();
     // 未配置后端时状态必须是明确的提示，不是空白（这里配的是本地基址，面板就绪）
     expect(['就绪', '未配置 AI 服务地址']).toContain(status?.trim() ?? '');
+
+    // 列表加载失败：界面给出稳定原因码的可见提示（不显示 HTML、不吞错）
+    const failureNotice = page.locator(
+      '[data-testid="ai-conversation-list-error"]',
+    );
+    await expect(failureNotice).toBeVisible();
+    await expect(failureNotice).toContainText('会话列表加载失败');
+    // 原因码稳定可断言：无后端为 NETWORK_UNREACHABLE；有后端但无票据时为 HTTP_401/业务码
+    const failureText = (await failureNotice.textContent()) ?? '';
+    expect(failureText).toMatch(
+      /NETWORK_UNREACHABLE|HTTP_\d{3}|AI_[A-Z_]+|\d{6,}/u,
+    );
+    expect(failureText).not.toContain('<');
+    // 没有未处理的页面错误
+    expect(pageErrors).toEqual([]);
+
     const overflow = await overflowReport(page);
     expect(overflow.root.scrollWidth).toBeLessThanOrEqual(
       overflow.root.clientWidth,
@@ -258,7 +274,9 @@ test.describe('AT-054 主题与窄屏可用性', () => {
     );
 
     test.info().annotations.push({
-      description: `chat 页在无后端时产生未处理的页面错误 ${JSON.stringify(pageErrors)}；界面没有可见失败提示（仅 console），会话列表区为空。`,
+      description: `chat 页无后端时的可见失败提示：${JSON.stringify(
+        failureText.trim().replaceAll(/\s+/gu, ' '),
+      )}；未处理页面错误 ${JSON.stringify(pageErrors)}。`,
       type: 'finding',
     });
 

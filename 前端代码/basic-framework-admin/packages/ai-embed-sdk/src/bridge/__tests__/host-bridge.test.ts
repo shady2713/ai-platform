@@ -1,14 +1,26 @@
 import type { BridgeMessage } from '@vben/ai-contracts';
 
+import type {
+  HostNavigationAccepted,
+  HostReportCreatedEvent,
+  HostRouteRegistry,
+} from '../../events/host-events';
 import type { HostBridgeTransport } from '../host-bridge';
 
 import { describe, expect, it, vi } from 'vitest';
 
+import { createHostEventHandlers } from '../../events/host-events';
 import { createHostBridge } from '../host-bridge';
 
 const INSTANCE = 'inst-1';
 
 const ORIGIN = 'https://crm.example.com';
+
+/** 宿主登记的路由：未登记的路由名/参数都必须被拒。 */
+const ROUTES: HostRouteRegistry = {
+  'order.detail': { params: { id: 'string' } },
+  'report.list': { params: { page: 'number' } },
+};
 
 interface Harness {
   bridge: ReturnType<typeof createHostBridge>;
@@ -16,19 +28,25 @@ interface Harness {
   errors: { errorCode: string; message: string }[];
   frame: object;
   getAccessToken: ReturnType<typeof vi.fn>;
+  navigations: HostNavigationAccepted[];
   rejected: string[];
+  reports: HostReportCreatedEvent[];
   sent: BridgeMessage[];
 }
 
 function harness(
   options: {
     allowOrigins?: string[];
+    /** 是否接入 C08 的宿主事件处理器（不接即验证"未登记回调仍明确拒绝"）。 */
+    business?: boolean;
     token?: null | { expiresAt: string; token: string };
   } = {},
 ): Harness {
   const sent: BridgeMessage[] = [];
   const errors: { errorCode: string; message: string }[] = [];
   const rejected: string[] = [];
+  const navigations: HostNavigationAccepted[] = [];
+  const reports: HostReportCreatedEvent[] = [];
   const frame = { name: 'iframe-source' };
   const getAccessToken = vi.fn(async () =>
     options.token === null
@@ -43,6 +61,14 @@ function harness(
     post: (message) => sent.push(message),
     source: () => frame,
   };
+  const handlers =
+    options.business === true
+      ? createHostEventHandlers({
+          onNavigate: (event) => navigations.push(event),
+          onReportCreated: (event) => reports.push(event),
+          routes: ROUTES,
+        })
+      : null;
   lastFrame = frame;
   const bridge = createHostBridge({
     allowedOrigins: options.allowOrigins ?? [ORIGIN],
@@ -53,6 +79,12 @@ function harness(
     onRejected: (reason) => rejected.push(reason),
     serviceId: 'svc_1',
     transport,
+    ...(handlers === null
+      ? {}
+      : {
+          onNavigate: handlers.navigate,
+          onReportCreated: handlers.reportCreated,
+        }),
   });
   return {
     bridge,
@@ -60,7 +92,9 @@ function harness(
     errors,
     frame,
     getAccessToken,
+    navigations,
     rejected,
+    reports,
     sent,
   };
 }
@@ -79,6 +113,38 @@ function hello(overrides: Record<string, unknown> = {}) {
     type: 'HELLO',
     ...overrides,
   };
+}
+
+function navigateRequest(overrides: Record<string, unknown> = {}) {
+  return {
+    instanceId: INSTANCE,
+    protocolVersion: '1.0',
+    route: 'order.detail',
+    type: 'NAVIGATE_REQUEST',
+    ...overrides,
+  };
+}
+
+function reportCreated(overrides: Record<string, unknown> = {}) {
+  return {
+    instanceId: INSTANCE,
+    protocolVersion: '1.0',
+    reportId: 'rpt_fixture_1',
+    type: 'REPORT_CREATED',
+    version: 2,
+    ...overrides,
+  };
+}
+
+/** 走完真实握手（HELLO → READY）进入 INITIALIZED：业务事件只在此后受理。 */
+async function initialized(harnessed: Harness): Promise<void> {
+  harnessed.bridge.start();
+  harnessed.bridge.receive({
+    data: { instanceId: INSTANCE, protocolVersion: '1.0', type: 'READY' },
+    origin: ORIGIN,
+    source: harnessed.frame,
+  });
+  await vi.waitFor(() => expect(harnessed.bridge.state()).toBe('INITIALIZED'));
 }
 
 describe('宿主侧桥（C06）', () => {
@@ -373,5 +439,113 @@ describe('宿主侧桥（C06）', () => {
       }),
     ).toBe(false);
     expect(harnessed.getAccessToken).not.toHaveBeenCalled();
+  });
+
+  it('合法导航按登记路由校验后交给宿主回调', async () => {
+    const harnessed = harness({ business: true });
+    await initialized(harnessed);
+
+    expect(
+      harnessed.bridge.receive({
+        data: navigateRequest({ params: { id: 'order-1' } }),
+        origin: ORIGIN,
+        source: harnessed.frame,
+      }),
+    ).toBe(true);
+
+    // 回调只拿到校验通过的路由与参数（不做"先执行再判断"）
+    expect(harnessed.navigations).toEqual([
+      { ok: true, params: { id: 'order-1' }, route: 'order.detail' },
+    ]);
+    expect(harnessed.errors).toEqual([]);
+    expect(harnessed.rejected).toEqual([]);
+  });
+
+  it('未登记路由与未声明参数仍被拒：宿主回调不执行，拒绝原因可观测', async () => {
+    const harnessed = harness({ business: true });
+    await initialized(harnessed);
+
+    // 未登记路由
+    expect(
+      harnessed.bridge.receive({
+        data: navigateRequest({ route: 'evil.route' }),
+        origin: ORIGIN,
+        source: harnessed.frame,
+      }),
+    ).toBe(false);
+    // 登记路由但夹带未声明参数（任意 URL 不在协议内）
+    expect(
+      harnessed.bridge.receive({
+        data: navigateRequest({
+          params: { url: 'https://evil.example.com/steal' },
+        }),
+        origin: ORIGIN,
+        source: harnessed.frame,
+      }),
+    ).toBe(false);
+
+    expect(harnessed.navigations).toEqual([]);
+    expect(harnessed.rejected).toEqual(
+      expect.arrayContaining([
+        'ROUTE_NOT_REGISTERED',
+        'PARAM_NOT_REGISTERED:url',
+      ]),
+    );
+  });
+
+  it('reportCreated 通知被接受，并只转发形状校验后的字段', async () => {
+    const harnessed = harness({ business: true });
+    await initialized(harnessed);
+
+    expect(
+      harnessed.bridge.receive({
+        data: reportCreated({ title: '周报' }),
+        origin: ORIGIN,
+        source: harnessed.frame,
+      }),
+    ).toBe(true);
+
+    expect(harnessed.reports).toEqual([
+      { reportId: 'rpt_fixture_1', title: '周报', version: 2 },
+    ]);
+  });
+
+  it('未登记宿主回调的实例：业务事件仍明确拒绝，不静默吞掉', async () => {
+    const harnessed = harness();
+    await initialized(harnessed);
+
+    expect(
+      harnessed.bridge.receive({
+        data: navigateRequest({ params: { id: 'order-1' } }),
+        origin: ORIGIN,
+        source: harnessed.frame,
+      }),
+    ).toBe(false);
+    expect(harnessed.errors.at(-1)?.errorCode).toBe('MESSAGE_NOT_SUPPORTED');
+    expect(
+      harnessed.bridge.receive({
+        data: reportCreated(),
+        origin: ORIGIN,
+        source: harnessed.frame,
+      }),
+    ).toBe(false);
+    expect(harnessed.errors.at(-1)?.errorCode).toBe('MESSAGE_NOT_SUPPORTED');
+  });
+
+  it('初始化之前的业务事件被拒绝（状态机不放宽）', async () => {
+    const harnessed = harness({ business: true });
+    harnessed.bridge.start();
+
+    expect(
+      harnessed.bridge.receive({
+        data: navigateRequest({ params: { id: 'order-1' } }),
+        origin: ORIGIN,
+        source: harnessed.frame,
+      }),
+    ).toBe(false);
+
+    expect(harnessed.errors.at(-1)?.errorCode).toBe('MESSAGE_NOT_SUPPORTED');
+    expect(harnessed.navigations).toEqual([]);
+    expect(harnessed.reports).toEqual([]);
   });
 });

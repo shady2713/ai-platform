@@ -17,7 +17,7 @@ import {
   watchEffect,
 } from 'vue';
 
-import { IconifyIcon } from '@vben/icons';
+import { X } from '@vben/icons';
 
 import './verify.css';
 
@@ -131,7 +131,7 @@ defineExpose({
       <div v-if="mode === 'pop'" class="verifybox-top">
         {{ $t('ui.captcha.title') }}
         <span class="verifybox-close" @click="onClose">
-          <IconifyIcon icon="lucide:x" class="size-5" />
+          <X class="size-5" />
         </span>
       </div>
       <div

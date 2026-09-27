@@ -1,5 +1,7 @@
 import type { BridgeMessage, Theme } from '@vben/ai-contracts';
 
+import type { HostEventHandlers } from '../events/host-events';
+
 import { createHostBridge } from '../bridge/host-bridge';
 
 /**
@@ -17,8 +19,12 @@ import { createHostBridge } from '../bridge/host-bridge';
  *       不做"半屏抽屉里再塞一个小面板"（AT-054 的窄屏口径）；</li>
  *   <li>高度**受限协商**：面板高度 = min(宿主给定上限, 视口可用高度)，超出部分由面板内部滚动，
  *       不把宿主的布局撑破；</li>
- *   <li>`destroy()` 清理外壳、监听器、iframe 与桥实例；重复 destroy 幂等，destroy 后可重新 mount
- *       （AT-055：无监听器/流/图表泄漏）。</li>
+ *   <li>`destroy()` 清理外壳、监听器、iframe 与桥实例；重复 destroy 幂等。**销毁是单向终态**：
+ *       此后 `open()/setMode()/updateTheme()/receive()` 一律幂等拒绝，不重建 DOM、不改状态；
+ *       要重新挂载必须新建实例（AT-055：无监听器/流/图表泄漏）；</li>
+ *   <li>握手入口与宿主事件：宿主把 `window` 的 message 事件交给 {@link ChatMount.receive}
+ *       （SDK 不自占 window 监听器），且**等 iframe `load` 之后才 `start()`**——
+ *       发早了 HELLO 会掉进尚未就绪的文档。</li>
  * </ul>
  */
 
@@ -53,6 +59,10 @@ export interface ChatMountOptions {
   maxHeight?: number;
   mode?: ChatDisplayMode;
   onError?: (error: { errorCode: string; message: string }) => void;
+  /** C08 宿主事件入口：导航请求（只在校验通过后调用；见 `createHostEventHandlers`）。 */
+  onNavigate?: HostEventHandlers['navigate'];
+  /** C08 宿主事件入口：报表创建通知。 */
+  onReportCreated?: HostEventHandlers['reportCreated'];
   serviceId?: null | string;
   theme?: Theme;
   /** 视口尺寸（默认取 window.innerWidth/innerHeight；测试可注入）。 */
@@ -65,6 +75,13 @@ export interface ChatMount {
   isOpen(): boolean;
   mode(): ChatDisplayMode;
   open(): void;
+  /**
+   * 宿主把 `window` 的 `message` 事件喂进来（宿主自装监听器，SDK 不自占 window）。
+   *
+   * <p>origin/source/instanceId/协议版本/schema 全部由内部桥判定；返回是否被采纳。
+   * 只有本实例 iframe（`event.source` 与 frame 的 `contentWindow` 同一对象）的消息会进入状态机。
+   */
+  receive(event: MessageEvent): boolean;
   setMode(mode: ChatDisplayMode): void;
   updateTheme(theme: Theme): void;
 }
@@ -92,9 +109,25 @@ export function createChatMount(options: ChatMountOptions): ChatMount {
   let destroyed = false;
   let previouslyFocused: HTMLElement | null = null;
   let frame: HTMLIFrameElement | null = null;
+  let frameLoaded = false;
   let overlay: HTMLElement | null = null;
   let panel: HTMLElement | null = null;
   let scrollHost: HTMLElement | null = null;
+
+  /**
+   * iframe 文档就绪：此刻才能开始握手。
+   *
+   * <p>HELLO 必须在 iframe 的文档加载完成后发送——发早了消息掉进尚未就绪的文档，
+   * 握手凭空丢失（真实浏览器下表现为永远停在 CREATED）。
+   */
+  const onFrameLoad = () => {
+    frameLoaded = true;
+    if (destroyed || !open) {
+      // 关闭中的面板不抢跑握手；再次 open 时按 frameLoaded 立即 start
+      return;
+    }
+    bridge.start();
+  };
 
   const onKeyDown = (event: KeyboardEvent) => {
     if (!open) {
@@ -198,6 +231,8 @@ export function createChatMount(options: ChatMountOptions): ChatMount {
       frame = options.frame.create();
       frame.setAttribute('title', 'AI 助手');
       frame.dataset.testid = 'ai-chat-frame';
+      // 握手等 load：见 onFrameLoad
+      frame.addEventListener('load', onFrameLoad, { once: true });
     }
     scrollHost = documentRef.createElement('div');
     scrollHost.className = 'ai-chat-scroll';
@@ -211,6 +246,10 @@ export function createChatMount(options: ChatMountOptions): ChatMount {
   }
 
   function openShell(): void {
+    // 已销毁的实例不可复用：不重建外壳、不改状态（再次 open 幂等拒绝）
+    if (destroyed) {
+      return;
+    }
     ensureShell();
     if (open) {
       return;
@@ -220,8 +259,10 @@ export function createChatMount(options: ChatMountOptions): ChatMount {
     }
     open = true;
     overlay?.removeAttribute('hidden');
-    // 首次打开即开始握手（start 只在 CREATED 生效，重复打开不会重放 HELLO）
-    bridge.start();
+    if (frameLoaded) {
+      // iframe 文档已就绪（例如关闭后重新打开）：立即握手；否则等 onFrameLoad
+      bridge.start();
+    }
     applyChrome();
     if (mode !== 'inline') {
       // 模态形态：焦点移入面板（首个可聚焦元素，没有则面板本身）
@@ -255,6 +296,12 @@ export function createChatMount(options: ChatMountOptions): ChatMount {
     onError: options.onError,
     serviceId: options.serviceId,
     theme: options.theme,
+    ...(options.onNavigate === undefined
+      ? {}
+      : { onNavigate: options.onNavigate }),
+    ...(options.onReportCreated === undefined
+      ? {}
+      : { onReportCreated: options.onReportCreated }),
     transport: {
       destroy: () => options.frame.destroy(),
       post: (message: BridgeMessage) => {
@@ -277,17 +324,30 @@ export function createChatMount(options: ChatMountOptions): ChatMount {
       destroyed = true;
       globalWindow?.removeEventListener('resize', onResize);
       documentRef.removeEventListener('keydown', onKeyDown);
+      frame?.removeEventListener('load', onFrameLoad);
       bridge.destroy();
       overlay?.remove();
       overlay = null;
       panel = null;
       scrollHost = null;
       frame = null;
+      frameLoaded = false;
       previouslyFocused = null;
     },
     isOpen: () => open,
     mode: () => mode,
     open: openShell,
+    receive(event: MessageEvent): boolean {
+      if (destroyed) {
+        return false;
+      }
+      // 只把三个字段交给内部桥：origin/source/instanceId/版本/schema 全在桥里判定
+      return bridge.receive({
+        data: event.data,
+        origin: event.origin,
+        source: event.source,
+      });
+    },
     setMode(next: ChatDisplayMode): void {
       if (destroyed || next === mode) {
         return;

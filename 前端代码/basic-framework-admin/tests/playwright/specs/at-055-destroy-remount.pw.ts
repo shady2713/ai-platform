@@ -223,25 +223,37 @@ test.describe('AT-055 destroy 与重复 mount', () => {
     await capture(page, 'at-055-destroy-idempotent');
   });
 
-  // 已确认缺陷（不属于本切片允许路径，无法在此修复）：destroy() 之后再调用 open() 会走
-  // ensureShell() 重建 overlay/panel/iframe，而内部桥已是 DESTROYED（start() 直接返回），
-  // 于是留下"僵尸面板 + 死桥"：既不会再握手，也会随每次 open/close 累积 DOM。
-  // 期望行为：销毁后的实例不可复用（open 空操作），或明确报错。
-  test.fail(
-    '已确认缺陷：destroy() 后复用同一实例 open() 不应重建外壳',
-    async ({ page }) => {
-      await openHostPage(page);
-      await configureTicket(page, { delayMs: 0 });
-      await hostCall(page, 'openMount', [mountConfig]);
-      await hostCall(page, 'mountAction', [MOUNT_NAME, 'open']);
-      await hostCall(page, 'mountAction', [MOUNT_NAME, 'destroy']);
-      await hostCall(page, 'mountAction', [MOUNT_NAME, 'open']);
-      const afterOpen = await page.evaluate(() => ({
-        iframes: document.querySelectorAll('iframe').length,
-        overlays: document.querySelectorAll('[data-testid="ai-chat-overlay"]')
-          .length,
-      }));
-      expect(afterOpen).toEqual({ iframes: 0, overlays: 0 });
-    },
-  );
+  // 缺陷已修复（原先的 `test.fail` tripwire 转正）：`destroy()` 是单向终态，
+  // 之后再调用 `open()` 幂等拒绝——不重建 overlay/panel/iframe（0→1 的"僵尸外壳"消失），
+  // 挂载状态保持关闭、frame 不再存在。断言口径是真实 DOM 计数 + 夹具快照（isOpen/framePresent），
+  // 不是实现细节；连开两次以确保"幂等"而不是"偶然一次"。
+  test('destroy() 后复用同一实例 open() 幂等拒绝：不重建外壳、状态不变', async ({
+    page,
+  }) => {
+    await openHostPage(page);
+    await configureTicket(page, { delayMs: 0 });
+    await hostCall(page, 'openMount', [mountConfig]);
+    await hostCall(page, 'mountAction', [MOUNT_NAME, 'open']);
+    await hostCall(page, 'mountAction', [MOUNT_NAME, 'destroy']);
+    await hostCall(page, 'mountAction', [MOUNT_NAME, 'open']);
+    await hostCall(page, 'mountAction', [MOUNT_NAME, 'open']);
+    const afterOpen = await page.evaluate(() => ({
+      iframes: document.querySelectorAll('iframe').length,
+      overlays: document.querySelectorAll('[data-testid="ai-chat-overlay"]')
+        .length,
+    }));
+    expect(afterOpen).toEqual({ iframes: 0, overlays: 0 });
+
+    const snapshot = await hostCall<{
+      mounts: Record<
+        string,
+        { framePresent: boolean; isOpen: boolean | null; overlayCount: number }
+      >;
+    }>(page, 'snapshot');
+    expect(snapshot.mounts[MOUNT_NAME]?.isOpen).toBe(false);
+    expect(snapshot.mounts[MOUNT_NAME]?.framePresent).toBe(false);
+    expect(snapshot.mounts[MOUNT_NAME]?.overlayCount).toBe(0);
+
+    await capture(page, 'at-055-destroy-open-idempotent');
+  });
 });
