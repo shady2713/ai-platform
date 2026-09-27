@@ -15,9 +15,10 @@
  */
 import { spawn } from 'node:child_process';
 import { mkdir, readdir, readFile, stat } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import process from 'node:process';
 
+import vue from '@vitejs/plugin-vue';
 import { build } from 'vite';
 
 import {
@@ -29,6 +30,10 @@ import {
   SDK_DIST_DIR,
   SHELL_BUNDLE_DIR,
 } from '../fixtures/origins.mjs';
+import {
+  Q07_PROBE_BUNDLE_FILE,
+  Q07_PROBE_ENTRY,
+} from './q07-resilience-api.mjs';
 
 const PLATFORM_API_BASE = 'http://127.0.0.1:48080';
 
@@ -135,6 +140,43 @@ async function buildShellBundle() {
   process.stdout.write(`[q06] 嵌入壳 bundle ${info.size} 字节\n`);
 }
 
+/**
+ * Q07 韧性探针 bundle：入口 import 的是**真实**组件与解析（`ResultTable.vue`、`blocks.ts`）
+ * 与真实 SDK 客户端；这里只负责把它打成浏览器能加载的一份产物。
+ *
+ * 与两个应用产物同样的新鲜度规则：`Q06_FORCE_REBUILD=1` 强制重建（改了 packages 源码后必须重建，
+ * 否则浏览器里跑的是旧包）。
+ */
+async function buildProbeBundle(force) {
+  if (!force && (await exists(Q07_PROBE_BUNDLE_FILE))) {
+    return;
+  }
+  await mkdir(dirname(Q07_PROBE_BUNDLE_FILE), { recursive: true });
+  await build({
+    build: {
+      emptyOutDir: true,
+      lib: {
+        entry: Q07_PROBE_ENTRY,
+        fileName: () => 'probe-entry.js',
+        formats: ['es'],
+        name: 'Q07Probe',
+      },
+      minify: false,
+      outDir: dirname(Q07_PROBE_BUNDLE_FILE),
+      sourcemap: false,
+      target: 'chrome120',
+    },
+    configFile: false,
+    // vue 的 esm-bundler 产物读 process.env.NODE_ENV；浏览器里没有 process，构建期定死
+    define: { 'process.env.NODE_ENV': JSON.stringify('production') },
+    logLevel: 'warn',
+    plugins: [vue()],
+    root: FRONTEND_ROOT,
+  });
+  const info = await stat(Q07_PROBE_BUNDLE_FILE);
+  process.stdout.write(`[q07] 韧性探针 bundle ${info.size} 字节\n`);
+}
+
 async function ensureAppDist({ distDir, env, force, label, packageName }) {
   const indexPath = join(distDir, 'index.html');
   if (force || !(await exists(indexPath))) {
@@ -159,6 +201,7 @@ export default async function globalSetup() {
   const artifact = await ensureSdkArtifact();
   await verifyHostPageSdkImport(artifact);
   await buildShellBundle();
+  await buildProbeBundle(force);
   await ensureAppDist({
     distDir: CHAT_APP_DIST_DIR,
     env: { VITE_AI_API_BASE_URL: `${PLATFORM_API_BASE}/app-api/ai/v1` },

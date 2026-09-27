@@ -416,7 +416,7 @@
     "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/query/planner/dto/AiQueryPlanResultDTO.java": 100,
     "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/quota/AiQuotaServiceImpl.java": 100,
     "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/report/generation/AiReportGenerationConfiguration.java": 100,
-    "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/report/generation/AiReportGenerationStep.java": 94.34,
+    "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/report/generation/AiReportGenerationStep.java": 99.09,
     "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/report/persistence/AiReportScopeRefs.java": 93.88,
     "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/report/persistence/AiReportServiceImpl.java": 96.58,
     "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/report/refresh/AiReportRefreshServiceImpl.java": 99.5,

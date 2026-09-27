@@ -1,8 +1,6 @@
 # Q06/Q07 浏览器夹具与跨源/韧性用例（Playwright + Chromium）
 
-本目录落实 ADR 0046 的"真实浏览器门禁"：用真实 Chromium、真实生产产物、真实跨源 `postMessage` 覆盖
-AT-051/052/053/054/055/056/067（Q06），以及 AT-014/017/039/059 的**前端韧性**一段（Q07：慢消费者/断流、
-配额拒绝、部分结果与未知标注、断线重连按 seq 去重）。只做**结构断言**，不做视觉回归（ADR 0046 决策 2）。
+本目录落实 ADR 0046 的"真实浏览器门禁"：用真实 Chromium、真实生产产物、真实跨源 `postMessage` 覆盖 AT-051/052/053/054/055/056/067（Q06），以及 AT-014/017/039/059 的**前端韧性**一段（Q07：慢消费者/断流、配额拒绝、部分结果与未知标注、断线重连按 seq 去重）。只做**结构断言**，不做视觉回归（ADR 0046 决策 2）。
 
 ## 运行
 
@@ -22,8 +20,7 @@ pnpm exec playwright test --config tests/playwright/playwright.config.ts at-017-
 Q06_FORCE_REBUILD=1 pnpm exec playwright test --config tests/playwright/playwright.config.ts
 ```
 
-产物（截图/录像/trace/报告）写在仓库根 `.local-state/q06-browser/`（已 gitignore，不提交二进制）；
-Q07 的探针 bundle 写在 `.local-state/q07-browser/probe/`。
+产物（截图/录像/trace/报告）写在仓库根 `.local-state/q06-browser/`（已 gitignore，不提交二进制）；Q07 的探针 bundle 写在 `.local-state/q07-browser/probe/`。
 
 ## 夹具拓扑（每个都是真实 Origin）
 
@@ -44,8 +41,7 @@ Q07 的探针 bundle 写在 `.local-state/q07-browser/probe/`。
 
 ### Q07 韧性夹具（同进程、随机端口，不进 `webServer`）
 
-Q07 的用例需要"服务端按剧本回应"（慢速重复下发、非终态断流、连接重置、429、重放窗口过期），
-所以 `support/q07-resilience-api.mjs` 在**测试进程内**起一个只监听 `127.0.0.1` 随机端口的桩：
+Q07 的用例需要"服务端按剧本回应"（慢速重复下发、非终态断流、连接重置、429、重放窗口过期），所以 `support/q07-resilience-api.mjs` 在**测试进程内**起一个只监听 `127.0.0.1` 随机端口的桩：
 
 | 角色 | 提供 | 说明 |
 | --- | --- | --- |
@@ -53,8 +49,7 @@ Q07 的用例需要"服务端按剧本回应"（慢速重复下发、非终态�
 | 探针页 | `/q07-probe.html` + `/q07-probe/probe-entry.js` | 页面挂载**真实组件**：`blocks.ts` 的 `parseMessageBlock` + `ResultTable.vue`（AT-039/060 的完整性标注）；并直接驱动**真实 SDK 客户端**做断线重连（AT-014） |
 | 请求账本 | 进程内 `state.requests` | 断言"是否重复受理/是否重执行/重连是否带 afterSeq" |
 
-Chat 产物的用例用 `page.route` 把编译期基址（`http://127.0.0.1:48080/app-api/ai/v1`）**只改 Origin**
-重定向到这个桩（路径与查询串原样保留），因此客户端行为与真实部署一致（含 CORS 预检）。
+Chat 产物的用例用 `page.route` 把编译期基址（`http://127.0.0.1:48080/app-api/ai/v1`）**只改 Origin** 重定向到这个桩（路径与查询串原样保留），因此客户端行为与真实部署一致（含 CORS 预检）。
 
 ## 用例与结论对照
 
@@ -81,16 +76,9 @@ Chat 产物的用例用 `page.route` 把编译期基址（`http://127.0.0.1:4808
 5. **SDK 不提供外壳样式**：`createChatMount` 只写内联 width/height 到面板，iframe 的 box 由宿主 CSS 决定（裸挂载是浏览器默认 300x150）；窄屏"铺满视口"依赖宿主给 overlay 定位（夹具补了最小 CSS 才成立，见 `fixtures/pages/host-shell.html` 注释）。
 6. **禁公网环境下管理端登录页会外发图标请求**（AT-067 fail）： `packages/effects/common-ui/src/components/captcha/verification/verify-slide.vue:352` 用字符串图标 `lucide:refresh-ccw`（另有 `lucide:x`），`@iconify/vue` 回退到 `https://api.iconify.design/lucide.json` ——与 `apps/ai-chat/scripts/public-cdn-registry.json` 里"图标集已随包构建，Q06 网络断言确认无请求"矛盾。建议：改用 `@vben/icons` 本地注册的图标（`createIconifyIcon`）或把图标加进离线集合。
 7. **Chat 生产页在无后端时产生未处理的页面错误**：`apps/ai-chat` 会话列表加载失败只有 console 错误，界面无可见提示（用例以 annotation 记录，不改变 AT-054 的结构结论）。
-8. **重放窗口过期错误码与契约不一致（Q07 发现，已修）**：前端常量原写成 `1003004009`（`packages/ai-embed-sdk/src/client.ts:68`、
-   `packages/ai-chat-ui/src/client/index.ts:39`），与冻结契约 `docs/contracts/ai/error-code-map.md`（`1_003_004_006`）
-   及后端 `AiErrorCodeConstants.AI_RUN_EVENT_WINDOW_EXPIRED`（`1003004006`）不一致；真实错误码下"改读运行快照"分支不触发，
-   客户端直接抛 409。**跨卡修复已应用**：两处常量与包内测试/README 均改为 `1003004006`，
-   `at-014-sse-reconnect.pw.ts` 的原 tripwire（`test.fail`）已转为正常断言并通过（不再有预期失败）。
-9. **传输层失败在运行链路上仍显示浏览器原始报文**（Q07 记录，未修）：事件流连接被重置时界面显示
-   `network error`（annotation 实证）；会话列表路径已归一为 `NETWORK_UNREACHABLE`，运行路径（`@vben/ai-embed-sdk`
-   的 `streamRunEvents`）没有同样的归一化。
-10. **应用层没有自动重连循环**（Q07 记录，未修）：非终态断流后界面停在"执行中"（可重连、不假成功），
-    但重连需要宿主/页面再触发；客户端 `afterSeq` 语义本身可用（AT-014 用例证明）。
+8. **重放窗口过期错误码与契约不一致（Q07 发现，已修）**：前端常量原写成 `1003004009`（`packages/ai-embed-sdk/src/client.ts:68`、 `packages/ai-chat-ui/src/client/index.ts:39`），与冻结契约 `docs/contracts/ai/error-code-map.md`（`1_003_004_006`）及后端 `AiErrorCodeConstants.AI_RUN_EVENT_WINDOW_EXPIRED`（`1003004006`）不一致；真实错误码下"改读运行快照"分支不触发，客户端直接抛 409。**跨卡修复已应用**：两处常量与包内测试/README 均改为 `1003004006`， `at-014-sse-reconnect.pw.ts` 的原 tripwire（`test.fail`）已转为正常断言并通过（不再有预期失败）。
+9. **传输层失败在运行链路上仍显示浏览器原始报文**（Q07 记录，未修）：事件流连接被重置时界面显示 `network error`（annotation 实证）；会话列表路径已归一为 `NETWORK_UNREACHABLE`，运行路径（`@vben/ai-embed-sdk` 的 `streamRunEvents`）没有同样的归一化。
+10. **应用层没有自动重连循环**（Q07 记录，未修）：非终态断流后界面停在"执行中"（可重连、不假成功），但重连需要宿主/页面再触发；客户端 `afterSeq` 语义本身可用（AT-014 用例证明）。
 
 ## 本切片的未验证项
 
@@ -99,9 +87,7 @@ Chat 产物的用例用 `page.route` 把编译期基址（`http://127.0.0.1:4808
 3. **平台侧换票（A04）与模型相关步骤**：对话内容、报表修改等需要真实模型（model-dependent: not configured in this environment）；本切片断言的是票据去向/隔离，不是平台签发票据本身。
 4. **Windows / CI**：只在 Linux + Chromium 153.0.8010.12（playwright chromium v1243）验证过。
 5. **真实 Nginx/网关的头部透传**：属部署验证（C05 的未验证项）。
-6. **Q07 服务端容量/内存类结论**（有界队列、20 并发 P95、进程重启恢复）：属后端切片与压测，
-   浏览器用例只判"界面在慢/断/被拒时的行为"；管理端用量页的 `UNKNOWN/ESTIMATED` 来源标签需要登录态与后端，
-   浏览器级仍未验证（组件级见 Q03 证据）。
+6. **Q07 服务端容量/内存类结论**（有界队列、20 并发 P95、进程重启恢复）：属后端切片与压测，浏览器用例只判"界面在慢/断/被拒时的行为"；管理端用量页的 `UNKNOWN/ESTIMATED` 来源标签需要登录态与后端，浏览器级仍未验证（组件级见 Q03 证据）。
 
 ## 门禁接线（建议，需主管在允许路径外落地）
 
