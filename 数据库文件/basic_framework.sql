@@ -4,8 +4,8 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V87.
--- Only the 53 soft-delete tables retain a deleted column; hard-delete and
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V88.
+-- Only the 55 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
 
@@ -1953,6 +1953,7 @@ CREATE TABLE `ai_run` (
   KEY `idx_ai_run_conversation` (`conversation_id`,`id`),
   KEY `idx_ai_run_release` (`release_id`,`id`),
   KEY `idx_ai_run_status_updated` (`status`,`update_time`),
+  KEY `idx_ai_run_webhook_scan` (`application_id`,`update_time`),
   CONSTRAINT `fk_ai_run_app` FOREIGN KEY (`application_id`) REFERENCES `ai_application` (`id`) ON DELETE RESTRICT,
   CONSTRAINT `fk_ai_run_service` FOREIGN KEY (`service_id`) REFERENCES `ai_service` (`id`) ON DELETE RESTRICT,
   CONSTRAINT `fk_ai_run_release` FOREIGN KEY (`release_id`) REFERENCES `ai_service_release` (`id`) ON DELETE RESTRICT,
@@ -2931,6 +2932,109 @@ INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_i
 (4121, '套件维护', 'ai:eval:manage', 3, 17, 4120, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-26 19:00:00', '1', '2026-09-26 19:00:00', b'0'),
 (4122, '执行评测', 'ai:eval:run', 3, 18, 4120, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-26 19:00:00', '1', '2026-09-26 19:00:00', b'0'),
 (4123, '人工复核', 'ai:eval:review', 3, 19, 4120, '', '', '', NULL, 0, b'1', b'1', b'1', '1', '2026-09-26 19:00:00', '1', '2026-09-26 19:00:00', b'0');
+
+
+-- 受控异步结果 Webhook 目标、投递与尝试留痕（V88，X10）
+DROP TABLE IF EXISTS `ai_webhook_target`;
+CREATE TABLE `ai_webhook_target` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '投递目标编号',
+  `application_id` bigint NOT NULL COMMENT '应用编号（只投递该应用下运行的终态结果）',
+  `code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '目标标识（应用内唯一，创建后不可修改）',
+  `name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '目标名称',
+  `target_url` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '投递地址（http/https；实际可否出站由受控出站边界的允许清单与私网策略决定）',
+  `event_types` varchar(256) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '事件白名单（JSON 数组文本，取值见 AiWebhookEventTypes）',
+  `secret_ciphertext` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'HMAC 签名密钥（CredentialCipher 密文，AAD 绑定目标编号；永不回显）',
+  `secret_revision` int NOT NULL DEFAULT '0' COMMENT '签名密钥版本（轮换递增；0 表示未配置）',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'ENABLED' COMMENT '状态（ENABLED/DISABLED；DISABLED 不再产生投递且人工重投被拒）',
+  `max_attempts` int NOT NULL DEFAULT '3' COMMENT '单次投递的最大尝试次数（有界重试，1-10）',
+  `enqueue_watermark` datetime NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '补漏扫描水位（已覆盖的终态运行更新时间上界；只由投递 Job 单调推进，不参与乐观锁）',
+  `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_ai_webhook_target_code` (`application_id`, `code`, `deleted`),
+  KEY `idx_ai_webhook_target_subscribe` (`application_id`, `status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `ai_webhook_delivery`;
+CREATE TABLE `ai_webhook_delivery` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '投递编号（行主键）',
+  `delivery_no` varchar(48) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '投递编号（对外唯一，重试不变；接收端据此去重）',
+  `target_id` bigint NOT NULL COMMENT '投递目标编号',
+  `application_id` bigint NOT NULL COMMENT '应用编号（入队时快照，便于按应用过滤）',
+  `event_type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '事件类型（RUN.SUCCEEDED/RUN.FAILED/RUN.CANCELLED）',
+  `resource_type` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'RUN' COMMENT '资源类型（当前只有 RUN）',
+  `resource_id` bigint NOT NULL COMMENT '资源编号（运行编号）',
+  `resource_key` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '资源业务键（run_ 前缀；接收端据此定位运行）',
+  `occurred_time` datetime NOT NULL COMMENT '事件发生时间（运行终态写入时间，入队时快照）',
+  `payload_json` varchar(2000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '投递正文（规范化 JSON：事件类型 + 资源引用 + 状态；不含提示词/响应正文/凭据；重试复用同一份）',
+  `payload_digest` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '正文摘要（sha-256 十六进制，签名覆盖它）',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'PENDING' COMMENT '状态（PENDING/RUNNING/SUCCEEDED/FAILED）',
+  `attempt_count` int NOT NULL DEFAULT '0' COMMENT '已尝试次数（领取时递增，重试预算据此收敛）',
+  `max_attempts` int NOT NULL DEFAULT '3' COMMENT '最大尝试次数（入队时从目标快照，之后改目标不改变在途投递的预算）',
+  `next_attempt_time` datetime DEFAULT NULL COMMENT '下次可领取时间（退避后）',
+  `lease_owner` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '租约持有者（worker 标识）',
+  `lease_expires_time` datetime DEFAULT NULL COMMENT '租约到期时间',
+  `heartbeat_time` datetime DEFAULT NULL COMMENT '最近一次心跳时间',
+  `claimed_epoch` int NOT NULL DEFAULT '0' COMMENT '领取纪元（栅栏：每次领取 +1）',
+  `last_error_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '最近一次尝试的稳定原因码（不含上游正文）',
+  `failure_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '终态失败码（重试预算耗尽或确定失败原因；成功为空）',
+  `first_attempt_time` datetime DEFAULT NULL COMMENT '首次尝试时间',
+  `delivered_time` datetime DEFAULT NULL COMMENT '投递成功时间',
+  `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_ai_webhook_delivery_event` (`target_id`, `event_type`, `resource_type`, `resource_id`, `deleted`),
+  UNIQUE KEY `uk_ai_webhook_delivery_no` (`delivery_no`),
+  KEY `idx_ai_webhook_delivery_claim` (`status`, `next_attempt_time`, `id`),
+  KEY `idx_ai_webhook_delivery_lease` (`status`, `lease_expires_time`),
+  KEY `idx_ai_webhook_delivery_resource` (`resource_type`, `resource_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `ai_webhook_delivery_attempt`;
+CREATE TABLE `ai_webhook_delivery_attempt` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '尝试编号',
+  `delivery_id` bigint NOT NULL COMMENT '投递编号',
+  `attempt_no` int NOT NULL COMMENT '第几次尝试（从 1 开始，与投递行 attempt_count 对应）',
+  `outcome` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '结论（DELIVERED 已送达/RETRYABLE 可重试/PERMANENT 确定失败）',
+  `error_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '稳定原因码（送达为空）',
+  `http_status` int DEFAULT NULL COMMENT 'HTTP 状态码（未发出请求时为空）',
+  `signature_timestamp` bigint DEFAULT NULL COMMENT '签名时间戳（epoch 秒；接收端据此判定过期）',
+  `duration_ms` bigint NOT NULL DEFAULT '0' COMMENT '本次尝试耗时（毫秒）',
+  `started_time` datetime NOT NULL COMMENT '本次尝试开始时间',
+  `finished_time` datetime NOT NULL COMMENT '本次尝试结束时间',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_ai_webhook_attempt_no` (`delivery_id`, `attempt_no`),
+  KEY `idx_ai_webhook_attempt_delivery` (`delivery_id`, `id`),
+  KEY `idx_ai_webhook_attempt_retention` (`create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- AI Webhook 投递 Job（V88）
+INSERT INTO `infra_job`
+(`id`, `name`, `status`, `handler_name`, `handler_param`, `cron_expression`,
+ `retry_count`, `retry_interval`, `monitor_timeout`, `creator`, `create_time`, `updater`,
+ `update_time`, `deleted`)
+VALUES (39, 'AI Webhook 投递 Job', 1, 'aiWebhookDeliveryJob', '', '*/10 * * * * ?', 0, 0, 0, '1',
+        CURRENT_TIMESTAMP, '1', CURRENT_TIMESTAMP, b'0');
+
+-- Webhook 投递菜单与权限点（V88）
+INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
+(4124, 'Webhook 投递', 'ai:webhook:query', 2, 17, 4000, 'webhook', 'ep:promotion', 'ai/open-platform/webhook/index', 'AiWebhookDelivery', 0, b'1', b'1', b'1', '1', CURRENT_TIMESTAMP, '1', CURRENT_TIMESTAMP, b'0'),
+(4125, '目标维护', 'ai:webhook:manage', 3, 1, 4124, '', '', '', NULL, 0, b'1', b'1', b'1', '1', CURRENT_TIMESTAMP, '1', CURRENT_TIMESTAMP, b'0'),
+(4126, '密钥轮换', 'ai:webhook:rotate', 3, 2, 4124, '', '', '', NULL, 0, b'1', b'1', b'1', '1', CURRENT_TIMESTAMP, '1', CURRENT_TIMESTAMP, b'0'),
+(4127, '目标删除', 'ai:webhook:delete', 3, 3, 4124, '', '', '', NULL, 0, b'1', b'1', b'1', '1', CURRENT_TIMESTAMP, '1', CURRENT_TIMESTAMP, b'0'),
+(4128, '人工重投', 'ai:webhook:redeliver', 3, 4, 4124, '', '', '', NULL, 0, b'1', b'1', b'1', '1', CURRENT_TIMESTAMP, '1', CURRENT_TIMESTAMP, b'0');
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;

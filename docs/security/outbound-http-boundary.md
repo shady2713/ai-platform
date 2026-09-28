@@ -24,6 +24,16 @@
 - **错误**：统一为 `ExternalHttpException` 的稳定原因（`TARGET_NOT_ALLOWED`、`PRIVATE_TARGET_DENIED`、
   `INVALID_REQUEST`、`CONNECT_FAILED`、`TIMEOUT`、`RESPONSE_TOO_LARGE`），消息与日志不含目标凭据与响应正文。
 
+## 受控异步结果 Webhook（X10）如何使用本边界
+
+- 投递只经 `ExternalHttpClient`（`AiWebhookDeliverySender`），因此上表三道闸门对每个目标逐次生效：
+  未列入允许清单的主机/端口在**发送前**被拒（零请求），私网地址未显式批准同样被拒。
+- **不跟随重定向**：3xx 原样返回并按"确定失败"收尾（改址必须人工重新登记目标），避免被目标引向未批准主机。
+- 请求头只由服务端构造（`Content-Type`/`User-Agent`/投递编号/时间戳/事件/尝试序号/资源引用/签名），
+  不转发任何入站头、Cookie 与宿主凭据；签名密钥只用于本地计算 HMAC，不进 URL、日志与响应。
+- 目标地址在登记期只做形状收窄（`http`/`https`、有主机、**拒绝 URL 中的 `user:pass@` 凭据信息**、长度有界），
+  不在登记期复制允许清单——"能否出站"永远只有受控边界一份真值。
+
 ## 已知残余风险
 
 1. **DNS TOCTOU**：地址校验与实际连接之间存在解析结果变化的窗口。当前通过"允许清单 + 私网显式批准"收窄影响面；

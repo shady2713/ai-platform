@@ -39,6 +39,7 @@ com.basicframework.module.ai
 | 媒体任务（X03/X04） | `service/media`、`service/image`、`service/speech`、`job/AiMediaTaskJob` | 受理即落库（幂等键 + 固定端点/配置版本 + 租约栅栏终态）；执行器按操作分发：图片生成/编辑（X03）与**非实时 STT/TTS**（X04，`AiSpeechStepExecutor`）——转写全文与合成音频都先验后存为平台私有文件，产物只给 `fileId`；音频输入受理与执行两次核验（A07 归属 + 格式/字节/摘要），失权即拒绝；用量只记上游真实计数，缺失记 `UNKNOWN` 且数值为空 |
 | 应用端语音接口（X04） | `controller/app/v1/speech` | `/app-api/ai/speech/**` 五个端点（`@AuthenticatedOnly`）：转写/合成受理 + 任务查询/分页/取消，复用 X03 的任务模型；请求先收窄音频格式/时长/文本/音色/语言（X01 冻结取值），协议里没有上游地址 |
 | 受控业务写工具（X06） | `service/tool/AiToolWriteBinding`、`service/tool/AiToolWriteGate`、`service/tool/action`、`controller/app/v1/action` | 写工具版本必须声明**业务幂等键参数**与**已发布的核对查询**（版本输出 schema 的保留键 `write`；幂等键必须是输入 schema 的必填字符串参数，且写操作本身要声明它），政策不得为 `AUTO`；写调用只经确认动作执行：`CONFIRMED → EXECUTING`（尝试代数）后落 `EXECUTED/FAILED/UNKNOWN`，同工具 + 同业务键在 `uk_ai_tool_action_business` 下最多一条"可能已生效"的动作；结果未定只能经 `POST /ai/action/reconcile`（PROGRAM 走登记的核对查询、MANUAL 记录人工结论）收敛，绝不自动重放 |
+| 受控异步结果 Webhook（X10） | `service/webhook`、`controller/admin/webhook`、`job/AiWebhookDeliveryJob` | 运行终态结果（SUCCEEDED/FAILED/CANCELLED）的有界投递：目标登记事件白名单 + HMAC-SHA256 签名密钥（CredentialCipher 密文、AAD 绑目标行、可轮换、永不回显）；投递行按「目标 × 事件 × 资源」唯一、正文与投递编号入队即冻结（重试复用同一字节与编号，接收端据此去重）、状态由租约栅栏保护、每次尝试单独留痕；只有可重试结果退避重试（30s 起、600s 封顶、次数上限来自目标快照），超限落死信（`1_003_011_006`）并支持人工重投；停用即停发（入队、发送前复检、人工重投三处拒绝）。出站只经受控边界（重定向不跟随、未授权与私网目标零请求）；**投递失败绝不重写运行状态、绝不重跑运行**。协议与接收端校验顺序见 `docs/contracts/ai/webhook-protocol.md`，样例接收端见 `basic-framework-server` 测试夹具 `AiWebhookReceiverSample` |
 
 ## 边界约束
 

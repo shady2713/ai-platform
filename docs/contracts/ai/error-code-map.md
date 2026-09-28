@@ -223,3 +223,29 @@ HTTP 状态按 ADR 0003 的命名规则推导：`*_NOT_EXISTS` 为 404，名称�
 `MEDIA_INPUT_TYPE_UNSUPPORTED` → 1_003_010_001；`MEDIA_INPUT_TOO_LARGE` → 1_003_010_002；
 `MEDIA_INPUT_DURATION_EXCEEDED` → 1_003_010_003；`MEDIA_OUTPUT_EMPTY` → 1_003_010_004；`MEDIA_OUTPUT_INVALID` → 1_003_010_005；
 其余原因沿用 `AiModelFailureCodes` 的既有映射）。媒体失败响应不回传上游报文、输入内容或凭据。
+
+## 受控异步结果 Webhook 子区间（X10，`1_003_011_xxx`）
+
+运行终态结果投递的目标登记、事件白名单、投递管理与人工重投。前六个码是**接口响应码**，
+第七个是**投递行的终态失败码**（投递行不是接口响应，但它是可核验的仓储事实，与接口码同目录登记）：
+
+| 常量 | 码 | 语义 | HTTP |
+|---|---|---|---|
+| `AI_WEBHOOK_TARGET_NOT_FOUND` | 1_003_011_000 | Webhook 目标不存在或无权访问 | 404 |
+| `AI_WEBHOOK_TARGET_DISABLED` | 1_003_011_001 | Webhook 目标已停用：不再入队、发送前复检拒绝、人工重投被拒 | 409 |
+| `AI_WEBHOOK_TARGET_URL_INVALID` | 1_003_011_002 | 投递地址不合规（非 http/https、缺主机、URL 里带凭据信息、超长） | 400 |
+| `AI_WEBHOOK_EVENT_TYPE_UNSUPPORTED` | 1_003_011_003 | 事件类型不在白名单内（只支持运行终态三种事件） | 400 |
+| `AI_WEBHOOK_DELIVERY_NOT_FOUND` | 1_003_011_004 | 投递记录不存在 | 404 |
+| `AI_WEBHOOK_DELIVERY_NOT_REDELIVERABLE` | 1_003_011_005 | 该投递状态不允许人工重投（只有死信可重投） | 409 |
+| `AI_WEBHOOK_DELIVERY_EXHAUSTED` | 1_003_011_006 | 投递重试预算已耗尽（有界重试的终态结论文本码，落 `ai_webhook_delivery.failure_code`） | 502 |
+
+投递行与尝试行还使用一组**传输原因码**（无对应接口响应，词表封闭在
+`AiWebhookFailureCodes`，落 `last_error_code`/`failure_code`）：
+`target-not-allowed`、`private-target-denied`、`redirect-not-followed`（受控出站不跟随重定向）、
+`http-client-error`（4xx，含接收端按投递编号去重返回的 409）、`http-server-error`（5xx）、
+`http-rate-limited`（429）、`timeout`、`connect-failed`、`response-too-large`、`request-invalid`、
+`signing-key-unavailable`、`internal-error`。
+其中前两个、`redirect-not-followed`、`http-client-error`、`response-too-large`、`request-invalid`、
+`signing-key-unavailable` 与目标停用都是**确定失败**（不重试）；`timeout`、`connect-failed`、
+`http-server-error`、`http-rate-limited`、`internal-error` 进入**有界退避重试**，超限后落
+`1_003_011_006`。协议与接收端校验顺序见 [`webhook-protocol.md`](webhook-protocol.md)。

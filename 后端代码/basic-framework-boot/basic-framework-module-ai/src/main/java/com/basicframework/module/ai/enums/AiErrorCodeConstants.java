@@ -88,6 +88,32 @@ public interface AiErrorCodeConstants {
      */
     ErrorCode AI_MEDIA_OUTPUT_DURATION_EXCEEDED = new ErrorCode(1_003_010_006, "上游音频产物超过平台时长上限");
 
+    // ========== 受控异步结果 Webhook 1_003_011_xxx（X10） ==========
+
+    /** Webhook 目标不存在（404）：越权与不存在同语义。 */
+    ErrorCode AI_WEBHOOK_TARGET_NOT_FOUND = new ErrorCode(1_003_011_000, "Webhook 目标不存在");
+
+    /**
+     * Webhook 目标已停用（409）：停用即停发——不再入队、发送前复检也会拒绝、人工重投被拒；
+     * 已在途的投递按当时事实收尾（不谎报成功，也不回写运行结果）。
+     */
+    ErrorCode AI_WEBHOOK_TARGET_DISABLED = new ErrorCode(1_003_011_001, "Webhook 目标已停用");
+
+    /** Webhook 投递地址不合规（400）：非 http/https、缺少主机、携带 URL 凭据信息或超出存储上限。 */
+    ErrorCode AI_WEBHOOK_TARGET_URL_INVALID = new ErrorCode(1_003_011_002, "Webhook 投递地址不合规");
+
+    /** Webhook 事件类型不在白名单内（400）：只支持运行终态三种事件。 */
+    ErrorCode AI_WEBHOOK_EVENT_TYPE_UNSUPPORTED = new ErrorCode(1_003_011_003, "Webhook 事件类型不支持");
+
+    /** Webhook 投递记录不存在（404）。 */
+    ErrorCode AI_WEBHOOK_DELIVERY_NOT_FOUND = new ErrorCode(1_003_011_004, "Webhook 投递记录不存在");
+
+    /** 该投递状态不允许人工重投（409）：只有失败（死信）的投递可以重投。 */
+    ErrorCode AI_WEBHOOK_DELIVERY_NOT_REDELIVERABLE = new ErrorCode(1_003_011_005, "该投递状态不允许人工重投");
+
+    /** 投递重试预算已耗尽（502）：有界重试的终态结论，底层原因保留在投递行的最近原因码里。 */
+    ErrorCode AI_WEBHOOK_DELIVERY_EXHAUSTED = new ErrorCode(1_003_011_006, "Webhook 投递重试预算已耗尽");
+
     // ========== 知识库 1_003_005_xxx ==========
 
     /** 知识库不存在（404）：越权与不存在同语义。 */

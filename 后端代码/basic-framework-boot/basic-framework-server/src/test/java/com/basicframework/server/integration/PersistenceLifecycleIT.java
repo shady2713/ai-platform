@@ -143,6 +143,7 @@ class PersistenceLifecycleIT extends AbstractPersistenceIntegrationTest {
                         "aiReportRefreshJob",
                         "aiRetentionCleanupJob",
                         "aiTaskRecoveryJob",
+                        "aiWebhookDeliveryJob",
                         "errorLogCleanJob",
                         "fileDeletionRetryJob",
                         "infraDataIntegrityAuditJob",
@@ -304,6 +305,9 @@ class PersistenceLifecycleIT extends AbstractPersistenceIntegrationTest {
                         "ai_tool",
                         "ai_tool_action",
                         "ai_tool_version",
+                        // V88：Webhook 目标与投递（投递失败不影响运行结果；尝试留痕是 append-retention 表）
+                        "ai_webhook_delivery",
+                        "ai_webhook_target",
                         "infra_config",
                         "infra_file_config",
                         "infra_job",

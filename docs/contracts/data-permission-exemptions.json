@@ -945,6 +945,55 @@
           ]
         }
       ]
+    },
+    {
+      "id": "ai-webhook-delivery",
+      "reason": "受控异步结果 Webhook 是平台控制面与投递事实：目标（ai_webhook_target）是按应用的配置，签名密钥只存 CredentialCipher 密文（AAD 绑定目标编号）且永不回显；投递行（ai_webhook_delivery）与尝试留痕（ai_webhook_delivery_attempt）是后台 Job 按租约写入的运行事实，正文只含事件类型、资源引用与运行状态，不含提示词、响应正文、目标密钥与上游地址。三者都不具有部门/用户行级归属，由 ai:webhook:* 功能权限读取与维护，行级数据权限规则不适用。",
+      "tables": [
+        "ai_webhook_target",
+        "ai_webhook_delivery",
+        "ai_webhook_delivery_attempt"
+      ],
+      "controls": [
+        {
+          "kind": "function-permission",
+          "tables": [
+            "ai_webhook_target",
+            "ai_webhook_delivery",
+            "ai_webhook_delivery_attempt"
+          ],
+          "evidence": [
+            {
+              "table": "ai_webhook_target",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/webhook/AiWebhookTargetController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('ai:webhook:query')\")"
+            },
+            {
+              "table": "ai_webhook_delivery",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/webhook/AiWebhookDeliveryController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('ai:webhook:query')\")"
+            },
+            {
+              "table": "ai_webhook_delivery_attempt",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/webhook/AiWebhookDeliveryController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('ai:webhook:query')\")"
+            }
+          ]
+        },
+        {
+          "kind": "credential-bound",
+          "tables": [
+            "ai_webhook_target"
+          ],
+          "evidence": [
+            {
+              "table": "ai_webhook_target",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/webhook/AiWebhookTargetServiceImpl.java",
+              "contains": "credentialContext(target.getId())"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

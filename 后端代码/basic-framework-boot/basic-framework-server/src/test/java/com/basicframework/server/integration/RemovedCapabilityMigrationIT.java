@@ -121,9 +121,9 @@ class RemovedCapabilityMigrationIT {
                 .isEqualTo(1);
         // 7 条框架内置任务 + AI 任务恢复 Job（V61）+ AI 保留期清理 Job（V64）
         // + AI 知识入库 Job 与恢复 Job（V73）+ AI 知识清理 Job（V74）+ AI 报表刷新 Job（V77）
-        // + AI 媒体任务 Job（V85），handler 名与 bean 名一致
+        // + AI 媒体任务 Job（V85）+ AI Webhook 投递 Job（V88），handler 名与 bean 名一致
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM infra_job", Integer.class))
-                .isEqualTo(14);
+                .isEqualTo(15);
     }
 
     @Test
