@@ -94,10 +94,10 @@ X04 未越界修改 infra 的文件类型策略（那是平台级安全边界，
 
 | 门禁 | 退出码 | 关键结果 |
 |---|---|---|
-| `contracts` | 见下 | |
-| `backend` | 见下 | |
-| `integration` | 见下 | |
-| `frontend` | 未变更前端 | 本卡未改前端文件；前端门禁沿用 X03 的绿色记录（388 文件 / 2174 例 / 91.67% 行覆盖），并在 X09 落地后统一复跑 |
+| `contracts` | 0 | 首轮被"单文件 800 行"源码质量门禁拦下（`AiSpeechAcceptanceIT` 814 行）→ 拆成 `AiSpeechAcceptanceSupport`（夹具基类）+ 两个用例类（265 / 484 / 162 行，共 10 例不变），复跑通过 |
+| `backend` | 0 | `./mvnw -q clean verify` 全绿 |
+| `integration` | 0 | IT 全绿（含本卡 10 例）、连接上限连锁 0 处（`1040` 计数 0）；`check-coverage-ratchet.mjs backend` 通过（本卡新文件已登记，`SpringAiModelClient` 98.91% 高于既有基线） |
+| `frontend` | 0（同批复跑） | 本卡未改前端文件；与 X09 同批的前端门禁：401 文件 / 2272 例全绿、行覆盖 91.82%、棘轮通过 |
 
 ## 7. 未验证项清单
 
