@@ -79,11 +79,23 @@ class AiModelProbePersistenceIT extends AbstractPersistenceIntegrationTest {
 
         List<AiModelProbeResultDTO> results = probeService.probeAll(endpointId);
 
-        assertThat(results).hasSize(6);
+        // X02 起探测流程覆盖全部 12 项能力（文本 6 + 媒体 6）：媒体能力只有"探测已确认"才能进入准入
+        assertThat(results).hasSize(12);
         assertThat(results)
                 .extracting(AiModelProbeResultDTO::getProbeKind)
                 .containsExactly(
-                        "CONNECTIVITY", "TEXT", "TEXT_STREAM", "STRUCTURED_OUTPUT", "TOOL_CALLING", "EMBEDDING");
+                        "CONNECTIVITY",
+                        "TEXT",
+                        "TEXT_STREAM",
+                        "STRUCTURED_OUTPUT",
+                        "TOOL_CALLING",
+                        "EMBEDDING",
+                        "IMAGE_UNDERSTANDING",
+                        "IMAGE_OCR",
+                        "IMAGE_GENERATION",
+                        "IMAGE_EDIT",
+                        "SPEECH_TO_TEXT",
+                        "TEXT_TO_SPEECH");
         assertThat(results).allSatisfy(result -> {
             assertThat(result.getStatus()).isEqualTo("FAILED");
             assertThat(result.getDetailCode()).as("失败只落稳定原因码").isNotBlank();
@@ -95,7 +107,7 @@ class AiModelProbePersistenceIT extends AbstractPersistenceIntegrationTest {
         sqlSessionTemplate.clearCache();
         List<AiModelProbeResultDTO> latest = probeService.getLatestResults(endpointId);
 
-        assertThat(latest).hasSize(6);
+        assertThat(latest).hasSize(12);
         assertThat(latest.stream()
                         .filter(result -> "TEXT".equals(result.getProbeKind()))
                         .findFirst()
@@ -113,11 +125,11 @@ class AiModelProbePersistenceIT extends AbstractPersistenceIntegrationTest {
         List<AiModelProbeResultDTO> results = probeService.probeAll(endpointId);
 
         assertThat(results).allSatisfy(result -> assertThat(result.getStatus()).isEqualTo("FAILED"));
-        assertThat(probeService.getLatestResults(endpointId)).hasSize(6);
+        assertThat(probeService.getLatestResults(endpointId)).hasSize(12);
         sqlSessionTemplate.clearCache();
         Integer count = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM ai_model_probe WHERE endpoint_id = ? AND deleted = 0", Integer.class, endpointId);
-        assertThat(count).as("停用端点的探测结论同样落库，不被启用状态掩盖").isEqualTo(6);
+        assertThat(count).as("停用端点的探测结论同样落库，不被启用状态掩盖").isEqualTo(12);
     }
 
     @Test

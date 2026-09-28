@@ -77,18 +77,29 @@ class AiModelCapabilityProbeServiceImplTest {
 
         List<AiModelProbeResultDTO> results = service.probeAll(7L);
 
-        assertThat(results).hasSize(6);
+        assertThat(results).hasSize(12);
         assertThat(results)
                 .extracting(AiModelProbeResultDTO::getProbeKind)
                 .containsExactly(
-                        "CONNECTIVITY", "TEXT", "TEXT_STREAM", "STRUCTURED_OUTPUT", "TOOL_CALLING", "EMBEDDING");
+                        "CONNECTIVITY",
+                        "TEXT",
+                        "TEXT_STREAM",
+                        "STRUCTURED_OUTPUT",
+                        "TOOL_CALLING",
+                        "EMBEDDING",
+                        "IMAGE_UNDERSTANDING",
+                        "IMAGE_OCR",
+                        "IMAGE_GENERATION",
+                        "IMAGE_EDIT",
+                        "SPEECH_TO_TEXT",
+                        "TEXT_TO_SPEECH");
         assertThat(results).allSatisfy(result -> {
             assertThat(result.getStatus()).isEqualTo("SUPPORTED");
             assertThat(result.getDetailCode()).isNull();
             assertThat(result.getLatencyMs()).isEqualTo(42);
             assertThat(result.getConfigRevision()).isEqualTo(2);
         });
-        verify(probeMapper, times(6)).insert(any(AiModelProbeDO.class));
+        verify(probeMapper, times(12)).insert(any(AiModelProbeDO.class));
     }
 
     @Test
@@ -99,12 +110,12 @@ class AiModelCapabilityProbeServiceImplTest {
 
         List<AiModelProbeResultDTO> results = service.probeAll(7L);
 
-        assertThat(results).hasSize(6);
+        assertThat(results).hasSize(12);
         assertThat(results).allSatisfy(result -> {
             assertThat(result.getStatus()).isEqualTo("FAILED");
             assertThat(result.getDetailCode()).isEqualTo("CREDENTIAL_UNAVAILABLE");
         });
-        verify(probeMapper, times(6)).insert(any(AiModelProbeDO.class));
+        verify(probeMapper, times(12)).insert(any(AiModelProbeDO.class));
     }
 
     @Test
@@ -160,12 +171,57 @@ class AiModelCapabilityProbeServiceImplTest {
 
         service.probeAll(7L);
 
-        verify(probeMapper, times(6)).insert(captor.capture());
+        verify(probeMapper, times(12)).insert(captor.capture());
         assertThat(captor.getAllValues()).allSatisfy(record -> {
             assertThat(record.getDetailCode()).isEqualTo("TIMEOUT");
             assertThat(record.getLatencyMs()).isEqualTo(15);
             assertThat(record.toString()).doesNotContain("sk-");
         });
+    }
+
+    @Test
+    void mediaCapabilitiesBecomePublishableOnlyAfterTheirOwnProbeSucceeds() {
+        givenEndpoint("TEXT,IMAGE_OCR");
+        // X02 之前 PROBE_ORDER 不含媒体项，媒体能力的"探测已确认"不可达（准入第 3 条永远不成立）
+        when(probeMapper.selectLatestPerKind(7L))
+                .thenReturn(List.of(
+                        probe("TEXT", "SUPPORTED", null, null),
+                        probe("IMAGE_OCR", "SUPPORTED", null, null),
+                        probe("IMAGE_UNDERSTANDING", "SUPPORTED", null, null)));
+
+        AiModelCapabilityOverviewDTO overview = service.getCapabilityOverview(7L);
+
+        assertThat(overview.getDeclared()).containsExactly("TEXT", "IMAGE_OCR");
+        assertThat(overview.getSupported()).containsExactlyInAnyOrder("TEXT", "IMAGE_OCR", "IMAGE_UNDERSTANDING");
+        assertThat(overview.getPublishable()).as("媒体能力与文本能力同一套判定：声明 ∩ 探测确认").containsExactly("TEXT", "IMAGE_OCR");
+    }
+
+    @Test
+    void mediaKindsRequireTheirOwnProbeConclusion() {
+        givenEndpoint("TEXT,IMAGE_OCR");
+        ModelPort port = mock(ModelPort.class);
+        when(clientResolver.resolveForProbe(7L)).thenReturn(port);
+        when(port.probe(any(ModelProbeKind.class))).thenAnswer(invocation -> {
+            ModelProbeKind kind = invocation.getArgument(0);
+            // 只有 OCR 探测成功：图片理解不得因此被推断为可用
+            return kind == ModelProbeKind.IMAGE_OCR
+                    ? ModelProbeResult.supported(kind, null, 5L)
+                    : ModelProbeResult.unsupported(kind, ModelProbeResult.CODE_ADAPTER_NOT_IMPLEMENTED);
+        });
+
+        List<AiModelProbeResultDTO> results = service.probeAll(7L);
+
+        assertThat(results)
+                .filteredOn(result -> "IMAGE_OCR".equals(result.getProbeKind()))
+                .singleElement()
+                .satisfies(result -> assertThat(result.getStatus()).isEqualTo("SUPPORTED"));
+        assertThat(results)
+                .filteredOn(result -> "IMAGE_UNDERSTANDING".equals(result.getProbeKind()))
+                .singleElement()
+                .satisfies(result -> {
+                    assertThat(result.getStatus()).isEqualTo("UNSUPPORTED");
+                    assertThat(result.getDetailCode()).isEqualTo(ModelProbeResult.CODE_ADAPTER_NOT_IMPLEMENTED);
+                });
     }
 
     private static AiModelProbeDO probe(String kind, String status, String detailCode, Integer dimension) {

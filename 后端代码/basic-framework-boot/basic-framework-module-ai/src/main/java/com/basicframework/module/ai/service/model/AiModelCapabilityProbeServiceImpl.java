@@ -45,15 +45,29 @@ public class AiModelCapabilityProbeServiceImpl implements AiModelCapabilityProbe
             ModelProbeKind.TEXT_STREAM,
             ModelProbeKind.STRUCTURED_OUTPUT,
             ModelProbeKind.TOOL_CALLING,
-            ModelProbeKind.EMBEDDING);
+            ModelProbeKind.EMBEDDING,
+            // X02 起媒体探测项也进入探测流程：否则准入的第 3 条判据（探测已确认）对媒体能力不可达，
+            // 声明了媒体能力的端点永远无法通过准入（X01 矩阵 §7 登记的前置缺口）。
+            ModelProbeKind.IMAGE_UNDERSTANDING,
+            ModelProbeKind.IMAGE_OCR,
+            ModelProbeKind.IMAGE_GENERATION,
+            ModelProbeKind.IMAGE_EDIT,
+            ModelProbeKind.SPEECH_TO_TEXT,
+            ModelProbeKind.TEXT_TO_SPEECH);
 
     /** 探测类型到能力词汇的映射；CONNECTIVITY 只证明可达，不对应可发布能力。 */
-    private static final Map<ModelProbeKind, ModelCapability> KIND_CAPABILITIES = Map.of(
-            ModelProbeKind.TEXT, ModelCapability.TEXT,
-            ModelProbeKind.TEXT_STREAM, ModelCapability.TEXT_STREAM,
-            ModelProbeKind.STRUCTURED_OUTPUT, ModelCapability.STRUCTURED_OUTPUT,
-            ModelProbeKind.TOOL_CALLING, ModelCapability.TOOL_CALLING,
-            ModelProbeKind.EMBEDDING, ModelCapability.EMBEDDING);
+    private static final Map<ModelProbeKind, ModelCapability> KIND_CAPABILITIES = Map.ofEntries(
+            Map.entry(ModelProbeKind.TEXT, ModelCapability.TEXT),
+            Map.entry(ModelProbeKind.TEXT_STREAM, ModelCapability.TEXT_STREAM),
+            Map.entry(ModelProbeKind.STRUCTURED_OUTPUT, ModelCapability.STRUCTURED_OUTPUT),
+            Map.entry(ModelProbeKind.TOOL_CALLING, ModelCapability.TOOL_CALLING),
+            Map.entry(ModelProbeKind.EMBEDDING, ModelCapability.EMBEDDING),
+            Map.entry(ModelProbeKind.IMAGE_UNDERSTANDING, ModelCapability.IMAGE_UNDERSTANDING),
+            Map.entry(ModelProbeKind.IMAGE_OCR, ModelCapability.IMAGE_OCR),
+            Map.entry(ModelProbeKind.IMAGE_GENERATION, ModelCapability.IMAGE_GENERATION),
+            Map.entry(ModelProbeKind.IMAGE_EDIT, ModelCapability.IMAGE_EDIT),
+            Map.entry(ModelProbeKind.SPEECH_TO_TEXT, ModelCapability.SPEECH_TO_TEXT),
+            Map.entry(ModelProbeKind.TEXT_TO_SPEECH, ModelCapability.TEXT_TO_SPEECH));
 
     private final AiModelEndpointService endpointService;
 

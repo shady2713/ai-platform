@@ -60,6 +60,9 @@
 | `AiTaskController#progress` | `ai_run`：按当前主体过滤运行，只返回状态与结果引用（标识 + 摘要） |
 | `AiTaskController#page` | 同上：只返回当前主体的运行进度（按编号倒序） |
 | `AiTaskController#retry` | 同上：人工重试先按当前权限重建身份，再校验任务可重试性（UNKNOWN 拒绝普通重试） |
+| `AiVisionController#understandImage` | 图片理解：输入图片必须是当前会话可读的私有文件（`ai_file_binding` 归属判定），**不接受上游 URL**；能力未声明/未探测时明确拒绝且不外发 |
+| `AiVisionController#recognizeText` | 图片 OCR：同上归属判定；扫描件无文本层时按 `ocrRequired` 语义返回，不编造正文 |
+| `AiVisionController#recognizeDocument` | 文档 OCR 重索引：只对当前主体可读的文档生效，识别稿经既有知识入库版本/切片语义落库，引用仍按 active 版本复核 |
 | `AiKnowledgeRetrievalController#search` | 知识库：授权范围来自当前主体的 A03 授权目录（READ ∩ 启用中知识库），**过滤条件只由它推导**（问题文本不参与）；候选复核要求知识库启用 + 版本 READY + 是文档当前 active 版本，否则丢弃并计数（索引残留不可见） |
 | `AiKnowledgeRetrievalController#citation` | 同上：引用标识只能来自本次检索候选；读取片段重新鉴权后从**原文**取回该位置正文，授权回收即失败（越权与不存在同语义） |
 | `AiKnowledgeRetrievalController#content` | 同上：读取原文经 A07 的业务文件权限 SPI（业务类型 `ai_knowledge_document`，业务键 = 知识库标识），文件引用解除或授权回收后立即拒绝 |

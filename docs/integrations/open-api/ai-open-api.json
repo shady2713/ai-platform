@@ -2669,6 +2669,310 @@
           }
         }
       }
+    },
+    "/app-api/ai/vision/image/understand": {
+      "post": {
+        "tags": [
+          "多模态"
+        ],
+        "summary": "图片理解（输入必须是当前主体可读的私有文件；能力未声明/未探测时明确拒绝且不外发）",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "endpointId",
+                  "image"
+                ],
+                "properties": {
+                  "endpointId": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "显式指定的模型端点编号（平台不做候选遍历）"
+                  },
+                  "image": {
+                    "type": "object",
+                    "required": [
+                      "fileId",
+                      "size"
+                    ],
+                    "properties": {
+                      "fileId": {
+                        "type": "integer",
+                        "format": "int64",
+                        "description": "平台私有文件编号"
+                      },
+                      "mime": {
+                        "type": "string",
+                        "description": "声明的内容类型"
+                      },
+                      "size": {
+                        "type": "integer",
+                        "format": "int64",
+                        "description": "声明字节数"
+                      },
+                      "sha256": {
+                        "type": "string",
+                        "description": "声明的 SHA-256 摘要（非空时必须与真实内容一致）"
+                      }
+                    }
+                  },
+                  "instruction": {
+                    "type": "string",
+                    "maxLength": 4000
+                  },
+                  "timeoutMillis": {
+                    "type": "integer",
+                    "format": "int64"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "文本结果（fileId 为空表示未落私有文件）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "fileId": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "text": {
+                      "type": "string"
+                    },
+                    "finishReason": {
+                      "type": "string"
+                    },
+                    "usage": {
+                      "type": "object",
+                      "properties": {
+                        "source": {
+                          "type": "string",
+                          "enum": [
+                            "REPORTED",
+                            "ESTIMATED",
+                            "UNKNOWN"
+                          ]
+                        },
+                        "quantity": {
+                          "type": "integer"
+                        },
+                        "unit": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/vision/image/ocr": {
+      "post": {
+        "tags": [
+          "多模态"
+        ],
+        "summary": "单张图片 OCR（无文本层时按需 OCR 语义返回，不编造正文）",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "endpointId",
+                  "image"
+                ],
+                "properties": {
+                  "endpointId": {
+                    "type": "integer",
+                    "format": "int64"
+                  },
+                  "image": {
+                    "type": "object",
+                    "required": [
+                      "fileId",
+                      "size"
+                    ],
+                    "properties": {
+                      "fileId": {
+                        "type": "integer",
+                        "format": "int64",
+                        "description": "平台私有文件编号"
+                      },
+                      "mime": {
+                        "type": "string",
+                        "description": "声明的内容类型"
+                      },
+                      "size": {
+                        "type": "integer",
+                        "format": "int64",
+                        "description": "声明字节数"
+                      },
+                      "sha256": {
+                        "type": "string",
+                        "description": "声明的 SHA-256 摘要（非空时必须与真实内容一致）"
+                      }
+                    }
+                  },
+                  "languageHint": {
+                    "type": "string"
+                  },
+                  "timeoutMillis": {
+                    "type": "integer",
+                    "format": "int64"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OCR 结果（含页码/区域/置信度与是否需要人工复核）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "fileId": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "text": {
+                      "type": "string"
+                    },
+                    "region": {
+                      "type": "object"
+                    },
+                    "regionSource": {
+                      "type": "string"
+                    },
+                    "confidenceSource": {
+                      "type": "string"
+                    },
+                    "confidence": {
+                      "type": "number"
+                    },
+                    "reviewRequired": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/vision/document/ocr": {
+      "post": {
+        "tags": [
+          "多模态"
+        ],
+        "summary": "扫描件逐页 OCR 并作为该文档的新版本重索引（识别稿经既有入库流水线落库）",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "documentId",
+                  "endpointId",
+                  "pageImages"
+                ],
+                "properties": {
+                  "documentId": {
+                    "type": "integer",
+                    "format": "int64"
+                  },
+                  "endpointId": {
+                    "type": "integer",
+                    "format": "int64"
+                  },
+                  "pageImages": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "fileId",
+                        "size"
+                      ],
+                      "properties": {
+                        "fileId": {
+                          "type": "integer",
+                          "format": "int64",
+                          "description": "平台私有文件编号"
+                        },
+                        "mime": {
+                          "type": "string",
+                          "description": "声明的内容类型"
+                        },
+                        "size": {
+                          "type": "integer",
+                          "format": "int64",
+                          "description": "声明字节数"
+                        },
+                        "sha256": {
+                          "type": "string",
+                          "description": "声明的 SHA-256 摘要（非空时必须与真实内容一致）"
+                        }
+                      }
+                    }
+                  },
+                  "languageHint": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "新版本与入库任务引用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "documentId": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "versionId": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "versionNo": {
+                      "type": "integer"
+                    },
+                    "ingestionTaskId": {
+                      "type": "integer",
+                      "format": "int64"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {

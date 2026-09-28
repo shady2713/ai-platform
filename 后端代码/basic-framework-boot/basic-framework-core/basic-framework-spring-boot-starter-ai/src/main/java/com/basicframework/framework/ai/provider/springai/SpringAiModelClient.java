@@ -36,10 +36,13 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.content.Media;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.definition.ToolDefinition;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.util.MimeTypeUtils;
 import reactor.core.publisher.Flux;
 
 /**
@@ -71,6 +74,12 @@ public class SpringAiModelClient implements ModelPort {
             "{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\"}},\"required\":[\"value\"]}";
 
     private static final String PROBE_TOOL_PROMPT = "请调用 platform_probe 工具，参数 value=ping。只在需要调用工具时返回工具调用，不要返回解释文字。";
+
+    /** 图片理解探测提示词：只要求一句描述，避免把探测变成一次长输出。 */
+    private static final String PROBE_IMAGE_PROMPT = "用一句话描述这张图片的主要内容。";
+
+    /** OCR 探测提示词：要求提取文字；识别不到也要回复（空回复按"未返回文本"处理）。 */
+    private static final String PROBE_OCR_PROMPT = "提取图片中的文字，只输出文字内容。";
 
     private final ModelEndpointSnapshot snapshot;
 
@@ -205,9 +214,11 @@ public class SpringAiModelClient implements ModelPort {
                 case STRUCTURED_OUTPUT -> probeStructuredOutput(startedAt);
                 case TOOL_CALLING -> probeToolCalling(startedAt);
                 case EMBEDDING -> probeEmbedding(startedAt);
-                // X01 媒体探测项由 X02–X04 实现：本适配器未实现时返回"适配器未实现"的稳定结论，
-                // 不发起任何厂商调用（因此不会产生隐藏外发），也不回退为文本探测。
-                case IMAGE_UNDERSTANDING, IMAGE_OCR, IMAGE_GENERATION, IMAGE_EDIT, SPEECH_TO_TEXT, TEXT_TO_SPEECH ->
+                case IMAGE_UNDERSTANDING -> probeImageUnderstanding(startedAt);
+                case IMAGE_OCR -> probeImageOcr(startedAt);
+                // 图片生成/编辑、非实时 STT/TTS 属 X03/X04：本适配器未实现时返回"适配器未实现"的稳定结论，
+                // 不发起任何厂商调用（因此不会产生隐藏外发），也不回退为文本/同类媒体探测。
+                case IMAGE_GENERATION, IMAGE_EDIT, SPEECH_TO_TEXT, TEXT_TO_SPEECH ->
                     ModelProbeResult.unsupported(kind, ModelProbeResult.CODE_ADAPTER_NOT_IMPLEMENTED);
             };
         } catch (ModelException exception) {
@@ -302,6 +313,56 @@ public class SpringAiModelClient implements ModelPort {
     private ModelProbeResult probeEmbedding(long startedAt) {
         EmbeddingResponse response = embed(new EmbeddingRequest(snapshot.modelId(), List.of(PROBE_PROMPT), null));
         return ModelProbeResult.supported(ModelProbeKind.EMBEDDING, response.dimensions(), elapsedMillis(startedAt));
+    }
+
+    /**
+     * 图片理解探测（X02）：用平台内置的最小合成图做一次**真实多模态调用**，只判"是否返回非空文本"。
+     *
+     * <p>不校验描述内容的语义正确性：探测要回答的是"这个端点收不收图片、返不返文本"，
+     * 效果评测属于模型评测流程，不能拿一次探测代替。
+     */
+    private ModelProbeResult probeImageUnderstanding(long startedAt) {
+        requireCapability(ModelCapability.IMAGE_UNDERSTANDING);
+        String text = callVisionOnce(SyntheticMediaFixtures.understandingFixturePng(), PROBE_IMAGE_PROMPT);
+        if (text.isBlank()) {
+            return ModelProbeResult.unsupported(
+                    ModelProbeKind.IMAGE_UNDERSTANDING, ModelProbeResult.CODE_NO_TEXT_RETURNED);
+        }
+        return ModelProbeResult.supported(ModelProbeKind.IMAGE_UNDERSTANDING, null, elapsedMillis(startedAt));
+    }
+
+    /**
+     * OCR 探测（X02）：合成"文字行条带"图真实调用一次，按冻结语义只要求返回非空文本
+     * （{@code ModelProbeKind.IMAGE_OCR} 明确不要求逐字匹配，避免字体差异导致误判）。
+     */
+    private ModelProbeResult probeImageOcr(long startedAt) {
+        requireCapability(ModelCapability.IMAGE_OCR);
+        String text = callVisionOnce(SyntheticMediaFixtures.ocrFixturePng(), PROBE_OCR_PROMPT);
+        if (text.isBlank()) {
+            return ModelProbeResult.unsupported(ModelProbeKind.IMAGE_OCR, ModelProbeResult.CODE_NO_TEXT_RETURNED);
+        }
+        return ModelProbeResult.supported(ModelProbeKind.IMAGE_OCR, null, elapsedMillis(startedAt));
+    }
+
+    /**
+     * 媒体探测的最小多模态调用：一张平台合成图 + 一行提示词；失败收敛为稳定原因，不回传厂商报文。
+     */
+    private String callVisionOnce(byte[] imageBytes, String prompt) {
+        try {
+            Media media = new Media(MimeTypeUtils.IMAGE_PNG, new ByteArrayResource(imageBytes));
+            UserMessage message =
+                    UserMessage.builder().text(prompt).media(media).build();
+            ChatResponse response = chatModel.call(new Prompt(message));
+            if (response == null
+                    || response.getResult() == null
+                    || response.getResult().getOutput() == null) {
+                return "";
+            }
+            String text = response.getResult().getOutput().getText();
+            return text == null ? "" : text;
+        } catch (Exception exception) {
+            throw mapFailure(exception);
+        }
     }
 
     private static long elapsedMillis(long startedAt) {
