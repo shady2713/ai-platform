@@ -1,9 +1,10 @@
 <script lang="ts" setup>
 /**
- * 工具版本（D10）：显式命令创建草稿与发布，政策默认 DENY。
+ * 工具版本（D10 + X06）：显式命令创建草稿与发布，政策默认 DENY。
  *
- * 界面把三条规则写在明面上：政策缺省 DENY、首期只允许发布 READ、
- * 来源 operation 必须已发布——发布失败会原样展示后端原因。
+ * 界面把规则写在明面上：政策缺省 DENY、来源 operation 必须已发布；
+ * 写工具（X06）还要声明**业务幂等键参数**与**已发布的核对查询**，且政策不得 AUTO
+ * （写调用必须人工确认）。绑定声明并入输出 schema 的保留键 write，发布失败原样展示后端原因。
  */
 import type { AiToolApi } from '#/api/ai/data';
 
@@ -30,6 +31,11 @@ const form = ref({
   sourceRef: '',
   toolType: 'READ',
 });
+/** 写工具绑定声明（X06）：幂等键必须是输入 schema 的必填字符串参数，核对查询必须是已发布 operation。 */
+const writeBinding = ref({
+  idempotencyParam: '',
+  reconcileOperation: '',
+});
 const message = ref('');
 const errorMessage = ref('');
 
@@ -44,13 +50,42 @@ async function loadVersions() {
   versions.value = page.list ?? [];
 }
 
+/**
+ * 写工具的绑定声明并入输出 schema 的保留键 write；读工具保持管理员填写的原文。
+ * 缺项在提交前拦住（后端的发布期校验更严格：幂等键必须是必填字符串参数、核对查询必须已发布）。
+ */
+function outputSchemaForSubmit(): string {
+  if (form.value.toolType !== 'WRITE') {
+    return form.value.outputSchemaJson;
+  }
+  const idempotencyParam = writeBinding.value.idempotencyParam.trim();
+  const reconcileOperation = writeBinding.value.reconcileOperation.trim();
+  if (!idempotencyParam || !reconcileOperation) {
+    throw new Error('写工具必须填写业务幂等键参数与核对查询');
+  }
+  const base: Record<string, unknown> = JSON.parse(
+    form.value.outputSchemaJson || '{}',
+  );
+  base.write = {
+    idempotencyParam,
+    reconcileOperation,
+    reconcileParam: idempotencyParam,
+  };
+  return JSON.stringify(base);
+}
+
 async function handleCreate() {
   if (!toolId.value) {
     return;
   }
   errorMessage.value = '';
   try {
-    await createToolVersion({ toolId: toolId.value, ...form.value });
+    const outputSchemaJson = outputSchemaForSubmit();
+    await createToolVersion({
+      toolId: toolId.value,
+      ...form.value,
+      outputSchemaJson,
+    });
     showSuccessMessage('已创建版本草稿（政策按所选值）');
     await loadVersions();
   } catch (error) {
@@ -89,13 +124,13 @@ const [Modal, modalApi] = useVbenModal({
     <div class="flex flex-col gap-3">
       <div class="grid grid-cols-2 gap-2 text-xs">
         <label class="flex flex-col">
-          类型（首期只允许发布 READ）
+          类型（WRITE 需声明幂等键与核对查询，且政策不得 AUTO）
           <select
             v-model="form.toolType"
             class="rounded border border-border p-1"
           >
             <option value="READ">READ（只读）</option>
-            <option value="WRITE">WRITE（不可发布）</option>
+            <option value="WRITE">WRITE（写操作）</option>
           </select>
         </label>
         <label class="flex flex-col">
@@ -130,6 +165,22 @@ const [Modal, modalApi] = useVbenModal({
             v-model="form.outputSchemaJson"
             class="h-12 rounded border border-border p-1"
           ></textarea>
+        </label>
+        <label v-if="form.toolType === 'WRITE'" class="flex flex-col">
+          业务幂等键参数名（必须是输入 schema 的必填字符串参数）
+          <input
+            v-model="writeBinding.idempotencyParam"
+            class="rounded border border-border p-1"
+            placeholder="payment_no"
+          />
+        </label>
+        <label v-if="form.toolType === 'WRITE'" class="flex flex-col">
+          核对查询（同连接器已发布 operationKey）
+          <input
+            v-model="writeBinding.reconcileOperation"
+            class="rounded border border-border p-1"
+            placeholder="getPayment"
+          />
         </label>
       </div>
       <button class="text-sm text-blue-600" type="button" @click="handleCreate">

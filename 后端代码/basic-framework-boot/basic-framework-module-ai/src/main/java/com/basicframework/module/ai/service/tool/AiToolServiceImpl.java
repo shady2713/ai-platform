@@ -48,7 +48,8 @@ import org.springframework.util.StringUtils;
  * <p>三条不变式：
  * <ol>
  *   <li><b>政策默认 DENY 且在版本里</b>：新建版本不写政策就是 DENY；发布后政策不可修改；</li>
- *   <li><b>首期只发布读工具</b>：WRITE 版本一律拒绝发布（宁可没有，也不要一个能改数据的通道）；</li>
+ *   <li><b>写工具要过写绑定闸门</b>（X06）：WRITE 版本必须声明业务幂等键与已发布的核对查询，
+ *       且政策不得为 AUTO——写调用必须人工确认（宁可没有，也不要一个能自动改数据的通道）；</li>
  *   <li><b>来源必须已发布</b>：版本绑定的是 operationKey，发布前确认该 operation 存在且已发布，
  *       否则工具执行时才发现问题就太晚了。</li>
  * </ol>
@@ -78,6 +79,9 @@ public class AiToolServiceImpl implements AiToolService {
 
     /** 引用检查：服务发布版本/分析步骤在各自卡片注册实现。 */
     private final List<AiToolReferenceChecker> referenceCheckers;
+
+    /** 写工具准入闸门（X06）：写版本的幂等键/核对查询声明校验。 */
+    private final AiToolWriteGate writeGate;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -231,11 +235,10 @@ public class AiToolServiceImpl implements AiToolService {
         if (AiToolVersionDO.STATUS_PUBLISHED.equals(existing.getStatus())) {
             throw exception(AI_STATE_CONFLICT);
         }
-        if (!AiToolPolicy.ToolType.READ.name().equals(existing.getToolType())) {
-            // 首期只发布读工具：写操作能力先不开放
-            throw exception(AI_TOOL_TYPE_UNSUPPORTED);
-        }
         AiToolDO tool = requireTool(existing.getToolId());
+        // 写工具（X06）：必须声明业务幂等键与登记的核对查询，且政策不为 AUTO（写调用必须人工确认）；
+        // 读工具不得声明写绑定。校验通过才允许发布，避免"发不出去的幂等键"上线。
+        writeGate.requirePublishable(tool, existing);
         // 来源必须已发布：工具执行时不应才发现"来源还是草稿"
         AiConnectorOperationDO operation = operationMapper.selectByKey(tool.getConnectorId(), existing.getSourceRef());
         if (operation == null) {

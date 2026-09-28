@@ -4,7 +4,7 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V86.
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V87.
 -- Only the 53 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
@@ -2235,14 +2235,24 @@ CREATE TABLE `ai_tool_action` (
   `subject_type` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '主体类型（APP/USER）',
   `external_user_id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '外部用户标识（确认必须由同一主体完成）',
   `policy` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '创建时的执行政策（确认时要求仍为 CONFIRM）',
+  `tool_type` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'READ' COMMENT '工具类型快照（READ/WRITE；写动作只经确认入口执行）',
   `arguments_hash` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '参数规范化哈希（确认时比对，改参数即拒绝）',
   `arguments_json` varchar(4000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '冻结的参数（确认后按原参数执行，不回显）',
+  `idempotency_param` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '业务幂等键参数名（写动作必填，来自版本声明）',
+  `idempotency_key` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '业务幂等键值（写动作必填，取自冻结参数；不参与回显）',
+  `verify_source_ref` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '登记的核对查询 operationKey（写动作必填，同连接器已发布操作）',
+  `verify_param` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '核对查询接收业务键的参数名（写动作必填，来自同一份声明）',
   `challenge` char(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '一次性确认挑战（与动作绑定，确认时校验）',
-  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'PENDING' COMMENT '状态（PENDING/CONFIRMED/EXECUTED/CANCELLED/EXPIRED/FAILED）',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'PENDING' COMMENT '状态（PENDING/CONFIRMED/EXECUTING/EXECUTED/CANCELLED/EXPIRED/FAILED/UNKNOWN）',
   `expires_at` datetime NOT NULL COMMENT '过期时间（过期后不可确认/执行）',
   `decided_at` datetime DEFAULT NULL COMMENT '确认/拒绝时间',
   `executed_at` datetime DEFAULT NULL COMMENT '执行时间',
+  `attempt_epoch` int NOT NULL DEFAULT '0' COMMENT '执行尝试代数（CAS 消费确认一次；崩溃后由核对解决）',
   `result_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '执行结论（稳定原因码，不含上游正文）',
+  `verified_at` datetime DEFAULT NULL COMMENT '核对时间',
+  `verified_by` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '核对方式（PROGRAM 程序核对/MANUAL 人工核对）',
+  `verify_result` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '核对结论（APPLIED 已生效/NOT_APPLIED 未生效）',
+  `verify_evidence` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '核对证据（登记操作键与条目数，或人工说明；不含上游正文与凭据）',
   `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
   `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -2250,11 +2260,12 @@ CREATE TABLE `ai_tool_action` (
   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
   PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `uk_ai_tool_action_business` ((if((`deleted` = b'1') or (`status` in ('CANCELLED','EXPIRED','FAILED')) or (`idempotency_key` is null),NULL,concat(`tool_id`,_utf8mb4':',`idempotency_key`)))),
   KEY `idx_ai_tool_action_run` (`run_id`,`status`,`id`),
   KEY `idx_ai_tool_action_subject` (`application_id`,`subject_type`,`external_user_id`,`id`),
   CONSTRAINT `fk_ai_tool_action_run` FOREIGN KEY (`run_id`) REFERENCES `ai_run` (`id`) ON DELETE RESTRICT,
   CONSTRAINT `fk_ai_tool_action_tool` FOREIGN KEY (`tool_id`) REFERENCES `ai_tool` (`id`) ON DELETE RESTRICT
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 工具动作（参数冻结 + 到期挑战 + 确认状态机，D09）';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 工具动作（参数冻结 + 到期挑战 + 确认状态机 + 业务幂等键与结果核对，D09/X06）';
 
 --
 -- AI 知识库（共享/应用专用 + 嵌入模型与维度，K02）

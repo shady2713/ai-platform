@@ -146,7 +146,7 @@
 | 1_003_006_045 | AI_TOOL_POLICY_DENIED | 403 | 工具政策为 DENY，禁止执行 |
 | 1_003_006_046 | AI_TOOL_CONFIRMATION_REQUIRED | 409 | 工具执行需要人工确认（CONFIRM） |
 | 1_003_006_047 | AI_TOOL_ARGUMENT_INVALID | 400 | 工具参数不合法（未声明/必填缺失/类型不符） |
-| 1_003_006_048 | AI_TOOL_TYPE_UNSUPPORTED | 400 | 首期只支持读工具 |
+| 1_003_006_048 | AI_TOOL_TYPE_UNSUPPORTED | 400 | 工具类型或来源不受支持 |
 | 1_003_006_049 | AI_TOOL_REFERENCED | 409 | 工具被引用，不能删除 |
 | 1_003_006_050 | AI_TOOL_ACTION_NOT_FOUND | 404 | 工具动作不存在（越权同语义） |
 | 1_003_006_051 | AI_TOOL_ACTION_NOT_PENDING | 409 | 工具动作当前状态不允许该操作 |
@@ -155,6 +155,13 @@
 | 1_003_006_054 | AI_TOOL_ACTION_ARGUMENTS_CHANGED | 409 | 确认参数与发起时不一致，须重新确认 |
 | 1_003_006_055 | AI_ANALYSIS_STEP_LIMIT_EXCEEDED | 429 | 分析步骤超出预算（步数/耗时） |
 | 1_003_006_056 | AI_RUN_NOT_ACTIVE | 409 | 运行不在可继续状态（取消或终态） |
+| 1_003_006_057 | AI_TOOL_WRITE_BINDING_INVALID | 400 | 写工具必须声明业务幂等键参数与核对查询（X06） |
+| 1_003_006_058 | AI_TOOL_WRITE_POLICY_UNSUPPORTED | 400 | 写工具不允许 AUTO 政策，写调用必须人工确认（X06） |
+| 1_003_006_059 | AI_TOOL_WRITE_BINDING_CHANGED | 409 | 写绑定在确认后发生变化，须重新确认（X06） |
+| 1_003_006_060 | AI_TOOL_ACTION_IDEMPOTENCY_CONFLICT | 409 | 同一业务幂等键的动作已存在且参数不一致（X06） |
+| 1_003_006_061 | AI_TOOL_ACTION_NOT_RECONCILABLE | 409 | 动作当前状态不允许核对（只有结果未定的动作可核对，X06） |
+| 1_003_006_062 | AI_TOOL_ACTION_RECONCILE_FAILED | 502 | 核对查询失败，动作结果仍未确定（X06） |
+| 1_003_006_063 | AI_TOOL_WRITE_REQUIRES_CONFIRMATION | 403 | 写工具只能经确认流程执行（通用执行入口拒绝写判定，X06） |
 | 1_003_008_000 | AI_SERVICE_NOT_READY | 409 | 服务未标记可发布，不能创建发布候选 |
 | 1_003_008_001 | AI_SERVICE_EVAL_MISSING | 409 | 缺少与候选内容匹配的评测结果（内容/端点配置变化后必须重新评测） |
 | 1_003_008_002 | AI_SERVICE_EVAL_BELOW_THRESHOLD | 409 | 评测得分未达发布门槛 |

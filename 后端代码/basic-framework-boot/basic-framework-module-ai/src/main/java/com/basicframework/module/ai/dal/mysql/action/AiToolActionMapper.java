@@ -41,4 +41,26 @@ public interface AiToolActionMapper extends BaseMapperX<AiToolActionDO> {
                         .eq(AiToolActionDO::getId, update.getId())
                         .eq(AiToolActionDO::getVersion, expectedVersion));
     }
+
+    /**
+     * 按业务幂等键找"可能已产生副作用"的动作（X06）：同一工具 + 同一业务键只允许一条。
+     *
+     * <p>已确定无副作用的终态（CANCELLED/EXPIRED/FAILED）与 {@code uk_ai_tool_action_business}
+     * 同一口径地排除：业务明确失败后可以重新发起，而已执行/未定的动作永远占住这个键。
+     */
+    default AiToolActionDO selectByBusinessKey(Long toolId, String idempotencyKey) {
+        if (toolId == null || idempotencyKey == null) {
+            return null;
+        }
+        return selectOne(new LambdaQueryWrapperX<AiToolActionDO>()
+                .eq(AiToolActionDO::getToolId, toolId)
+                .eq(AiToolActionDO::getIdempotencyKey, idempotencyKey)
+                .notIn(
+                        AiToolActionDO::getStatus,
+                        AiToolActionDO.STATUS_CANCELLED,
+                        AiToolActionDO.STATUS_EXPIRED,
+                        AiToolActionDO.STATUS_FAILED)
+                .orderByAsc(AiToolActionDO::getId)
+                .last("limit 1"));
+    }
 }

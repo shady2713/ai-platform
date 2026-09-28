@@ -91,6 +91,8 @@ class AiAppEndpointScopeContractTest {
             "com.basicframework.module.ai.controller.app.v1.action.AiToolActionController#execute",
             "com.basicframework.module.ai.controller.app.v1.action.AiToolActionController#get",
             "com.basicframework.module.ai.controller.app.v1.action.AiToolActionController#page",
+            // X06：结果未定的写动作核对（程序核对只调用动作登记的核对查询，人工核对记录结论与说明）
+            "com.basicframework.module.ai.controller.app.v1.action.AiToolActionController#reconcile",
             // O06：任务进度查询与人工重试同样按运行归属判定
             "com.basicframework.module.ai.controller.app.v1.task.AiTaskController#progress",
             "com.basicframework.module.ai.controller.app.v1.task.AiTaskController#page",

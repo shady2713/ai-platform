@@ -9,6 +9,7 @@ import com.basicframework.framework.common.pojo.PageResult;
 import com.basicframework.framework.security.core.annotation.AuthenticatedOnly;
 import com.basicframework.module.ai.controller.app.v1.action.vo.AiToolActionConfirmReqVO;
 import com.basicframework.module.ai.controller.app.v1.action.vo.AiToolActionPageReqVO;
+import com.basicframework.module.ai.controller.app.v1.action.vo.AiToolActionReconcileReqVO;
 import com.basicframework.module.ai.controller.app.v1.action.vo.AiToolActionRespVO;
 import com.basicframework.module.ai.dal.dataobject.action.AiToolActionDO;
 import com.basicframework.module.ai.service.conversation.AiConversationSubject;
@@ -30,11 +31,15 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 工具动作确认接口（D09，应用端）。
+ * 工具动作确认接口（D09 + X06，应用端）。
  *
  * <p>归属由**服务端会话身份**决定（应用 + 主体类型 + 外部用户标识），请求体不能自报主体：
  * 越权与不存在同语义（404/403 同码）；确认必须携带一次性挑战与原参数，
  * 改参数、换用户、过期都会被状态机挡住。执行只发生一次（CAS），重放不产生第二次副作用。
+ *
+ * <p>X06 增补核对入口（{@code /reconcile}）：写调用结果未定（超时、连接中断、上游未确认）时动作落
+ * UNKNOWN，只能经核对收敛——程序核对调用动作登记的核对查询（按业务幂等键），人工核对由操作员
+ * 给出结论与说明；两条路径都不自动重放写请求。
  */
 @Tag(name = "AI 应用端 - 工具动作确认")
 @RestController
@@ -75,7 +80,7 @@ public class AiToolActionController {
     }
 
     @PostMapping("/execute")
-    @Operation(summary = "执行已确认的工具动作（只有 CONFIRMED 能执行一次）")
+    @Operation(summary = "执行已确认的工具动作（只有 CONFIRMED 能执行一次；结果未定记 UNKNOWN，不自动重放）")
     @AuthenticatedOnly
     public CommonResult<AiToolActionRespVO> execute(
             @Parameter(description = "动作编号", required = true) @RequestParam("actionId") @NotNull @Positive
@@ -83,6 +88,21 @@ public class AiToolActionController {
         AiConversationSubject subject = currentSubject();
         return success(toRespVO(actionService.execute(
                 actionId, subject.applicationId(), subject.subjectType().name(), subject.externalUserId())));
+    }
+
+    @PostMapping("/reconcile")
+    @Operation(summary = "核对结果未定的工具动作（PROGRAM 调用登记的核对查询；MANUAL 记录人工结论与说明）")
+    @AuthenticatedOnly
+    public CommonResult<AiToolActionRespVO> reconcile(@Valid @RequestBody AiToolActionReconcileReqVO reqVO) {
+        AiConversationSubject subject = currentSubject();
+        return success(toRespVO(actionService.reconcile(
+                reqVO.getActionId(),
+                subject.applicationId(),
+                subject.subjectType().name(),
+                subject.externalUserId(),
+                reqVO.getMode(),
+                reqVO.getOutcome(),
+                reqVO.getNote())));
     }
 
     @GetMapping("/get")
@@ -122,11 +142,18 @@ public class AiToolActionController {
                 .setRunId(action.getRunId())
                 .setToolId(action.getToolId())
                 .setToolVersionId(action.getToolVersionId())
+                .setToolType(action.getToolType())
                 .setStatus(action.getStatus())
+                .setIdempotencyKey(action.getIdempotencyKey())
                 .setExpiresAt(action.getExpiresAt())
                 .setDecidedAt(action.getDecidedAt())
                 .setExecutedAt(action.getExecutedAt())
+                .setAttemptEpoch(action.getAttemptEpoch())
                 .setResultCode(action.getResultCode())
+                .setVerifiedAt(action.getVerifiedAt())
+                .setVerifiedBy(action.getVerifiedBy())
+                .setVerifyResult(action.getVerifyResult())
+                .setVerifyEvidence(action.getVerifyEvidence())
                 .setVersion(action.getVersion());
     }
 }

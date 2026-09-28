@@ -181,7 +181,7 @@ describe('ai tool modules', () => {
       total: 1,
     });
     vi.mocked(publishToolVersion).mockRejectedValue(
-      new Error('首期只支持读工具'),
+      new Error('写工具不允许 AUTO 政策，写调用必须人工确认'),
     );
 
     const wrapper = mount(Versions);
@@ -216,8 +216,54 @@ describe('ai tool modules', () => {
       .find((button) => button.text() === '发布');
     await requireButton(publishButton).trigger('click');
     await flushPromises();
-    expect(wrapper.text()).toContain('首期只支持读工具');
+    expect(wrapper.text()).toContain(
+      '写工具不允许 AUTO 政策，写调用必须人工确认',
+    );
     expect(showSuccessMessage).not.toHaveBeenCalled();
+  });
+
+  it('版本：写工具必须声明业务幂等键与核对查询（并入输出 schema 的 write 段）', async () => {
+    state.modalApi.getData.mockReturnValue({ id: 91, name: '查询订单' });
+    vi.mocked(createToolVersion).mockResolvedValue(102);
+    const wrapper = mount(Versions);
+    await flushPromises();
+    const modal = requireModalConfig();
+    await modal.onOpenChange(true);
+    await flushPromises();
+
+    const createButton = () =>
+      wrapper
+        .findAll('button')
+        .find((button) => button.text() === '创建版本草稿');
+
+    // 类型切到 WRITE：出现绑定声明输入
+    await requireElement(wrapper.findAll('select'), 0).setValue('WRITE');
+    await flushPromises();
+    expect(wrapper.text()).toContain('业务幂等键参数名');
+
+    await requireElement(wrapper.findAll('input'), 0).setValue('createPayment');
+    // 未填绑定：界面先拦住，不发请求（后端的发布期校验更严格）
+    await requireButton(createButton()).trigger('click');
+    await flushPromises();
+    expect(createToolVersion).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain('写工具必须填写业务幂等键参数与核对查询');
+
+    // 填齐绑定：提交时并入输出 schema 的保留键 write
+    await requireElement(wrapper.findAll('input'), 1).setValue('payment_no');
+    await requireElement(wrapper.findAll('input'), 2).setValue('getPayment');
+    await requireButton(createButton()).trigger('click');
+    await flushPromises();
+
+    const payload = vi.mocked(createToolVersion).mock.calls.at(-1)?.[0];
+    expect(payload?.toolType).toBe('WRITE');
+    const outputSchema = JSON.parse(String(payload?.outputSchemaJson)) as {
+      write?: Record<string, string>;
+    };
+    expect(outputSchema.write).toEqual({
+      idempotencyParam: 'payment_no',
+      reconcileOperation: 'getPayment',
+      reconcileParam: 'payment_no',
+    });
   });
 
   it('版本：来源为空时后端拒绝（界面展示原因，不静默成功）', async () => {

@@ -383,8 +383,8 @@ public interface AiErrorCodeConstants {
     /** 工具参数不合法（400）：未声明参数、必填缺失或类型不符（含伪造参数）。 */
     ErrorCode AI_TOOL_ARGUMENT_INVALID = new ErrorCode(1_003_006_047, "工具参数不合法");
 
-    /** 工具类型不支持（400）：首期只允许发布读工具，写工具一律拒绝。 */
-    ErrorCode AI_TOOL_TYPE_UNSUPPORTED = new ErrorCode(1_003_006_048, "首期只支持读工具");
+    /** 工具类型不支持（400）：来源类型或工具类型不在支持范围内。 */
+    ErrorCode AI_TOOL_TYPE_UNSUPPORTED = new ErrorCode(1_003_006_048, "工具类型或来源不受支持");
 
     /** 工具被引用（409）：被服务发布版本或分析步骤引用时不能删除。 */
     ErrorCode AI_TOOL_REFERENCED = new ErrorCode(1_003_006_049, "工具已被引用，不能删除");
@@ -409,6 +409,27 @@ public interface AiErrorCodeConstants {
 
     /** 运行不在可继续状态（409）：取消或终态后不再执行后续步骤。 */
     ErrorCode AI_RUN_NOT_ACTIVE = new ErrorCode(1_003_006_056, "运行不在可继续状态");
+
+    /** 写工具绑定不合规（400）：必须声明业务幂等键参数与已发布的核对查询（X06）。 */
+    ErrorCode AI_TOOL_WRITE_BINDING_INVALID = new ErrorCode(1_003_006_057, "写工具必须声明业务幂等键参数与核对查询");
+
+    /** 写工具政策不受支持（400）：写调用不允许 AUTO，必须人工确认（X06）。 */
+    ErrorCode AI_TOOL_WRITE_POLICY_UNSUPPORTED = new ErrorCode(1_003_006_058, "写工具不允许 AUTO 政策，写调用必须人工确认");
+
+    /** 写绑定在确认后发生变化（409）：幂等键或核对查询变了，必须重新确认（X06）。 */
+    ErrorCode AI_TOOL_WRITE_BINDING_CHANGED = new ErrorCode(1_003_006_059, "写工具绑定在确认后发生变化，请重新确认");
+
+    /** 同一业务幂等键的动作参数不一致（409）：同键不同请求体不产生第二个动作（X06）。 */
+    ErrorCode AI_TOOL_ACTION_IDEMPOTENCY_CONFLICT = new ErrorCode(1_003_006_060, "同一业务幂等键的动作已存在且参数不一致");
+
+    /** 动作当前状态不可核对（409）：只有结果未定（EXECUTING/UNKNOWN）的动作可以核对（X06）。 */
+    ErrorCode AI_TOOL_ACTION_NOT_RECONCILABLE = new ErrorCode(1_003_006_061, "动作当前状态不允许核对");
+
+    /** 核对查询失败（502）：查询接口不可用或超时，动作保持"结果未定"（X06）。 */
+    ErrorCode AI_TOOL_ACTION_RECONCILE_FAILED = new ErrorCode(1_003_006_062, "核对查询失败，动作结果仍未确定");
+
+    /** 写工具只能经确认流程执行（403）：通用执行入口拒绝写工具判定（X06）。 */
+    ErrorCode AI_TOOL_WRITE_REQUIRES_CONFIRMATION = new ErrorCode(1_003_006_063, "写工具只能经确认流程执行");
 
     // ========== 应用与授权 1_003_003_xxx ==========
 

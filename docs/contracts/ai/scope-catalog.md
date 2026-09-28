@@ -56,6 +56,7 @@
 | `AiToolActionController#execute` | 同上：只有 CONFIRMED 可执行一次（重放不产生第二次副作用） |
 | `AiToolActionController#get` | 同上：越权与不存在同语义 |
 | `AiToolActionController#page` | 同上：只返回当前主体的动作（按编号倒序） |
+| `AiToolActionController#reconcile` | 同上：只有结果未定（EXECUTING/UNKNOWN）的动作可核对；程序核对只调用动作登记的核对查询（按业务幂等键），人工核对记录操作员结论与说明（≤200 字符），核对 CAS 单赢家，绝不自动重放写请求 |
 | `AiRunController#cancel` | `ai_run`：取消是显式动作，写入终态事件并终止任务；越权与不存在同语义 |
 | `AiTaskController#progress` | `ai_run`：按当前主体过滤运行，只返回状态与结果引用（标识 + 摘要） |
 | `AiTaskController#page` | 同上：只返回当前主体的运行进度（按编号倒序） |

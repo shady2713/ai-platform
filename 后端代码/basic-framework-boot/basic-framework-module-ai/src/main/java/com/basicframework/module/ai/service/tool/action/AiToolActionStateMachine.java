@@ -5,6 +5,7 @@ import static com.basicframework.module.ai.enums.AiErrorCodeConstants.AI_TOOL_AC
 import static com.basicframework.module.ai.enums.AiErrorCodeConstants.AI_TOOL_ACTION_CHALLENGE_INVALID;
 import static com.basicframework.module.ai.enums.AiErrorCodeConstants.AI_TOOL_ACTION_EXPIRED;
 import static com.basicframework.module.ai.enums.AiErrorCodeConstants.AI_TOOL_ACTION_NOT_PENDING;
+import static com.basicframework.module.ai.enums.AiErrorCodeConstants.AI_TOOL_ACTION_NOT_RECONCILABLE;
 
 import com.basicframework.module.ai.dal.dataobject.action.AiToolActionDO;
 import java.nio.charset.StandardCharsets;
@@ -16,7 +17,8 @@ import java.util.UUID;
 import org.springframework.util.StringUtils;
 
 /**
- * 确认状态机（D09）：PENDING → CONFIRMED → EXECUTED（或 CANCELLED/EXPIRED/FAILED）。
+ * 确认状态机（D09 + X06）：PENDING → CONFIRMED → EXECUTING → EXECUTED
+ * （或 CANCELLED/EXPIRED/FAILED，以及写调用结果未定时的 UNKNOWN → 核对 → EXECUTED/FAILED）。
  *
  * <p>三条守卫（对应 AT-020/021）：
  * <ol>
@@ -116,6 +118,22 @@ public final class AiToolActionStateMachine {
         if (!"CONFIRM".equals(currentPolicy)) {
             // 政策在确认后发生变化：按当前政策处理（不再允许沿用旧确认）
             throw exception(AI_TOOL_ACTION_NOT_PENDING);
+        }
+    }
+
+    /**
+     * 核对前守卫（X06）：只有"结果未定"的动作需要且可以核对。
+     *
+     * <p>{@link AiToolActionDO#STATUS_EXECUTING} 表示确认已被消费一次但结论未落库
+     * （进程崩溃、上游未确认），{@link AiToolActionDO#STATUS_UNKNOWN} 表示上游结果不可判定；
+     * 其余状态要么还没执行（PENDING/CONFIRMED，无可核对的事实），要么已经是确定结论
+     * （EXECUTED/FAILED/CANCELLED/EXPIRED），都不能再被核对改写——否则核对就成了"重写历史"的通道。
+     */
+    public static void requireReconcilable(AiToolActionDO action) {
+        if (action == null
+                || !(AiToolActionDO.STATUS_EXECUTING.equals(action.getStatus())
+                        || AiToolActionDO.STATUS_UNKNOWN.equals(action.getStatus()))) {
+            throw exception(AI_TOOL_ACTION_NOT_RECONCILABLE);
         }
     }
 }

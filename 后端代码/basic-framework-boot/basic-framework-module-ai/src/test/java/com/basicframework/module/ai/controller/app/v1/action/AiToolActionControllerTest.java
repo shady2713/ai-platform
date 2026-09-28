@@ -13,6 +13,7 @@ import com.basicframework.framework.common.pojo.PageResult;
 import com.basicframework.framework.security.core.annotation.AuthenticatedOnly;
 import com.basicframework.module.ai.controller.app.v1.action.vo.AiToolActionConfirmReqVO;
 import com.basicframework.module.ai.controller.app.v1.action.vo.AiToolActionPageReqVO;
+import com.basicframework.module.ai.controller.app.v1.action.vo.AiToolActionReconcileReqVO;
 import com.basicframework.module.ai.controller.app.v1.action.vo.AiToolActionRespVO;
 import com.basicframework.module.ai.dal.dataobject.action.AiToolActionDO;
 import com.basicframework.module.ai.domain.identity.AiSubjectType;
@@ -134,6 +135,35 @@ class AiToolActionControllerTest {
                 .as("响应不得带出一次性挑战（秘密不进协议层）")
                 .doesNotContain("challenge");
         verify(actionService).getActionPage(eq(7L), eq("USER"), eq("ext-9"), eq(11L), any());
+    }
+
+    @Test
+    void reconcilePassesModeOutcomeAndNoteWithTheResolvedSubject() {
+        withSubject();
+        when(actionService.reconcile(41L, 7L, "USER", "ext-9", "MANUAL", "APPLIED", "已核对"))
+                .thenReturn(action().setToolType(AiToolActionDO.TOOL_TYPE_WRITE)
+                        .setStatus(AiToolActionDO.STATUS_EXECUTED)
+                        .setIdempotencyKey("P-1")
+                        .setAttemptEpoch(1)
+                        .setVerifiedBy(AiToolActionDO.VERIFIED_BY_MANUAL)
+                        .setVerifyResult(AiToolActionDO.VERIFY_APPLIED)
+                        .setVerifyEvidence("已核对")
+                        .setVerifiedAt(LocalDateTime.of(2026, 9, 22, 12, 2)));
+
+        AiToolActionRespVO reconciled = controller
+                .reconcile(new AiToolActionReconcileReqVO()
+                        .setActionId(41L)
+                        .setMode("MANUAL")
+                        .setOutcome("APPLIED")
+                        .setNote("已核对"))
+                .getData();
+
+        assertThat(reconciled.getToolType()).isEqualTo(AiToolActionDO.TOOL_TYPE_WRITE);
+        assertThat(reconciled.getIdempotencyKey()).isEqualTo("P-1");
+        assertThat(reconciled.getVerifiedBy()).isEqualTo(AiToolActionDO.VERIFIED_BY_MANUAL);
+        assertThat(reconciled.getVerifyResult()).isEqualTo(AiToolActionDO.VERIFY_APPLIED);
+        assertThat(reconciled.getAttemptEpoch()).isEqualTo(1);
+        verify(actionService).reconcile(41L, 7L, "USER", "ext-9", "MANUAL", "APPLIED", "已核对");
     }
 
     @Test

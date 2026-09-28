@@ -53,8 +53,10 @@ class AiToolPolicyGateTest {
 
     private final AiHttpConnectorExecutor httpConnectorExecutor = mock(AiHttpConnectorExecutor.class);
 
+    private final AiToolWriteGate writeGate = new AiToolWriteGate(operationMapper);
+
     private final AiToolServiceImpl toolService =
-            new AiToolServiceImpl(toolMapper, versionMapper, connectorMapper, operationMapper, List.of());
+            new AiToolServiceImpl(toolMapper, versionMapper, connectorMapper, operationMapper, List.of(), writeGate);
 
     private final AiToolPolicyGate gate = new AiToolPolicyGate(toolMapper, toolService);
 
@@ -216,16 +218,19 @@ class AiToolPolicyGateTest {
         assertThat(decision.version().getPolicy()).isEqualTo("AUTO");
         assertThat(decision.operationKey()).isEqualTo("getOrders");
 
-        // 写工具版本无法发布（首期）：来源绑定与类型都来自版本
+        // 写工具版本：即使声明完整，AUTO 政策也不能发布（写调用必须人工确认，X06）
         when(versionMapper.selectById(101L))
-                .thenReturn(version("AUTO", "WRITE").setStatus(AiToolVersionDO.STATUS_DRAFT));
+                .thenReturn(version("AUTO", "WRITE")
+                        .setOutputSchemaJson("{\"columns\":[],\"write\":{\"idempotencyParam\":\"region\","
+                                + "\"reconcileOperation\":\"getOtherOrders\"}}")
+                        .setStatus(AiToolVersionDO.STATUS_DRAFT));
         when(toolMapper.selectById(TOOL_ID))
                 .thenReturn(new AiToolDO()
                         .setId(TOOL_ID)
                         .setConnectorId(CONNECTOR_ID)
                         .setVersion(1));
         assertThatThrownBy(() -> toolService.publishVersion(101L, 1))
-                .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_TOOL_TYPE_UNSUPPORTED));
+                .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_TOOL_WRITE_POLICY_UNSUPPORTED));
 
         // 来源 operation 未发布时同样拒绝发布
         when(versionMapper.selectById(101L))
@@ -284,7 +289,8 @@ class AiToolPolicyGateTest {
                 versionMapper,
                 connectorMapper,
                 operationMapper,
-                List.of(toolId -> Optional.of("服务发布版本 s-1 正在使用该工具")));
+                List.of(toolId -> Optional.of("服务发布版本 s-1 正在使用该工具")),
+                writeGate);
         when(toolMapper.selectById(TOOL_ID))
                 .thenReturn(new AiToolDO()
                         .setId(TOOL_ID)
@@ -294,5 +300,54 @@ class AiToolPolicyGateTest {
         assertThatThrownBy(() -> withChecker.delete(TOOL_ID, 1))
                 .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_TOOL_REFERENCED));
         verify(toolMapper, never()).deleteById(any());
+    }
+
+    @Test
+    void writeCallsOnlyGoThroughTheControlledWriteAndReconcileEntries() {
+        ArgumentCaptor<AiConnectorExecutionRequestDTO> requests =
+                ArgumentCaptor.forClass(AiConnectorExecutionRequestDTO.class);
+        when(httpConnectorExecutor.execute(requests.capture()))
+                .thenReturn(new AiConnectorExecutionResultDTO()
+                        .setStatus("COMPLETE")
+                        .setItemCount(1));
+        AiToolVersionDO writeVersion = version("CONFIRM", "WRITE")
+                .setOutputSchemaJson("{\"columns\":[],\"write\":{\"idempotencyParam\":\"region\","
+                        + "\"reconcileOperation\":\"getOtherOrders\"}}");
+        AiToolDecision writeDecision = new AiToolDecision(
+                AiToolDecision.Outcome.EXECUTE, writeVersion, CONNECTOR_ID, "getOrders", Map.of("region", "EAST"));
+
+        // 通用执行入口是读/自动路径：写判定一律拒绝（写必须经确认动作 + 业务幂等键）
+        assertThatThrownBy(() -> executor.execute(writeDecision))
+                .satisfies(
+                        throwable -> assertCode(throwable, AiErrorCodeConstants.AI_TOOL_WRITE_REQUIRES_CONFIRMATION));
+        // 写入口必须有业务幂等键：没有键就等于没有幂等保证
+        assertThatThrownBy(() -> executor.executeWrite(writeDecision, " "))
+                .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_TOOL_WRITE_BINDING_INVALID));
+        // 读判定不能走写入口
+        assertThatThrownBy(() -> executor.executeWrite(
+                        new AiToolDecision(
+                                AiToolDecision.Outcome.EXECUTE,
+                                version("AUTO", "READ"),
+                                CONNECTOR_ID,
+                                "getOrders",
+                                Map.of("region", "EAST")),
+                        "P-1"))
+                .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_TOOL_WRITE_BINDING_INVALID));
+        verify(httpConnectorExecutor, never()).execute(any());
+
+        executor.executeWrite(writeDecision, "P-1");
+        // 核对查询只带业务键，且走的是登记的核对操作
+        executor.executeReconcile(CONNECTOR_ID, "getOtherOrders", Map.of("region", "EAST"));
+        assertThat(requests.getAllValues().get(0).getOperationKey()).isEqualTo("getOrders");
+        assertThat(requests.getAllValues().get(1).getOperationKey()).isEqualTo("getOtherOrders");
+        assertThat(requests.getAllValues().get(1).getConnectorId()).isEqualTo(CONNECTOR_ID);
+
+        assertThatThrownBy(() -> executor.executeReconcile(null, "getOtherOrders", Map.of("region", "EAST")))
+                .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_TOOL_WRITE_BINDING_INVALID));
+        assertThatThrownBy(() -> executor.executeReconcile(CONNECTOR_ID, " ", Map.of("region", "EAST")))
+                .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_TOOL_WRITE_BINDING_INVALID));
+        assertThatThrownBy(() -> executor.executeReconcile(CONNECTOR_ID, "getOtherOrders", Map.of()))
+                .as("核对查询没有业务键：不得变成任意查询通道")
+                .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_TOOL_WRITE_BINDING_INVALID));
     }
 }

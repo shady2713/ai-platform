@@ -1832,7 +1832,7 @@
         "tags": [
           "工具"
         ],
-        "summary": "执行已确认的工具动作（只有 CONFIRMED 能执行一次）",
+        "summary": "执行已确认的工具动作（只有 CONFIRMED 能执行一次；结果未定记 UNKNOWN，不自动重放）",
         "parameters": [
           {
             "name": "actionId",
@@ -1888,6 +1888,97 @@
           },
           "409": {
             "description": "状态/挑战/参数冲突（已确认、已执行、已过期、参数不一致）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/action/reconcile": {
+      "post": {
+        "tags": [
+          "工具"
+        ],
+        "summary": "核对结果未定的工具动作（PROGRAM 调用登记的核对查询；MANUAL 记录人工结论与说明）",
+        "requestBody": {
+          "required": true,
+          "description": "动作编号、核对方式（PROGRAM/MANUAL）与人工结论/说明",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiToolActionReconcileReq"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "工具动作（含核对方式、核对结论与证据）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultAiToolAction"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "核对方式/结论/说明不合法（未知取值、说明超长或含控制字符）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或票据无效（不存在/撤销/过期/应用或主体不可用同语义）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "已认证但缺少范围或权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "动作不存在或不属于当前主体（同语义，防枚举）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "动作当前状态不可核对（只有结果未定可核对）、写绑定已变化或并发核对冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultError"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "登记的核对查询不可用：动作保持结果未定，不猜结论",
             "content": {
               "application/json": {
                 "schema": {
@@ -5657,20 +5748,37 @@
             "type": "integer",
             "format": "int64"
           },
+          "toolType": {
+            "type": "string",
+            "enum": [
+              "READ",
+              "WRITE"
+            ]
+          },
           "status": {
             "type": "string",
             "enum": [
               "PENDING",
               "CONFIRMED",
+              "EXECUTING",
               "EXECUTED",
               "CANCELLED",
               "EXPIRED",
-              "FAILED"
+              "FAILED",
+              "UNKNOWN"
             ]
           },
           "expiresAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "idempotencyKey": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 128,
+            "description": "业务幂等键（写动作；调用方自己提交的业务标识，不是凭据）"
           },
           "decidedAt": {
             "type": [
@@ -5686,12 +5794,53 @@
             ],
             "format": "date-time"
           },
+          "attemptEpoch": {
+            "type": "integer",
+            "description": "执行尝试代数（确认只被消费一次；重放不会推进）"
+          },
           "resultCode": {
             "type": [
               "string",
               "null"
             ],
             "maxLength": 64
+          },
+          "verifiedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "verifiedBy": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "PROGRAM",
+              "MANUAL",
+              null
+            ]
+          },
+          "verifyResult": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "APPLIED",
+              "NOT_APPLIED",
+              null
+            ]
+          },
+          "verifyEvidence": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200,
+            "description": "核对证据（登记操作键与条目数，或人工说明）"
           },
           "version": {
             "type": "integer"
@@ -5763,6 +5912,46 @@
           },
           "msg": {
             "type": "string"
+          }
+        }
+      },
+      "AiToolActionReconcileReq": {
+        "type": "object",
+        "required": [
+          "actionId",
+          "mode"
+        ],
+        "properties": {
+          "actionId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "PROGRAM",
+              "MANUAL"
+            ]
+          },
+          "outcome": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "APPLIED",
+              "NOT_APPLIED",
+              null
+            ],
+            "description": "人工核对（MANUAL）必填：业务系统是否已生效"
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200,
+            "description": "人工核对说明（可选，不含凭据与上游正文）"
           }
         }
       }

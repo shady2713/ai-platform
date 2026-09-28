@@ -22,6 +22,7 @@ import com.basicframework.module.ai.service.tool.AiToolService;
 import com.basicframework.module.ai.service.tool.AiToolServiceImpl;
 import com.basicframework.module.ai.service.tool.action.dto.AiAnalysisStepRequestDTO;
 import com.basicframework.module.ai.service.tool.action.dto.AiAnalysisStepResultDTO;
+import com.basicframework.module.ai.service.tool.action.dto.AiToolActionCreateResult;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -109,16 +110,28 @@ public class AiAnalysisStepScheduler {
                     tool == null ? null : tool.getConnectorId(),
                     version.getSourceRef(),
                     validated);
-            AiToolActionDO action = actionService.createFromDecision(
+            AiToolActionCreateResult created = actionService.createFromDecision(
                     pending,
                     request.getRunId(),
                     request.getApplicationId(),
                     request.getSubjectType(),
                     request.getExternalUserId());
+            AiToolActionDO action = created.action();
+            if (created.reused()) {
+                // 同一业务意图（写工具的幂等键）已有动作：不重新发挑战、不再产生第二个动作；
+                // 动作可能是待确认、已确认、执行中、已执行或结果未定，调用方按 actionStatus 决策
+                return new AiAnalysisStepResultDTO()
+                        .setOutcome(AiAnalysisStepResultDTO.OUTCOME_IDEMPOTENT_REUSE)
+                        .setStepsUsed(stepsUsedNow)
+                        .setActionId(action.getId())
+                        .setActionStatus(action.getStatus())
+                        .setReason(AiToolPolicy.CONFIRM.name());
+            }
             return new AiAnalysisStepResultDTO()
                     .setOutcome(AiAnalysisStepResultDTO.OUTCOME_AWAITING_CONFIRMATION)
                     .setStepsUsed(stepsUsedNow)
                     .setActionId(action.getId())
+                    .setActionStatus(action.getStatus())
                     .setChallenge(action.getChallenge())
                     .setExpiresAt(action.getExpiresAt())
                     .setReason(AiToolPolicy.CONFIRM.name());

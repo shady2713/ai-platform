@@ -85,6 +85,26 @@ class AiToolActionMapperTest {
     }
 
     @Test
+    void selectByBusinessKeyFiltersByToolAndKeyAndExcludesSideEffectFreeTerminalStates() {
+        doReturn(action()).when(mapper).selectOne(any());
+
+        assertThat(mapper.selectByBusinessKey(91L, "P-1")).isNotNull();
+        assertThat(mapper.selectByBusinessKey(null, "P-1")).isNull();
+        assertThat(mapper.selectByBusinessKey(91L, null)).isNull();
+
+        ArgumentCaptor<Wrapper<AiToolActionDO>> captor = wrapperCaptor();
+        verify(mapper).selectOne(captor.capture());
+        String sql = captor.getValue().getSqlSegment();
+        assertThat(sql).containsIgnoringCase("tool_id");
+        assertThat(sql).containsIgnoringCase("idempotency_key");
+        assertThat(sql).containsIgnoringCase("status");
+        assertThat(sql).containsIgnoringCase("NOT IN");
+        assertThat(paramValues(captor.getValue()).values())
+                .as("无副作用的终态不占业务幂等键（失败/过期/取消后可以重新发起）")
+                .contains(91L, "P-1", "CANCELLED", "EXPIRED", "FAILED");
+    }
+
+    @Test
     void updateWithVersionIsAnOptimisticLockCasOnIdAndVersion() {
         doReturn(1).when(mapper).update(any(), any());
 

@@ -20,10 +20,10 @@ export const TOOL_POLICY_OPTIONS = [
   { label: 'AUTO（自动执行）', value: 'AUTO' },
 ];
 
-/** 工具类型（首期只允许发布读工具） */
+/** 工具类型（X06 起写工具可发布：必须声明业务幂等键与核对查询，且政策不得 AUTO） */
 export const TOOL_TYPE_OPTIONS = [
   { label: 'READ（只读）', value: 'READ' },
-  { label: 'WRITE（写操作，首期不可发布）', value: 'WRITE' },
+  { label: 'WRITE（写操作，需人工确认 + 幂等键 + 核对查询）', value: 'WRITE' },
 ];
 
 /** 启停状态 */

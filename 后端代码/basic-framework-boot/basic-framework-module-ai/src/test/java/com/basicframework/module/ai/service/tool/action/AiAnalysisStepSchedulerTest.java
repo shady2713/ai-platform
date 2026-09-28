@@ -25,6 +25,7 @@ import com.basicframework.module.ai.service.tool.AiToolPolicyGate;
 import com.basicframework.module.ai.service.tool.AiToolService;
 import com.basicframework.module.ai.service.tool.action.dto.AiAnalysisStepRequestDTO;
 import com.basicframework.module.ai.service.tool.action.dto.AiAnalysisStepResultDTO;
+import com.basicframework.module.ai.service.tool.action.dto.AiToolActionCreateResult;
 import java.time.LocalDateTime;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -130,16 +131,40 @@ class AiAnalysisStepSchedulerTest {
                 .thenThrow(new ServiceException(AiErrorCodeConstants.AI_TOOL_CONFIRMATION_REQUIRED));
         when(actionService.createFromDecision(
                         any(), eq(RUN_ID), eq(APPLICATION_ID), eq(SUBJECT_TYPE), eq(EXTERNAL_USER)))
-                .thenReturn(new AiToolActionDO()
+                .thenReturn(AiToolActionCreateResult.created(new AiToolActionDO()
                         .setId(501L)
+                        .setStatus(AiToolActionDO.STATUS_PENDING)
                         .setChallenge("c".repeat(32))
-                        .setExpiresAt(LocalDateTime.now().plusMinutes(15)));
+                        .setExpiresAt(LocalDateTime.now().plusMinutes(15))));
 
         AiAnalysisStepResultDTO result = scheduler.executeStep(request());
 
         assertThat(result.getOutcome()).isEqualTo(AiAnalysisStepResultDTO.OUTCOME_AWAITING_CONFIRMATION);
         assertThat(result.getActionId()).isEqualTo(501L);
+        assertThat(result.getActionStatus()).isEqualTo(AiToolActionDO.STATUS_PENDING);
         assertThat(result.getChallenge()).hasSize(32);
+        verify(toolExecutor, never()).execute(any());
+    }
+
+    @Test
+    void reusedBusinessIntentDoesNotReissueChallengeNorExecute() {
+        when(policyGate.decide(TOOL_CODE, Map.of("region", "EAST")))
+                .thenThrow(new ServiceException(AiErrorCodeConstants.AI_TOOL_CONFIRMATION_REQUIRED));
+        when(actionService.createFromDecision(
+                        any(), eq(RUN_ID), eq(APPLICATION_ID), eq(SUBJECT_TYPE), eq(EXTERNAL_USER)))
+                .thenReturn(AiToolActionCreateResult.reused(new AiToolActionDO()
+                        .setId(501L)
+                        .setStatus(AiToolActionDO.STATUS_UNKNOWN)
+                        .setChallenge("c".repeat(32))
+                        .setExpiresAt(LocalDateTime.now().plusMinutes(15))));
+
+        AiAnalysisStepResultDTO result = scheduler.executeStep(request());
+
+        // 同一业务意图已有动作：不给新挑战、不执行，调用方按 actionStatus 决策
+        assertThat(result.getOutcome()).isEqualTo(AiAnalysisStepResultDTO.OUTCOME_IDEMPOTENT_REUSE);
+        assertThat(result.getActionId()).isEqualTo(501L);
+        assertThat(result.getActionStatus()).isEqualTo(AiToolActionDO.STATUS_UNKNOWN);
+        assertThat(result.getChallenge()).isNull();
         verify(toolExecutor, never()).execute(any());
     }
 

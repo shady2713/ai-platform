@@ -44,8 +44,10 @@ class AiToolServiceImplTest {
 
     private final AiConnectorOperationMapper operationMapper = mock(AiConnectorOperationMapper.class);
 
+    private final AiToolWriteGate writeGate = new AiToolWriteGate(operationMapper);
+
     private final AiToolServiceImpl service =
-            new AiToolServiceImpl(toolMapper, versionMapper, connectorMapper, operationMapper, List.of());
+            new AiToolServiceImpl(toolMapper, versionMapper, connectorMapper, operationMapper, List.of(), writeGate);
 
     private static AiToolDO tool() {
         return new AiToolDO()
@@ -153,7 +155,8 @@ class AiToolServiceImplTest {
                 versionMapper,
                 connectorMapper,
                 operationMapper,
-                List.of(toolId -> Optional.of("分析步骤 st-1 正在使用该工具")));
+                List.of(toolId -> Optional.of("分析步骤 st-1 正在使用该工具")),
+                writeGate);
 
         assertThatThrownBy(() -> withChecker.delete(TOOL_ID, 1))
                 .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_TOOL_REFERENCED));
@@ -237,6 +240,70 @@ class AiToolServiceImplTest {
         assertThatThrownBy(() -> service.getVersion(404L))
                 .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_TOOL_VERSION_NOT_FOUND));
         assertThatThrownBy(() -> service.getVersionPage(TOOL_ID, null))
+                .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_REQUEST_INVALID));
+    }
+
+    @Test
+    void publishAndVersionCreationRejectInvalidStatesAndCasConflicts() {
+        // 入参缺失：publishVersion 需要版本编号与乐观锁版本
+        assertThatThrownBy(() -> service.publishVersion(null, 1))
+                .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_REQUEST_INVALID));
+        assertThatThrownBy(() -> service.publishVersion(101L, null))
+                .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_REQUEST_INVALID));
+
+        // 已发布版本不能再次发布
+        when(versionMapper.selectById(101L))
+                .thenReturn(new AiToolVersionDO()
+                        .setId(101L)
+                        .setToolId(TOOL_ID)
+                        .setStatus(AiToolVersionDO.STATUS_PUBLISHED));
+        assertThatThrownBy(() -> service.publishVersion(101L, 1))
+                .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_STATE_CONFLICT));
+
+        // 版本不存在
+        when(versionMapper.selectById(404L)).thenReturn(null);
+        assertThatThrownBy(() -> service.publishVersion(404L, 1))
+                .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_TOOL_VERSION_NOT_FOUND));
+
+        // 创建版本时工具最新版本号推进失败（并发）：409，不静默继续
+        when(toolMapper.selectById(TOOL_ID)).thenReturn(tool());
+        when(versionMapper.selectLatest(TOOL_ID)).thenReturn(null);
+        doAnswer(invocation -> {
+                    ((AiToolVersionDO) invocation.getArgument(0)).setId(102L);
+                    return 1;
+                })
+                .when(versionMapper)
+                .insert(any(AiToolVersionDO.class));
+        when(toolMapper.updateWithVersion(any(), any())).thenReturn(0);
+        assertThatThrownBy(() -> service.createVersion(new AiToolVersionSaveDTO()
+                        .setToolId(TOOL_ID)
+                        .setToolType("READ")
+                        .setPolicy("AUTO")
+                        .setSourceRef("getOrders")
+                        .setInputSchemaJson("{\"region\":{\"type\":\"string\",\"required\":true}}")
+                        .setOutputSchemaJson("{\"columns\":[]}")))
+                .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_STATE_CONFLICT));
+
+        // 输出 schema 超长：拒绝（列容量保护）
+        assertThatThrownBy(() -> service.createVersion(new AiToolVersionSaveDTO()
+                        .setToolId(TOOL_ID)
+                        .setToolType("READ")
+                        .setSourceRef("getOrders")
+                        .setInputSchemaJson("{\"region\":{\"type\":\"string\",\"required\":true}}")
+                        .setOutputSchemaJson("{\"columns\":\"" + "x".repeat(3_600) + "\"}")))
+                .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_REQUEST_INVALID));
+
+        // 名称/说明超长：拒绝
+        assertThatThrownBy(() -> service.create(new AiToolSaveDTO()
+                        .setCode("too-long-name")
+                        .setName("x".repeat(129))
+                        .setConnectorId(CONNECTOR_ID)))
+                .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_REQUEST_INVALID));
+        assertThatThrownBy(() -> service.update(new AiToolSaveDTO()
+                        .setId(TOOL_ID)
+                        .setVersion(1)
+                        .setName("改名")
+                        .setDescription("y".repeat(513))))
                 .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_REQUEST_INVALID));
     }
 }

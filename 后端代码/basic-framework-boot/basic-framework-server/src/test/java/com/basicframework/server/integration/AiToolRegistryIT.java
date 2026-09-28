@@ -186,11 +186,12 @@ class AiToolRegistryIT extends AbstractPersistenceIntegrationTest {
     }
 
     @Test
-    void refusesWriteToolAndUnpublishedSource() {
-        // 首期只发布读工具
-        Long writeVersion = createVersion("WRITE", "AUTO");
+    void refusesWriteToolWithoutDeclarationAndUnpublishedSource() {
+        // 写工具（X06 起开放）：必须声明业务幂等键与登记的核对查询，否则不能发布
+        // （AUTO 写版本被拒的规则由 AiToolWriteExecutionIT.writePublishRequiresIdempotencyBindingAndRejectsAutoPolicy 覆盖）
+        Long writeVersion = createVersion("WRITE", "CONFIRM");
         assertThatThrownBy(() -> publish(writeVersion))
-                .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_TOOL_TYPE_UNSUPPORTED));
+                .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_TOOL_WRITE_BINDING_INVALID));
 
         // 来源 operation 未发布：把已发布 operation 退回草稿后拒绝发布
         jdbcTemplate.update("UPDATE ai_connector_operation SET status = 'DRAFT' WHERE id = ?", operationId);
