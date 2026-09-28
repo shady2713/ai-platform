@@ -47,6 +47,13 @@ class AiAppEndpointScopeContractTest {
      * （例如业务文件按 ai_file_binding 的所有者/授权目录判定），与 scope 目录同为登记制。
      */
     private static final Set<String> REVIEWED_AUTHENTICATED_ENDPOINTS = Set.of(
+            // X03：图片生成与编辑——任务按受理主体归属（应用 + 主体类型 + 外部用户标识）判定，
+            // 底图与产物都按 ai_file_binding 归属判定（A07），协议里没有上游地址
+            "com.basicframework.module.ai.controller.app.v1.image.AiImageController#generate",
+            "com.basicframework.module.ai.controller.app.v1.image.AiImageController#edit",
+            "com.basicframework.module.ai.controller.app.v1.image.AiImageController#getTask",
+            "com.basicframework.module.ai.controller.app.v1.image.AiImageController#getTaskPage",
+            "com.basicframework.module.ai.controller.app.v1.image.AiImageController#cancel",
             // X02：图片理解与 OCR——输入文件按 ai_file_binding 归属判定（A07），文本/结果走私有文件接口
             "com.basicframework.module.ai.controller.app.v1.vision.AiVisionController#understandImage",
             "com.basicframework.module.ai.controller.app.v1.vision.AiVisionController#recognizeText",

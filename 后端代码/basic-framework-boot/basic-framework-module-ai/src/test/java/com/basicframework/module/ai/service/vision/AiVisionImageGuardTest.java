@@ -236,4 +236,53 @@ class AiVisionImageGuardTest {
         output.write(value & 0xFF);
         output.write((value >> 8) & 0xFF);
     }
+
+    // ---------- X03 复用入口：产物核验（没有调用方声明可核对，只按内容判定） ----------
+
+    @Test
+    void outputVerificationAcceptsRealRasterAndReportsServerSideFacts() {
+        byte[] content = png(120, 90);
+
+        AiVisionImageOutput verified = guard.verifyOutput("image/png", content);
+
+        assertThat(verified.format()).isEqualTo(AiVisionImageFormat.PNG);
+        assertThat(verified.sizeBytes()).isEqualTo(content.length);
+        assertThat(verified.width()).isEqualTo(120);
+        assertThat(verified.height()).isEqualTo(90);
+        assertThat(verified.sha256()).isEqualTo(AiVisionImageGuard.sha256Hex(content));
+        assertThat(verified.withinDimensionLimits()).isTrue();
+    }
+
+    @Test
+    void outputVerificationRejectsUnsupportedDeclaredMimeAndForgedBytes() {
+        byte[] content = png(32, 32);
+        assertCode(() -> guard.verifyOutput("image/svg+xml", content), AiErrorCodeConstants.AI_MEDIA_OUTPUT_INVALID);
+        assertCode(
+                () -> guard.verifyOutput("image/png", "<html>不是图片</html>".getBytes(StandardCharsets.UTF_8)),
+                AiErrorCodeConstants.AI_MEDIA_OUTPUT_INVALID);
+    }
+
+    @Test
+    void outputVerificationRejectsEmptyBody() {
+        assertCode(() -> guard.verifyOutput("image/png", new byte[0]), AiErrorCodeConstants.AI_MEDIA_OUTPUT_EMPTY);
+        assertCode(() -> guard.verifyOutput("image/png", null), AiErrorCodeConstants.AI_MEDIA_OUTPUT_EMPTY);
+    }
+
+    @Test
+    void outputVerificationRejectsOversizedBytesAndBrokenHeader() {
+        long oversize = AiVisionLimits.MAX_IMAGE_BYTES + 1;
+        byte[] tooBig = new byte[(int) oversize];
+        System.arraycopy(png(8, 8), 0, tooBig, 0, 8);
+        assertCode(() -> guard.verifyOutput("image/png", tooBig), AiErrorCodeConstants.AI_MEDIA_OUTPUT_INVALID);
+
+        // 魔数对但头被截断：解析失败必须整笔拒绝，不能"尽力而为"地落库
+        byte[] truncated = new byte[16];
+        System.arraycopy(png(8, 8), 0, truncated, 0, 8);
+        assertCode(() -> guard.verifyOutput("image/png", truncated), AiErrorCodeConstants.AI_MEDIA_OUTPUT_INVALID);
+    }
+
+    @Test
+    void outputVerificationRejectsPixelsBeyondPlatformLimit() {
+        assertCode(() -> guard.verifyOutput("image/png", png(9000, 10)), AiErrorCodeConstants.AI_MEDIA_OUTPUT_INVALID);
+    }
 }

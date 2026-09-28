@@ -24,7 +24,10 @@ public enum AiFileBusinessType {
     KNOWLEDGE_DOCUMENT("ai_knowledge_document", AiResourceType.KNOWLEDGE_BASE),
 
     /** 会话附件（归属上传主体本人）。 */
-    CHAT_SESSION("ai_chat_session", null);
+    CHAT_SESSION("ai_chat_session", null),
+
+    /** 媒体任务产物（X03：图片生成/编辑与 X04 语音产物，归属受理主体本人）。 */
+    MEDIA_TASK("ai_media_task", null);
 
     private final String code;
 

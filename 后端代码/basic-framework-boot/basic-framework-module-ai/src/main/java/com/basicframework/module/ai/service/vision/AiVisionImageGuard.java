@@ -3,6 +3,8 @@ package com.basicframework.module.ai.service.vision;
 import static com.basicframework.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static com.basicframework.module.ai.enums.AiErrorCodeConstants.AI_MEDIA_INPUT_TOO_LARGE;
 import static com.basicframework.module.ai.enums.AiErrorCodeConstants.AI_MEDIA_INPUT_TYPE_UNSUPPORTED;
+import static com.basicframework.module.ai.enums.AiErrorCodeConstants.AI_MEDIA_OUTPUT_EMPTY;
+import static com.basicframework.module.ai.enums.AiErrorCodeConstants.AI_MEDIA_OUTPUT_INVALID;
 import static com.basicframework.module.ai.enums.AiErrorCodeConstants.AI_MEDIA_REQUEST_INVALID;
 
 import java.security.MessageDigest;
@@ -59,6 +61,24 @@ public class AiVisionImageGuard {
      */
     public AiVisionImageInfo verify(
             Long fileId, String declaredMimeType, long declaredSizeBytes, String declaredSha256, byte[] content) {
+        AiVisionImageOutput verified = verifyInput(declaredMimeType, declaredSizeBytes, declaredSha256, content);
+        return new AiVisionImageInfo(
+                fileId,
+                verified.format(),
+                verified.sizeBytes(),
+                verified.width(),
+                verified.height(),
+                verified.sha256());
+    }
+
+    /**
+     * 输入核验（X03 复用）：判定逻辑与 {@link #verify} 完全一致，但结果里不含平台文件编号。
+     *
+     * <p>为什么单独给出这个入口：图片编辑的底图核验发生在受理阶段（文件编号由调用方持有），
+     * 复用一个判定实现可以保证"理解/OCR 的输入"与"编辑的底图"用的是同一条白名单与像素拒绝线。
+     */
+    public AiVisionImageOutput verifyInput(
+            String declaredMimeType, long declaredSizeBytes, String declaredSha256, byte[] content) {
         AiVisionImageFormat format = AiVisionImageFormat.fromMimeType(declaredMimeType)
                 .orElseThrow(() -> exception(AI_MEDIA_INPUT_TYPE_UNSUPPORTED));
         if (content == null || content.length == 0) {
@@ -87,13 +107,46 @@ public class AiVisionImageGuard {
         } catch (RuntimeException failure) {
             throw exception(AI_MEDIA_REQUEST_INVALID);
         }
-        AiVisionImageInfo info =
-                new AiVisionImageInfo(fileId, format, content.length, size.width(), size.height(), computed);
-        if (!info.withinDimensionLimits()) {
+        AiVisionImageOutput output =
+                new AiVisionImageOutput(format, content.length, size.width(), size.height(), computed);
+        if (!output.withinDimensionLimits()) {
             // 超大像素：按请求不合规拒绝（端点声明的更窄范围由准入矩阵负责）
             throw exception(AI_MEDIA_REQUEST_INVALID);
         }
-        return info;
+        return output;
+    }
+
+    /**
+     * 产物核验（X03 复用）：上游返回的字节必须是白名单格式的**真实位图**且不超过字节/像素上限。
+     *
+     * <p>与输入核验的差别：产物没有调用方声明可核对，因此只按内容判定；声明 MIME 只用于选择解析器，
+     * 魔数不符即拒绝（伪装成图片的 HTML/文本/可执行内容一律不落库）。不合规按上游失败语义拒绝，
+     * 不转码、不缩放、不"尽力而为"。
+     */
+    public AiVisionImageOutput verifyOutput(String mimeType, byte[] content) {
+        AiVisionImageFormat format =
+                AiVisionImageFormat.fromMimeType(mimeType).orElseThrow(() -> exception(AI_MEDIA_OUTPUT_INVALID));
+        if (content == null || content.length == 0) {
+            throw exception(AI_MEDIA_OUTPUT_EMPTY);
+        }
+        if (content.length > AiVisionLimits.MAX_IMAGE_BYTES) {
+            throw exception(AI_MEDIA_OUTPUT_INVALID);
+        }
+        if (!format.matchesMagic(content)) {
+            throw exception(AI_MEDIA_OUTPUT_INVALID);
+        }
+        AiVisionImageHeader.Size size;
+        try {
+            size = AiVisionImageHeader.read(content, format);
+        } catch (RuntimeException failure) {
+            throw exception(AI_MEDIA_OUTPUT_INVALID);
+        }
+        AiVisionImageOutput output =
+                new AiVisionImageOutput(format, content.length, size.width(), size.height(), sha256Hex(content));
+        if (!output.withinDimensionLimits()) {
+            throw exception(AI_MEDIA_OUTPUT_INVALID);
+        }
+        return output;
     }
 
     /** 归一化可选摘要；空值返回空，非法形状按请求不合规拒绝。 */

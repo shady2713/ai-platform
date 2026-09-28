@@ -49,4 +49,11 @@ public class AiFileAccessProviderConfiguration {
         return new AiFileBusinessAccessProvider(
                 AiFileBusinessType.CHAT_SESSION.code(), bindingMapper, subjectResolver, null, null);
     }
+
+    @Bean
+    public FileBusinessAccessProvider aiMediaTaskFileAccessProvider(
+            AiFileBindingMapper bindingMapper, AiFileSubjectResolver subjectResolver) {
+        return new AiFileBusinessAccessProvider(
+                AiFileBusinessType.MEDIA_TASK.code(), bindingMapper, subjectResolver, null, null);
+    }
 }

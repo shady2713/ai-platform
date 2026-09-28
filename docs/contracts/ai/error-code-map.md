@@ -208,9 +208,10 @@ HTTP 状态按 ADR 0003 的命名规则推导：`*_NOT_EXISTS` 为 404，名称�
 | `AI_MEDIA_INPUT_TOO_LARGE` | 1_003_010_002 | 输入媒体超过端点声明的单文件上限 | 400 |
 | `AI_MEDIA_INPUT_DURATION_EXCEEDED` | 1_003_010_003 | 音频时长超过端点声明上限 | 400 |
 | `AI_MEDIA_OUTPUT_EMPTY` | 1_003_010_004 | 上游成功但未返回媒体产物，拒绝交付与落私有文件 | 502 |
+| `AI_MEDIA_OUTPUT_INVALID` | 1_003_010_005 | 上游返回的媒体产物不合规（非白名单格式的真实媒体内容，或超过字节/像素上限），拒绝落私有文件 | 502 |
 
 映射路径固定：`ModelException.Reason` → 平台错误码由 `AiMediaCapabilityGate` 统一完成
 （`CAPABILITY_NOT_ENABLED` → 1_003_002_007；`MEDIA_INPUT_INVALID` → 1_003_010_000；
 `MEDIA_INPUT_TYPE_UNSUPPORTED` → 1_003_010_001；`MEDIA_INPUT_TOO_LARGE` → 1_003_010_002；
-`MEDIA_INPUT_DURATION_EXCEEDED` → 1_003_010_003；`MEDIA_OUTPUT_EMPTY` → 1_003_010_004；
+`MEDIA_INPUT_DURATION_EXCEEDED` → 1_003_010_003；`MEDIA_OUTPUT_EMPTY` → 1_003_010_004；`MEDIA_OUTPUT_INVALID` → 1_003_010_005；
 其余原因沿用 `AiModelFailureCodes` 的既有映射）。媒体失败响应不回传上游报文、输入内容或凭据。

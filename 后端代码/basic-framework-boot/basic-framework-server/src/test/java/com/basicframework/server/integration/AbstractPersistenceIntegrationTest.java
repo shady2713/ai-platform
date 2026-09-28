@@ -42,7 +42,12 @@ abstract class AbstractPersistenceIntegrationTest {
                     .asCompatibleSubstituteFor("mysql"))
             .withDatabaseName("basic_framework")
             .withUsername("root")
-            .withPassword("integration-only");
+            .withPassword("integration-only")
+            // 整个 IT 套件跑在同一个 JVM 与同一个容器里：应用连接池之外，连接器用例还会按连接器
+            // 建受控只读池（按设计长期缓存）。MySQL 默认 max_connections=151 在套件规模下会被打满，
+            // 表现为 errorCode 1040（Too many connections）连锁失败——把上限提到套件真实需求之上，
+            // 而不是让用例去猜时序。
+            .withCommand("--max-connections=500");
 
     private static final GenericContainer<?> REDIS = new GenericContainer<>(DockerImageName.parse(
                     "redis:7.4.11@sha256:71da9275c5f3fcb97d0fa0c8c5b36cc995327265420f17a04bfd544f458059f7"))

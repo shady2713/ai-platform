@@ -139,6 +139,7 @@ class PersistenceLifecycleIT extends AbstractPersistenceIntegrationTest {
                         "aiKnowledgeCleanupJob",
                         "aiKnowledgeIngestionJob",
                         "aiKnowledgeIngestionRecoveryJob",
+                        "aiMediaTaskJob",
                         "aiReportRefreshJob",
                         "aiRetentionCleanupJob",
                         "aiTaskRecoveryJob",
@@ -278,6 +279,9 @@ class PersistenceLifecycleIT extends AbstractPersistenceIntegrationTest {
                         "ai_knowledge_document",
                         "ai_knowledge_document_version",
                         "ai_knowledge_ingestion_task",
+                        // V85：媒体任务与产物（X03 起图片生成/编辑，X04 复用同一任务模型）
+                        "ai_media_asset",
+                        "ai_media_task",
                         "ai_model_endpoint",
                         "ai_model_endpoint_revision",
                         "ai_model_probe",

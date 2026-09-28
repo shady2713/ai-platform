@@ -93,6 +93,27 @@ export type {
   UnsupportedBlock,
 } from './message/blocks';
 export {
+  capabilityLabel,
+  IMAGE_GENERATION_KIND_LABELS,
+  IMAGE_GENERATION_STATUS_LABELS,
+  IMAGE_PREVIEW_FAILURE,
+  imageDimensionText,
+  imageStatusLabel,
+  usageText as imageUsageText,
+  isImageTaskActive,
+  progressPercentOf,
+  resolvePreviewUrl,
+} from './message/image-generation';
+export type {
+  GeneratedImageAsset,
+  ImageGenerationCapability,
+  ImageGenerationStatus,
+  ImageGenerationUsage,
+  ImageGenerationView,
+  ImagePreviewResolution,
+} from './message/image-generation';
+export { default as ImageGenerationCard } from './message/ImageGenerationCard.vue';
+export {
   isAllowedLinkUrl,
   markdownText,
   parseMarkdown,

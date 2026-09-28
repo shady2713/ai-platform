@@ -2973,6 +2973,847 @@
           }
         }
       }
+    },
+    "/app-api/ai/image/generate": {
+      "post": {
+        "tags": [
+          "多模态"
+        ],
+        "summary": "受理图片生成任务（幂等键去重；返回任务事实，产物只有私有文件编号，没有上游地址）",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "requestKey",
+                  "endpointId",
+                  "prompt"
+                ],
+                "properties": {
+                  "requestKey": {
+                    "type": "string",
+                    "maxLength": 40,
+                    "description": "幂等键（同一主体重复提交同一键只受理一次）"
+                  },
+                  "endpointId": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "模型端点编号（能力必须已声明且探测确认）"
+                  },
+                  "prompt": {
+                    "type": "string",
+                    "maxLength": 2000,
+                    "description": "生成提示词"
+                  },
+                  "size": {
+                    "type": "string",
+                    "description": "目标尺寸（平台允许的档位，如 1024x1024）"
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 8,
+                    "description": "生成张数"
+                  },
+                  "outputFormat": {
+                    "type": "string",
+                    "enum": [
+                      "png",
+                      "jpeg",
+                      "webp"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "媒体任务（状态/失败码/产物/用量）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "format": "int64",
+                      "description": "任务编号"
+                    },
+                    "mediaKind": {
+                      "type": "string",
+                      "description": "媒体种类（IMAGE/AUDIO）"
+                    },
+                    "operation": {
+                      "type": "string",
+                      "description": "操作（GENERATE/EDIT/TRANSCRIBE/SYNTHESIZE）"
+                    },
+                    "capability": {
+                      "type": "string",
+                      "description": "能力（与模型能力词汇同名）"
+                    },
+                    "status": {
+                      "type": "string",
+                      "description": "状态（QUEUED/RUNNING/SUCCEEDED/FAILED/CANCELLED）"
+                    },
+                    "failureCode": {
+                      "type": "string",
+                      "description": "稳定失败码（成功为空）"
+                    },
+                    "inputText": {
+                      "type": "string",
+                      "description": "生成提示词/编辑指令/合成文本"
+                    },
+                    "sourceFileId": {
+                      "type": "integer",
+                      "format": "int64",
+                      "description": "源文件编号（生成类为空）"
+                    },
+                    "endpointId": {
+                      "type": "integer",
+                      "format": "int64",
+                      "description": "受理时固定的模型端点编号"
+                    },
+                    "outputCount": {
+                      "type": "integer",
+                      "description": "请求产物数量"
+                    },
+                    "outputFormat": {
+                      "type": "string",
+                      "description": "请求输出格式"
+                    },
+                    "resultCount": {
+                      "type": "integer",
+                      "description": "已落库产物数量"
+                    },
+                    "usage": {
+                      "type": "object",
+                      "description": "实际用量（上游缺失时 source=UNKNOWN 且 quantity 为空，不写 0）",
+                      "properties": {
+                        "unit": {
+                          "type": "string"
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "format": "int64"
+                        },
+                        "source": {
+                          "type": "string",
+                          "description": "REPORTED/UNKNOWN"
+                        }
+                      }
+                    },
+                    "createTime": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "assets": {
+                      "type": "array",
+                      "description": "产物（平台私有文件编号 + 服务端核验过的事实；没有下载地址字段）",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "fileId": {
+                            "type": "integer",
+                            "format": "int64",
+                            "description": "平台私有文件编号（读取走受控文件接口）"
+                          },
+                          "ordinal": {
+                            "type": "integer"
+                          },
+                          "mimeType": {
+                            "type": "string"
+                          },
+                          "sizeBytes": {
+                            "type": "integer",
+                            "format": "int64"
+                          },
+                          "sha256": {
+                            "type": "string"
+                          },
+                          "width": {
+                            "type": "integer"
+                          },
+                          "height": {
+                            "type": "integer"
+                          },
+                          "durationMillis": {
+                            "type": "integer",
+                            "format": "int64"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/image/edit": {
+      "post": {
+        "tags": [
+          "多模态"
+        ],
+        "summary": "受理图片编辑任务（底图必须是有权读取的私有图片；受理与执行两次判定）",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "requestKey",
+                  "endpointId",
+                  "instruction",
+                  "image"
+                ],
+                "properties": {
+                  "requestKey": {
+                    "type": "string",
+                    "maxLength": 40
+                  },
+                  "endpointId": {
+                    "type": "integer",
+                    "format": "int64"
+                  },
+                  "instruction": {
+                    "type": "string",
+                    "maxLength": 2000,
+                    "description": "编辑指令"
+                  },
+                  "image": {
+                    "type": "object",
+                    "required": [
+                      "fileId",
+                      "mime",
+                      "size"
+                    ],
+                    "properties": {
+                      "fileId": {
+                        "type": "integer",
+                        "format": "int64",
+                        "description": "平台私有文件编号"
+                      },
+                      "mime": {
+                        "type": "string",
+                        "description": "声明的内容类型（image/png、image/jpeg、image/webp）"
+                      },
+                      "size": {
+                        "type": "integer",
+                        "format": "int64",
+                        "description": "声明字节数"
+                      },
+                      "sha256": {
+                        "type": "string",
+                        "description": "声明的 SHA-256 摘要（非空时必须与真实内容一致）"
+                      }
+                    }
+                  },
+                  "size": {
+                    "type": "string"
+                  },
+                  "outputFormat": {
+                    "type": "string",
+                    "enum": [
+                      "png",
+                      "jpeg",
+                      "webp"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "媒体任务（状态/失败码/产物/用量）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "format": "int64",
+                      "description": "任务编号"
+                    },
+                    "mediaKind": {
+                      "type": "string",
+                      "description": "媒体种类（IMAGE/AUDIO）"
+                    },
+                    "operation": {
+                      "type": "string",
+                      "description": "操作（GENERATE/EDIT/TRANSCRIBE/SYNTHESIZE）"
+                    },
+                    "capability": {
+                      "type": "string",
+                      "description": "能力（与模型能力词汇同名）"
+                    },
+                    "status": {
+                      "type": "string",
+                      "description": "状态（QUEUED/RUNNING/SUCCEEDED/FAILED/CANCELLED）"
+                    },
+                    "failureCode": {
+                      "type": "string",
+                      "description": "稳定失败码（成功为空）"
+                    },
+                    "inputText": {
+                      "type": "string",
+                      "description": "生成提示词/编辑指令/合成文本"
+                    },
+                    "sourceFileId": {
+                      "type": "integer",
+                      "format": "int64",
+                      "description": "源文件编号（生成类为空）"
+                    },
+                    "endpointId": {
+                      "type": "integer",
+                      "format": "int64",
+                      "description": "受理时固定的模型端点编号"
+                    },
+                    "outputCount": {
+                      "type": "integer",
+                      "description": "请求产物数量"
+                    },
+                    "outputFormat": {
+                      "type": "string",
+                      "description": "请求输出格式"
+                    },
+                    "resultCount": {
+                      "type": "integer",
+                      "description": "已落库产物数量"
+                    },
+                    "usage": {
+                      "type": "object",
+                      "description": "实际用量（上游缺失时 source=UNKNOWN 且 quantity 为空，不写 0）",
+                      "properties": {
+                        "unit": {
+                          "type": "string"
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "format": "int64"
+                        },
+                        "source": {
+                          "type": "string",
+                          "description": "REPORTED/UNKNOWN"
+                        }
+                      }
+                    },
+                    "createTime": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "assets": {
+                      "type": "array",
+                      "description": "产物（平台私有文件编号 + 服务端核验过的事实；没有下载地址字段）",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "fileId": {
+                            "type": "integer",
+                            "format": "int64",
+                            "description": "平台私有文件编号（读取走受控文件接口）"
+                          },
+                          "ordinal": {
+                            "type": "integer"
+                          },
+                          "mimeType": {
+                            "type": "string"
+                          },
+                          "sizeBytes": {
+                            "type": "integer",
+                            "format": "int64"
+                          },
+                          "sha256": {
+                            "type": "string"
+                          },
+                          "width": {
+                            "type": "integer"
+                          },
+                          "height": {
+                            "type": "integer"
+                          },
+                          "durationMillis": {
+                            "type": "integer",
+                            "format": "int64"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/image/task": {
+      "get": {
+        "tags": [
+          "多模态"
+        ],
+        "summary": "查询任务（含产物与用量；越权与不存在同语义）",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "任务编号"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "媒体任务（状态/失败码/产物/用量）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "format": "int64",
+                      "description": "任务编号"
+                    },
+                    "mediaKind": {
+                      "type": "string",
+                      "description": "媒体种类（IMAGE/AUDIO）"
+                    },
+                    "operation": {
+                      "type": "string",
+                      "description": "操作（GENERATE/EDIT/TRANSCRIBE/SYNTHESIZE）"
+                    },
+                    "capability": {
+                      "type": "string",
+                      "description": "能力（与模型能力词汇同名）"
+                    },
+                    "status": {
+                      "type": "string",
+                      "description": "状态（QUEUED/RUNNING/SUCCEEDED/FAILED/CANCELLED）"
+                    },
+                    "failureCode": {
+                      "type": "string",
+                      "description": "稳定失败码（成功为空）"
+                    },
+                    "inputText": {
+                      "type": "string",
+                      "description": "生成提示词/编辑指令/合成文本"
+                    },
+                    "sourceFileId": {
+                      "type": "integer",
+                      "format": "int64",
+                      "description": "源文件编号（生成类为空）"
+                    },
+                    "endpointId": {
+                      "type": "integer",
+                      "format": "int64",
+                      "description": "受理时固定的模型端点编号"
+                    },
+                    "outputCount": {
+                      "type": "integer",
+                      "description": "请求产物数量"
+                    },
+                    "outputFormat": {
+                      "type": "string",
+                      "description": "请求输出格式"
+                    },
+                    "resultCount": {
+                      "type": "integer",
+                      "description": "已落库产物数量"
+                    },
+                    "usage": {
+                      "type": "object",
+                      "description": "实际用量（上游缺失时 source=UNKNOWN 且 quantity 为空，不写 0）",
+                      "properties": {
+                        "unit": {
+                          "type": "string"
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "format": "int64"
+                        },
+                        "source": {
+                          "type": "string",
+                          "description": "REPORTED/UNKNOWN"
+                        }
+                      }
+                    },
+                    "createTime": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "assets": {
+                      "type": "array",
+                      "description": "产物（平台私有文件编号 + 服务端核验过的事实；没有下载地址字段）",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "fileId": {
+                            "type": "integer",
+                            "format": "int64",
+                            "description": "平台私有文件编号（读取走受控文件接口）"
+                          },
+                          "ordinal": {
+                            "type": "integer"
+                          },
+                          "mimeType": {
+                            "type": "string"
+                          },
+                          "sizeBytes": {
+                            "type": "integer",
+                            "format": "int64"
+                          },
+                          "sha256": {
+                            "type": "string"
+                          },
+                          "width": {
+                            "type": "integer"
+                          },
+                          "height": {
+                            "type": "integer"
+                          },
+                          "durationMillis": {
+                            "type": "integer",
+                            "format": "int64"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/image/task/page": {
+      "get": {
+        "tags": [
+          "多模态"
+        ],
+        "summary": "分页查询任务（按当前主体范围）",
+        "parameters": [
+          {
+            "name": "pageNo",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "页码（默认 1）"
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "每页条数（默认 10）"
+          },
+          {
+            "name": "mediaKind",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "按媒体种类过滤（IMAGE/AUDIO）"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "按状态过滤"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "任务分页（按主体范围）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "list": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer",
+                          "format": "int64",
+                          "description": "任务编号"
+                        },
+                        "mediaKind": {
+                          "type": "string",
+                          "description": "媒体种类（IMAGE/AUDIO）"
+                        },
+                        "operation": {
+                          "type": "string",
+                          "description": "操作（GENERATE/EDIT/TRANSCRIBE/SYNTHESIZE）"
+                        },
+                        "capability": {
+                          "type": "string",
+                          "description": "能力（与模型能力词汇同名）"
+                        },
+                        "status": {
+                          "type": "string",
+                          "description": "状态（QUEUED/RUNNING/SUCCEEDED/FAILED/CANCELLED）"
+                        },
+                        "failureCode": {
+                          "type": "string",
+                          "description": "稳定失败码（成功为空）"
+                        },
+                        "inputText": {
+                          "type": "string",
+                          "description": "生成提示词/编辑指令/合成文本"
+                        },
+                        "sourceFileId": {
+                          "type": "integer",
+                          "format": "int64",
+                          "description": "源文件编号（生成类为空）"
+                        },
+                        "endpointId": {
+                          "type": "integer",
+                          "format": "int64",
+                          "description": "受理时固定的模型端点编号"
+                        },
+                        "outputCount": {
+                          "type": "integer",
+                          "description": "请求产物数量"
+                        },
+                        "outputFormat": {
+                          "type": "string",
+                          "description": "请求输出格式"
+                        },
+                        "resultCount": {
+                          "type": "integer",
+                          "description": "已落库产物数量"
+                        },
+                        "usage": {
+                          "type": "object",
+                          "description": "实际用量（上游缺失时 source=UNKNOWN 且 quantity 为空，不写 0）",
+                          "properties": {
+                            "unit": {
+                              "type": "string"
+                            },
+                            "quantity": {
+                              "type": "integer",
+                              "format": "int64"
+                            },
+                            "source": {
+                              "type": "string",
+                              "description": "REPORTED/UNKNOWN"
+                            }
+                          }
+                        },
+                        "createTime": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "assets": {
+                          "type": "array",
+                          "description": "产物（平台私有文件编号 + 服务端核验过的事实；没有下载地址字段）",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "fileId": {
+                                "type": "integer",
+                                "format": "int64",
+                                "description": "平台私有文件编号（读取走受控文件接口）"
+                              },
+                              "ordinal": {
+                                "type": "integer"
+                              },
+                              "mimeType": {
+                                "type": "string"
+                              },
+                              "sizeBytes": {
+                                "type": "integer",
+                                "format": "int64"
+                              },
+                              "sha256": {
+                                "type": "string"
+                              },
+                              "width": {
+                                "type": "integer"
+                              },
+                              "height": {
+                                "type": "integer"
+                              },
+                              "durationMillis": {
+                                "type": "integer",
+                                "format": "int64"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app-api/ai/image/task/cancel": {
+      "post": {
+        "tags": [
+          "多模态"
+        ],
+        "summary": "取消任务（仅待领取状态可取消；执行中不可中断，按状态冲突拒绝）",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "取消后的任务事实",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "format": "int64",
+                      "description": "任务编号"
+                    },
+                    "mediaKind": {
+                      "type": "string",
+                      "description": "媒体种类（IMAGE/AUDIO）"
+                    },
+                    "operation": {
+                      "type": "string",
+                      "description": "操作（GENERATE/EDIT/TRANSCRIBE/SYNTHESIZE）"
+                    },
+                    "capability": {
+                      "type": "string",
+                      "description": "能力（与模型能力词汇同名）"
+                    },
+                    "status": {
+                      "type": "string",
+                      "description": "状态（QUEUED/RUNNING/SUCCEEDED/FAILED/CANCELLED）"
+                    },
+                    "failureCode": {
+                      "type": "string",
+                      "description": "稳定失败码（成功为空）"
+                    },
+                    "inputText": {
+                      "type": "string",
+                      "description": "生成提示词/编辑指令/合成文本"
+                    },
+                    "sourceFileId": {
+                      "type": "integer",
+                      "format": "int64",
+                      "description": "源文件编号（生成类为空）"
+                    },
+                    "endpointId": {
+                      "type": "integer",
+                      "format": "int64",
+                      "description": "受理时固定的模型端点编号"
+                    },
+                    "outputCount": {
+                      "type": "integer",
+                      "description": "请求产物数量"
+                    },
+                    "outputFormat": {
+                      "type": "string",
+                      "description": "请求输出格式"
+                    },
+                    "resultCount": {
+                      "type": "integer",
+                      "description": "已落库产物数量"
+                    },
+                    "usage": {
+                      "type": "object",
+                      "description": "实际用量（上游缺失时 source=UNKNOWN 且 quantity 为空，不写 0）",
+                      "properties": {
+                        "unit": {
+                          "type": "string"
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "format": "int64"
+                        },
+                        "source": {
+                          "type": "string",
+                          "description": "REPORTED/UNKNOWN"
+                        }
+                      }
+                    },
+                    "createTime": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "assets": {
+                      "type": "array",
+                      "description": "产物（平台私有文件编号 + 服务端核验过的事实；没有下载地址字段）",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "fileId": {
+                            "type": "integer",
+                            "format": "int64",
+                            "description": "平台私有文件编号（读取走受控文件接口）"
+                          },
+                          "ordinal": {
+                            "type": "integer"
+                          },
+                          "mimeType": {
+                            "type": "string"
+                          },
+                          "sizeBytes": {
+                            "type": "integer",
+                            "format": "int64"
+                          },
+                          "sha256": {
+                            "type": "string"
+                          },
+                          "width": {
+                            "type": "integer"
+                          },
+                          "height": {
+                            "type": "integer"
+                          },
+                          "durationMillis": {
+                            "type": "integer",
+                            "format": "int64"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {

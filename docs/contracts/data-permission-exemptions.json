@@ -916,6 +916,35 @@
           ]
         }
       ]
+    },
+    {
+      "id": "ai-media-task",
+      "reason": "媒体任务（ai_media_task）与产物（ai_media_asset）是应用端受理的运行时事实：任务按受理主体（应用 + 主体类型 + 主体标识）归属，读取/取消/分页一律带主体范围，越权与不存在同语义；产物只保存平台私有文件编号，文件本身的读取由 A07 业务 ACL（业务类型 ai_media_task，仅所有者可读）判定。两张表都不含提示词正文以外的业务数据（提示词是调用方提交的受控输入）、不含上游地址、不含凭据，因此没有可授权的部门或资源目录范围。",
+      "tables": [
+        "ai_media_asset",
+        "ai_media_task"
+      ],
+      "controls": [
+        {
+          "kind": "subject-bound",
+          "tables": [
+            "ai_media_asset",
+            "ai_media_task"
+          ],
+          "evidence": [
+            {
+              "table": "ai_media_task",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/media/AiMediaTaskServiceImpl.java",
+              "contains": "throw exception(AI_RESOURCE_NOT_FOUND);"
+            },
+            {
+              "table": "ai_media_asset",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/media/AiMediaTaskServiceImpl.java",
+              "contains": "private List<AiMediaAssetDTO> assetsOf(Long taskId) {"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
