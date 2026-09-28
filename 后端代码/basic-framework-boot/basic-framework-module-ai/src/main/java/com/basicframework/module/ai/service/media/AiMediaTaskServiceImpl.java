@@ -105,6 +105,8 @@ public class AiMediaTaskServiceImpl implements AiMediaTaskService {
                 .setTargetSize(request.getTargetSize())
                 .setOutputCount(request.getOutputCount() == null ? 1 : request.getOutputCount())
                 .setOutputFormat(request.getOutputFormat())
+                .setVoice(request.getVoice())
+                .setLanguageHint(request.getLanguageHint())
                 .setStatus(AiMediaTaskDO.STATUS_QUEUED)
                 .setResultCount(0)
                 .setAttemptCount(0)
@@ -267,6 +269,8 @@ public class AiMediaTaskServiceImpl implements AiMediaTaskService {
                 && Objects.equals(existing.getSourceSha256(), request.getSourceSha256())
                 && Objects.equals(existing.getTargetSize(), request.getTargetSize())
                 && Objects.equals(existing.getOutputFormat(), request.getOutputFormat())
+                && Objects.equals(existing.getVoice(), request.getVoice())
+                && Objects.equals(existing.getLanguageHint(), request.getLanguageHint())
                 && Objects.equals(
                         existing.getOutputCount(), request.getOutputCount() == null ? 1 : request.getOutputCount());
     }

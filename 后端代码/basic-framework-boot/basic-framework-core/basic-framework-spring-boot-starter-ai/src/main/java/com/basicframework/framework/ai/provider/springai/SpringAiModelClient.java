@@ -18,15 +18,27 @@ import com.basicframework.framework.ai.core.model.ModelUsage;
 import com.basicframework.framework.ai.core.model.StructuredJsonOutput;
 import com.basicframework.framework.ai.core.model.StructuredModelRequest;
 import com.basicframework.framework.ai.core.model.StructuredModelResult;
+import com.basicframework.framework.ai.core.model.media.MediaArtifact;
+import com.basicframework.framework.ai.core.model.media.SpeechSynthesisRequest;
+import com.basicframework.framework.ai.core.model.media.SpeechSynthesisResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
+import org.springframework.ai.audio.transcription.AudioTranscription;
+import org.springframework.ai.audio.transcription.AudioTranscriptionPrompt;
+import org.springframework.ai.audio.transcription.AudioTranscriptionResponse;
+import org.springframework.ai.audio.transcription.TranscriptionModel;
+import org.springframework.ai.audio.tts.Speech;
+import org.springframework.ai.audio.tts.TextToSpeechModel;
+import org.springframework.ai.audio.tts.TextToSpeechPrompt;
+import org.springframework.ai.audio.tts.TextToSpeechResponse;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.metadata.EmptyUsage;
@@ -38,7 +50,9 @@ import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.content.Media;
 import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.ai.openai.OpenAiAudioSpeechOptions;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.openai.api.OpenAiAudioApi;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springframework.core.io.ByteArrayResource;
@@ -81,12 +95,34 @@ public class SpringAiModelClient implements ModelPort {
     /** OCR 探测提示词：要求提取文字；识别不到也要回复（空回复按"未返回文本"处理）。 */
     private static final String PROBE_OCR_PROMPT = "提取图片中的文字，只输出文字内容。";
 
+    /** TTS 探测文本：最短的可合成输入，不承载业务语义。 */
+    private static final String PROBE_SPEECH_TEXT = "ping";
+
+    /** 转写探测夹具在 multipart 里的文件名（扩展名与合成 WAV 夹具一致）。 */
+    private static final String PROBE_AUDIO_FILE_NAME = "platform-probe.wav";
+
+    /** 探测文本对应的输出格式：mp3 是 TTS 端点最通用的响应格式。 */
+    private static final String PROBE_SPEECH_FORMAT = "mp3";
+
+    /** 语音输出格式映射表（平台词汇 → 厂商响应格式 + 产物 MIME）。 */
+    private static final Map<String, SpeechFormat> SPEECH_FORMATS = Map.of(
+            "mp3", new SpeechFormat(OpenAiAudioApi.SpeechRequest.AudioResponseFormat.MP3, "audio/mpeg"),
+            "wav", new SpeechFormat(OpenAiAudioApi.SpeechRequest.AudioResponseFormat.WAV, "audio/wav"),
+            // 平台契约里的 opus 以 Ogg 封装返回（audio/ogg），对应厂商的 opus 响应格式
+            "opus", new SpeechFormat(OpenAiAudioApi.SpeechRequest.AudioResponseFormat.OPUS, "audio/ogg"));
+
     private final ModelEndpointSnapshot snapshot;
 
     private final ChatModel chatModel;
 
     /** 仅在端点声明 EMBEDDING 时装配；其余情况为 null，嵌入调用按能力缺失拒绝。 */
     private final EmbeddingModel embeddingModel;
+
+    /** 仅在端点声明 SPEECH_TO_TEXT 时装配；其余情况为 null，转写调用按能力缺失拒绝（X04）。 */
+    private final TranscriptionModel transcriptionModel;
+
+    /** 仅在端点声明 TEXT_TO_SPEECH 时装配；其余情况为 null，合成调用按能力缺失拒绝（X04）。 */
+    private final TextToSpeechModel textToSpeechModel;
 
     private final Set<ModelCapability> capabilities;
 
@@ -107,9 +143,25 @@ public class SpringAiModelClient implements ModelPort {
             ChatModel chatModel,
             EmbeddingModel embeddingModel,
             AiModelProperties properties) {
+        this(snapshot, chatModel, embeddingModel, null, null, properties);
+    }
+
+    /**
+     * 受管客户端完整装配（X04 追加语音通道）：语音模型同样**只在端点声明对应能力时**由工厂装配，
+     * 未装配时媒体调用按能力缺失拒绝，不做静默降级。
+     */
+    public SpringAiModelClient(
+            ModelEndpointSnapshot snapshot,
+            ChatModel chatModel,
+            EmbeddingModel embeddingModel,
+            TranscriptionModel transcriptionModel,
+            TextToSpeechModel textToSpeechModel,
+            AiModelProperties properties) {
         this.snapshot = snapshot;
         this.chatModel = chatModel;
         this.embeddingModel = embeddingModel;
+        this.transcriptionModel = transcriptionModel;
+        this.textToSpeechModel = textToSpeechModel;
         this.capabilities = Set.copyOf(snapshot.capabilities());
         this.properties = properties;
     }
@@ -216,9 +268,11 @@ public class SpringAiModelClient implements ModelPort {
                 case EMBEDDING -> probeEmbedding(startedAt);
                 case IMAGE_UNDERSTANDING -> probeImageUnderstanding(startedAt);
                 case IMAGE_OCR -> probeImageOcr(startedAt);
-                // 图片生成/编辑、非实时 STT/TTS 属 X03/X04：本适配器未实现时返回"适配器未实现"的稳定结论，
+                case SPEECH_TO_TEXT -> probeSpeechToText(startedAt);
+                case TEXT_TO_SPEECH -> probeTextToSpeech(startedAt);
+                // 图片生成/编辑属 X03 的可选扩展：本适配器未实现时返回"适配器未实现"的稳定结论，
                 // 不发起任何厂商调用（因此不会产生隐藏外发），也不回退为文本/同类媒体探测。
-                case IMAGE_GENERATION, IMAGE_EDIT, SPEECH_TO_TEXT, TEXT_TO_SPEECH ->
+                case IMAGE_GENERATION, IMAGE_EDIT ->
                     ModelProbeResult.unsupported(kind, ModelProbeResult.CODE_ADAPTER_NOT_IMPLEMENTED);
             };
         } catch (ModelException exception) {
@@ -362,6 +416,136 @@ public class SpringAiModelClient implements ModelPort {
             return text == null ? "" : text;
         } catch (Exception exception) {
             throw mapFailure(exception);
+        }
+    }
+
+    /**
+     * 语音转写探测（X04）：用平台内置的最小合成 WAV 夹具做一次**真实转写调用**，只判"是否返回非空文本"。
+     *
+     * <p>与 OCR 同一套诚实语义：不校验识别准确率（合成夹具本来就不保证能被识别成文字），
+     * 端点对非语音内容返回空文本时结论记 {@code UNSUPPORTED + NO_TEXT_RETURNED}，
+     * 不因此推断端点不可用、也不改用文本能力凑结论。厂商协议细节只在 provider 包内，
+     * 探测结论只记录状态/明细码/耗时，不落输入内容与上游报文。
+     */
+    private ModelProbeResult probeSpeechToText(long startedAt) {
+        requireCapability(ModelCapability.SPEECH_TO_TEXT);
+        if (transcriptionModel == null) {
+            // 端点声明了能力但适配器没有装配转写通道：只能给出"适配器未实现"的稳定结论
+            return ModelProbeResult.unsupported(
+                    ModelProbeKind.SPEECH_TO_TEXT, ModelProbeResult.CODE_ADAPTER_NOT_IMPLEMENTED);
+        }
+        String text = transcribeProbe(SyntheticMediaFixtures.speechFixtureWav());
+        if (text == null || text.isBlank()) {
+            return ModelProbeResult.unsupported(ModelProbeKind.SPEECH_TO_TEXT, ModelProbeResult.CODE_NO_TEXT_RETURNED);
+        }
+        return ModelProbeResult.supported(ModelProbeKind.SPEECH_TO_TEXT, null, elapsedMillis(startedAt));
+    }
+
+    /**
+     * 语音合成探测（X04）：用最短文本做一次**真实合成调用**，只判"是否返回非空音频字节"。
+     */
+    private ModelProbeResult probeTextToSpeech(long startedAt) {
+        requireCapability(ModelCapability.TEXT_TO_SPEECH);
+        if (textToSpeechModel == null) {
+            return ModelProbeResult.unsupported(
+                    ModelProbeKind.TEXT_TO_SPEECH, ModelProbeResult.CODE_ADAPTER_NOT_IMPLEMENTED);
+        }
+        byte[] audio = callSpeech(PROBE_SPEECH_TEXT, null, PROBE_SPEECH_FORMAT);
+        if (audio == null || audio.length == 0) {
+            return ModelProbeResult.unsupported(ModelProbeKind.TEXT_TO_SPEECH, ModelProbeResult.CODE_NO_AUDIO_RETURNED);
+        }
+        return ModelProbeResult.supported(ModelProbeKind.TEXT_TO_SPEECH, null, elapsedMillis(startedAt));
+    }
+
+    /**
+     * 语音合成运行期调用（X04）：文本 → 音频字节；空产物按 {@code MEDIA_OUTPUT_EMPTY} 拒绝。
+     *
+     * <p>用量如实：厂商 TTS 响应不携带平台可用的计量，记 {@link ModelUsage#UNKNOWN}（不写 0），
+     * 音频时长也按未知留空（本适配器不做音频解码），不伪造上游计数。
+     *
+     * <p>请求里的超时尚未映射到厂商音频模型（与文本/嵌入路径同一现状），
+     * 平台级超时仍由端点 HTTP 客户端配置生效，不在此处假装已支持。
+     */
+    @Override
+    public SpeechSynthesisResponse synthesizeSpeech(SpeechSynthesisRequest request) {
+        requireOpen();
+        requireCapability(ModelCapability.TEXT_TO_SPEECH);
+        if (textToSpeechModel == null) {
+            throw new ModelException(
+                    ModelException.Reason.CAPABILITY_UNSUPPORTED, "端点未装配语音合成模型：" + ModelCapability.TEXT_TO_SPEECH);
+        }
+        byte[] audio = withRetry(() -> callSpeech(request.text(), request.voice(), request.outputFormat()));
+        if (audio == null || audio.length == 0) {
+            throw new ModelException(ModelException.Reason.MEDIA_OUTPUT_EMPTY, "上游未返回音频产物");
+        }
+        SpeechFormat format = speechFormatOf(request.outputFormat());
+        return new SpeechSynthesisResponse(
+                new MediaArtifact(format.mimeType(), audio, null, null, null, null),
+                ModelUsage.UNKNOWN,
+                snapshot.modelId());
+    }
+
+    /** 一次厂商转写调用（探测与运行期共用）：失败收敛为稳定原因，不回传厂商报文。 */
+    private String transcribeProbe(byte[] audioBytes) {
+        try {
+            AudioTranscriptionResponse response =
+                    transcriptionModel.call(new AudioTranscriptionPrompt(new ProbeAudioResource(audioBytes)));
+            AudioTranscription result = response == null ? null : response.getResult();
+            return result == null ? null : result.getOutput();
+        } catch (Exception exception) {
+            throw mapFailure(exception);
+        }
+    }
+
+    /** 一次厂商合成调用（探测与运行期共用）：失败收敛为稳定原因，不回传厂商报文。 */
+    private byte[] callSpeech(String text, String voice, String outputFormat) {
+        OpenAiAudioSpeechOptions.Builder options = OpenAiAudioSpeechOptions.builder()
+                .model(snapshot.modelId())
+                .input(text)
+                .responseFormat(speechFormatOf(outputFormat).vendorFormat());
+        if (voice != null) {
+            // 请求 record 已把空白音色归一化为 null；这里只做非空传递，不替端点猜音色
+            options.voice(voice);
+        }
+        try {
+            TextToSpeechResponse response = textToSpeechModel.call(new TextToSpeechPrompt(text, options.build()));
+            Speech speech = response == null ? null : response.getResult();
+            return speech == null ? null : speech.getOutput();
+        } catch (Exception exception) {
+            throw mapFailure(exception);
+        }
+    }
+
+    /** 平台输出格式到"厂商响应格式 + 产物 MIME"的固定映射；映射之外按输入不合规拒绝（不猜格式）。 */
+    static SpeechFormat speechFormatOf(String outputFormat) {
+        String normalized = outputFormat == null ? "" : outputFormat.trim().toLowerCase(Locale.ROOT);
+        SpeechFormat format = SPEECH_FORMATS.get(normalized);
+        if (format == null) {
+            throw new ModelException(ModelException.Reason.MEDIA_INPUT_INVALID, "不支持的语音输出格式：" + outputFormat);
+        }
+        return format;
+    }
+
+    /**
+     * 语音输出格式的映射结果：厂商响应格式（请求侧）与平台产物 MIME（结果侧）必须来自同一处，
+     * 避免两侧各自 switch 出现"请求 mp3 却按 wav 落库"的不一致。
+     *
+     * @param vendorFormat 厂商响应格式
+     * @param mimeType     平台产物 MIME（冻结的音频 MIME 白名单内取值）
+     */
+    record SpeechFormat(OpenAiAudioApi.SpeechRequest.AudioResponseFormat vendorFormat, String mimeType) {}
+
+    /** 探测音频资源：{@code ByteArrayResource} 默认没有文件名，而厂商转写是 multipart 上传，
+     * 必须给出稳定文件名（扩展名与合成 WAV 夹具一致），否则上游会按未知类型拒绝。 */
+    private static final class ProbeAudioResource extends ByteArrayResource {
+
+        ProbeAudioResource(byte[] audioBytes) {
+            super(audioBytes);
+        }
+
+        @Override
+        public String getFilename() {
+            return PROBE_AUDIO_FILE_NAME;
         }
     }
 

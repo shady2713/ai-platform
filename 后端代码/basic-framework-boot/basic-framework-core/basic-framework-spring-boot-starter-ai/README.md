@@ -106,6 +106,15 @@ basic-framework.ai:
   [error-code-map](../../../../docs/contracts/ai/error-code-map.md)，逐能力声明字段与实测状态见
   [多模态端点准入矩阵](../../../../docs/integrations/ai-platform-multimodal-endpoints.md)。
 - **实时语音不在本契约内**：FR-37 的会话协商与短期凭证需要独立 ADR（V1.2），不预留占位枚举。
+- **适配器覆盖状态（X04）**：`provider.springai` 的 `SpringAiModelClient` 已实现
+  `SPEECH_TO_TEXT` / `TEXT_TO_SPEECH` 两个**真实调用探测**（平台合成 WAV 夹具 / 最短文本；
+  空文本记 `NO_TEXT_RETURNED`、空音频记 `NO_AUDIO_RETURNED`）与 `synthesizeSpeech` 运行期调用
+  （产物 MIME 由请求输出格式固定映射为 audio/mpeg、audio/wav、audio/ogg，用量缺失记 `UNKNOWN`，
+  不伪造上游计量）。`transcribeSpeech` 的运行期**未实现**：端口契约要求按 `fileId` 取私有文件字节，
+  而 starter 内没有"文件编号 → 字节"的受管接缝，因此保持平台默认的"能力未开通"明确拒绝
+  （不伪造成功）；该缺口与图片媒体的运行期适配一并登记在
+  [多模态端点准入矩阵](../../../../docs/integrations/ai-platform-multimodal-endpoints.md) 的未验证清单里。
+  图片生成/编辑探测仍为"适配器未实现"，X03/X04 的运行期调用由任务执行器 + 端点声明承接。
 
 ## 约束
 
@@ -134,4 +143,5 @@ cd 后端代码/basic-framework-boot
   `MultimodalVocabularyTest`、`MediaPortDefaultsTest`、`MediaFileRefTest`、`MediaArtifactTest`、
   `ImageMediaContractTest`、`SpeechMediaContractTest`。
 - 调用：`SpringAiModelClientCoverageTest`、`SpringAiModelStreamTest`、`SpringAiModelRetryTest`、
-  `SpringAiStructuredOutputTest`、`SpringAiEndpointIsolationTest`。
+  `SpringAiStructuredOutputTest`、`SpringAiEndpointIsolationTest`、`SpringAiMediaProbeTest`、
+  `SpringAiSpeechTest`。

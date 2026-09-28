@@ -209,6 +209,7 @@ HTTP 状态按 ADR 0003 的命名规则推导：`*_NOT_EXISTS` 为 404，名称�
 | `AI_MEDIA_INPUT_DURATION_EXCEEDED` | 1_003_010_003 | 音频时长超过端点声明上限 | 400 |
 | `AI_MEDIA_OUTPUT_EMPTY` | 1_003_010_004 | 上游成功但未返回媒体产物，拒绝交付与落私有文件 | 502 |
 | `AI_MEDIA_OUTPUT_INVALID` | 1_003_010_005 | 上游返回的媒体产物不合规（非白名单格式的真实媒体内容，或超过字节/像素上限），拒绝落私有文件 | 502 |
+| `AI_MEDIA_OUTPUT_DURATION_EXCEEDED` | 1_003_010_006 | 上游音频产物超过平台时长上限（X04：非实时 TTS 单段 20 分钟）；时长未知时不冒充"未超限"，按未知处理 | 502 |
 
 映射路径固定：`ModelException.Reason` → 平台错误码由 `AiMediaCapabilityGate` 统一完成
 （`CAPABILITY_NOT_ENABLED` → 1_003_002_007；`MEDIA_INPUT_INVALID` → 1_003_010_000；

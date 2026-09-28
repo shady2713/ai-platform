@@ -54,6 +54,13 @@ class AiAppEndpointScopeContractTest {
             "com.basicframework.module.ai.controller.app.v1.image.AiImageController#getTask",
             "com.basicframework.module.ai.controller.app.v1.image.AiImageController#getTaskPage",
             "com.basicframework.module.ai.controller.app.v1.image.AiImageController#cancel",
+            // X04：非实时语音（STT/TTS）——任务按受理主体归属判定，音频输入与产物都按 ai_file_binding
+            // 归属判定（A07），协议里没有上游地址；执行期重读源音频，失权即拒绝
+            "com.basicframework.module.ai.controller.app.v1.speech.AiSpeechController#transcribe",
+            "com.basicframework.module.ai.controller.app.v1.speech.AiSpeechController#synthesize",
+            "com.basicframework.module.ai.controller.app.v1.speech.AiSpeechController#getTask",
+            "com.basicframework.module.ai.controller.app.v1.speech.AiSpeechController#getTaskPage",
+            "com.basicframework.module.ai.controller.app.v1.speech.AiSpeechController#cancel",
             // X02：图片理解与 OCR——输入文件按 ai_file_binding 归属判定（A07），文本/结果走私有文件接口
             "com.basicframework.module.ai.controller.app.v1.vision.AiVisionController#understandImage",
             "com.basicframework.module.ai.controller.app.v1.vision.AiVisionController#recognizeText",

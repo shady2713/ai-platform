@@ -104,6 +104,22 @@ class AiMediaTaskJobTest {
     }
 
     @Test
+    void speechOperationsAreDispatchedToTheSpeechExecutor() {
+        givenClaimedTask(AiMediaTaskDO.OPERATION_TRANSCRIBE);
+        AiMediaStepExecutor imageExecutor = executorFor(AiMediaTaskDO.OPERATION_GENERATE);
+        AiMediaStepExecutor speechExecutor =
+                executorFor(AiMediaTaskDO.OPERATION_TRANSCRIBE, AiMediaTaskDO.OPERATION_SYNTHESIZE);
+        when(executors.stream()).thenReturn(Stream.of(imageExecutor, speechExecutor));
+        when(speechExecutor.execute(any(), any()))
+                .thenReturn(AiMediaStepOutcome.succeeded(1, "TOKEN", 12L, "REPORTED"));
+        when(taskService.finish(any(), any())).thenReturn(true);
+
+        assertThat(job(5, 300).execute(null)).isEqualTo("recovered=0,claimed=1,succeeded=1,failed=0");
+        verify(imageExecutor, never()).execute(any(), any());
+        verify(speechExecutor).execute(eq(lease()), any(AiMediaTaskDO.class));
+    }
+
+    @Test
     void executorFailureIsReportedAsFailedOutcome() {
         givenClaimedTask(AiMediaTaskDO.OPERATION_GENERATE);
         AiMediaStepExecutor imageExecutor = executorFor(AiMediaTaskDO.OPERATION_GENERATE);
@@ -231,10 +247,10 @@ class AiMediaTaskJobTest {
     }
 
     /** 只承接指定操作的执行器替身：其它操作不应被调用。 */
-    private static AiMediaStepExecutor executorFor(String operation) {
+    private static AiMediaStepExecutor executorFor(String... operations) {
         AiMediaStepExecutor executor = mock(AiMediaStepExecutor.class);
-        when(executor.supports(any()))
-                .thenAnswer(invocation -> operation.equals(invocation.getArgument(0, String.class)));
+        when(executor.supports(any())).thenAnswer(invocation -> java.util.Arrays.asList(operations)
+                .contains(invocation.getArgument(0, String.class)));
         return executor;
     }
 }

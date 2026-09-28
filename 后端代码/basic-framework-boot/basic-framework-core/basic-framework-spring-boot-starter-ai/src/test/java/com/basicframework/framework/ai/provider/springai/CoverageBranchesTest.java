@@ -9,10 +9,12 @@ import com.basicframework.framework.ai.core.model.EmbeddingRequest;
 import com.basicframework.framework.ai.core.model.ModelCapability;
 import com.basicframework.framework.ai.core.model.ModelEndpointSnapshot;
 import com.basicframework.framework.ai.core.model.ModelException;
+import com.basicframework.framework.ai.core.model.ModelPort;
 import com.basicframework.framework.ai.core.model.ModelProbeKind;
 import com.basicframework.framework.ai.core.model.ModelProbeResult;
 import com.basicframework.framework.ai.core.model.ModelRequest;
 import com.basicframework.framework.ai.core.model.StructuredModelRequest;
+import com.basicframework.framework.ai.core.model.media.SpeechSynthesisRequest;
 import java.time.Duration;
 import java.util.List;
 import java.util.Set;
@@ -279,5 +281,32 @@ class CoverageBranchesTest {
                 throw new UnsupportedOperationException();
             }
         };
+    }
+
+    @Test
+    void factoryWiresSpeechChannelsOnlyWhenCapabilitiesAreDeclared() {
+        AiHttpProperties httpProperties = new AiHttpProperties();
+        httpProperties.setAllowedHosts(List.of("api.example.com"));
+        httpProperties.setAllowedPorts(List.of(443));
+        SpringAiModelClientFactory factory = new SpringAiModelClientFactory(httpProperties, new AiModelProperties());
+
+        // 声明了语音能力的端点：装配转写与合成通道（构造期不发任何网络请求）
+        assertThat(factory.getOrCreate(snapshot(ModelCapability.SPEECH_TO_TEXT, ModelCapability.TEXT_TO_SPEECH)))
+                .isNotNull();
+        // 只声明文本的端点：语音通道为 null，调用按能力缺失拒绝（不发起厂商调用）
+        ModelPort textOnly = factory.getOrCreate(new ModelEndpointSnapshot(
+                2L,
+                1,
+                1,
+                "openai_compatible",
+                "https://api.example.com/v1",
+                "gpt-4o-mini",
+                Set.of(ModelCapability.TEXT),
+                "sk-test"));
+        assertThatThrownBy(() -> textOnly.synthesizeSpeech(SpeechSynthesisRequest.of("gpt-4o-mini", "你好")))
+                .isInstanceOf(ModelException.class)
+                .satisfies(exception -> assertThat(((ModelException) exception).getReason())
+                        .isEqualTo(ModelException.Reason.CAPABILITY_UNSUPPORTED));
+        factory.close();
     }
 }

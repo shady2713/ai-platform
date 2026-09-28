@@ -4,7 +4,7 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V85.
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V86.
 -- Only the 53 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
@@ -1495,7 +1495,9 @@ CREATE TABLE `ai_media_task` (
   `source_sha256` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '源文件声明摘要',
   `target_size` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '目标尺寸（宽x高；为空表示由端点默认值决定）',
   `output_count` int NOT NULL DEFAULT '1' COMMENT '请求产物数量（有界）',
-  `output_format` varchar(8) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'png' COMMENT '请求输出格式',
+  `output_format` varchar(8) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '请求输出格式（图片生成/编辑与 TTS；转写为空）',
+  `voice` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'TTS 音色标识（受理时固定；为空表示端点默认音色，X04）',
+  `language_hint` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'STT 语言提示（冻结语言的短标识；为空表示由端点自行识别，X04）',
   `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'QUEUED' COMMENT '状态（QUEUED/RUNNING/SUCCEEDED/FAILED/CANCELLED）',
   `result_count` int NOT NULL DEFAULT '0' COMMENT '已落库产物数量',
   `failure_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '失败原因（稳定错误码，不含上游正文）',

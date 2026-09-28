@@ -52,6 +52,12 @@ public class AiMediaTaskResultDTO {
     /** 请求输出格式 */
     private String outputFormat;
 
+    /** TTS 音色标识（X04；为空表示端点默认音色） */
+    private String voice;
+
+    /** STT 语言提示（X04；为空表示由端点自行识别） */
+    private String languageHint;
+
     /** 已落库产物数量 */
     private Integer resultCount;
 
@@ -85,6 +91,8 @@ public class AiMediaTaskResultDTO {
                 .setEndpointId(task.getEndpointId())
                 .setOutputCount(task.getOutputCount())
                 .setOutputFormat(task.getOutputFormat())
+                .setVoice(task.getVoice())
+                .setLanguageHint(task.getLanguageHint())
                 .setResultCount(task.getResultCount())
                 .setUsageUnit(task.getUsageUnit())
                 .setUsageQuantity(task.getUsageQuantity())

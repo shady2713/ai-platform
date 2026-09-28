@@ -22,7 +22,8 @@ import org.springframework.ai.content.Media;
  *   <li><b>空文本不算通过</b>：返回空白文本记 UNSUPPORTED + {@code NO_TEXT_RETURNED}，不静默成功；</li>
  *   <li><b>未声明能力不发厂商调用</b>：计数为 0，返回 UNSUPPORTED + {@code CAPABILITY_NOT_DECLARED}。</li>
  * </ol>
- * 生成/编辑与语音能力属 X03/X04：在本适配器里保持"适配器未实现"且**不发起任何调用**。
+ * 生成/编辑与语音能力：生成/编辑在本适配器里保持"适配器未实现"，语音探测需要装配语音通道
+ * （见 {@link SpringAiSpeechTest}）；两者在未实现/未装配时都**不发起任何调用**。
  */
 class SpringAiMediaProbeTest {
 
@@ -88,7 +89,7 @@ class SpringAiMediaProbeTest {
     }
 
     @Test
-    void generationAndSpeechProbesRemainAdapterNotImplementedWithoutAnyCall() {
+    void generationAndUnwiredSpeechProbesRemainAdapterNotImplementedWithoutAnyCall() {
         AtomicInteger vendorCalls = new AtomicInteger();
         SpringAiModelClient client = new SpringAiModelClient(
                 VendorChatResponses.snapshot(
@@ -109,11 +110,11 @@ class SpringAiMediaProbeTest {
         }) {
             ModelProbeResult probe = client.probe(kind);
             assertThat(probe.status())
-                    .as("%s 未实现时必须是 UNSUPPORTED", kind)
+                    .as("%s 未实现/未装配通道时必须是 UNSUPPORTED", kind)
                     .isEqualTo(ModelProbeResult.Status.UNSUPPORTED);
             assertThat(probe.detailCode()).isEqualTo(ModelProbeResult.CODE_ADAPTER_NOT_IMPLEMENTED);
         }
-        assertThat(vendorCalls.get()).as("未实现的媒体能力不得发起任何厂商调用").isZero();
+        assertThat(vendorCalls.get()).as("未实现或未装配的媒体能力不得发起任何文本调用").isZero();
     }
 
     @Test

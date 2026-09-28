@@ -49,6 +49,12 @@ public class AiMediaTaskRespVO {
     @Schema(description = "请求输出格式", example = "png")
     private String outputFormat;
 
+    @Schema(description = "TTS 音色标识（受理时固定；生成类为空）", example = "Alloy")
+    private String voice;
+
+    @Schema(description = "STT 语言提示（受理时固定；为空表示由端点自行识别）", example = "zh-CN")
+    private String languageHint;
+
     @Schema(description = "已落库产物数量", example = "1")
     private Integer resultCount;
 

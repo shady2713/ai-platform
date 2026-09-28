@@ -80,6 +80,14 @@ public interface AiErrorCodeConstants {
      */
     ErrorCode AI_MEDIA_OUTPUT_INVALID = new ErrorCode(1_003_010_005, "上游媒体产物不合规");
 
+    /**
+     * 上游音频产物超过平台时长上限（502，X04）：换算出真实时长且超限时拒绝落私有文件。
+     *
+     * <p>未知时长不冒充"未超限"：端口没给时长时按未知处理（不写 0、不拒绝），
+     * 只有拿到超出上限的真实时长才按本码失败。
+     */
+    ErrorCode AI_MEDIA_OUTPUT_DURATION_EXCEEDED = new ErrorCode(1_003_010_006, "上游音频产物超过平台时长上限");
+
     // ========== 知识库 1_003_005_xxx ==========
 
     /** 知识库不存在（404）：越权与不存在同语义。 */

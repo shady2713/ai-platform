@@ -65,6 +65,11 @@
 | `AiImageController#getTask` | 任务查询：越权与不存在同语义（404），返回状态/稳定失败码/产物私有文件编号/用量，无上游地址 |
 | `AiImageController#getTaskPage` | 任务分页：强制带主体范围（应用 + 主体类型 + 外部用户标识） |
 | `AiImageController#cancel` | 取消：仅待领取状态可取消，执行中不可中断并按状态冲突拒绝 |
+| `AiSpeechController#transcribe` | STT 受理：待转写音频必须是当前主体可读的私有音频（`ai_file_binding` 归属判定 + 音频格式/字节核验，受理与执行两次判定）；幂等键去重；能力未声明/未探测时明确拒绝且不外发 |
+| `AiSpeechController#synthesize` | TTS 受理：文本与音色/输出格式在受理时收窄并固定，产物只以私有音频文件编号出现（无上游地址） |
+| `AiSpeechController#getTask` | 任务查询：越权与不存在同语义（404），返回状态/稳定失败码/产物私有文件编号/用量，无上游地址 |
+| `AiSpeechController#getTaskPage` | 任务分页：强制带主体范围（应用 + 主体类型 + 外部用户标识） |
+| `AiSpeechController#cancel` | 取消：仅待领取状态可取消，执行中不可中断并按状态冲突拒绝 |
 | `AiVisionController#understandImage` | 图片理解：输入图片必须是当前会话可读的私有文件（`ai_file_binding` 归属判定），**不接受上游 URL**；能力未声明/未探测时明确拒绝且不外发 |
 | `AiVisionController#recognizeText` | 图片 OCR：同上归属判定；扫描件无文本层时按 `ocrRequired` 语义返回，不编造正文 |
 | `AiVisionController#recognizeDocument` | 文档 OCR 重索引：只对当前主体可读的文档生效，识别稿经既有知识入库版本/切片语义落库，引用仍按 active 版本复核 |

@@ -15,14 +15,22 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import org.springframework.ai.audio.transcription.TranscriptionModel;
+import org.springframework.ai.audio.tts.TextToSpeechModel;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.document.MetadataMode;
 import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.ai.openai.OpenAiAudioSpeechModel;
+import org.springframework.ai.openai.OpenAiAudioSpeechOptions;
+import org.springframework.ai.openai.OpenAiAudioTranscriptionModel;
+import org.springframework.ai.openai.OpenAiAudioTranscriptionOptions;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.OpenAiEmbeddingModel;
 import org.springframework.ai.openai.OpenAiEmbeddingOptions;
 import org.springframework.ai.openai.api.OpenAiApi;
+import org.springframework.ai.openai.api.OpenAiAudioApi;
+import org.springframework.retry.support.RetryTemplate;
 
 /**
  * 受管模型客户端工厂（M02）：按端点快照创建 Spring AI 客户端，并按
@@ -94,6 +102,11 @@ public class SpringAiModelClientFactory implements ModelClientFactory {
 
     /**
      * 创建厂商客户端；子类可在测试或未来提供方扩展中覆盖。
+     *
+     * <p>语音通道（X04）与嵌入同一装配规则：只在端点声明对应能力时创建模型，
+     * 未声明时该通道为 null（调用按能力缺失拒绝）。厂商音频模型的默认重试模板是 10 次指数退避，
+     * 与本平台的受管重试（{@code AiModelProperties.maxAttempts}）叠加会放大上游压力，
+     * 因此显式传入**单次尝试**模板，重试次数只由平台策略决定。
      */
     protected SpringAiModelClient createClient(ModelEndpointSnapshot snapshot) {
         OpenAiApi openAiApi = OpenAiApi.builder()
@@ -105,7 +118,13 @@ public class SpringAiModelClientFactory implements ModelClientFactory {
                 .defaultOptions(
                         OpenAiChatOptions.builder().model(snapshot.modelId()).build())
                 .build();
-        return new SpringAiModelClient(snapshot, chatModel, createEmbeddingModel(snapshot, openAiApi), modelProperties);
+        return new SpringAiModelClient(
+                snapshot,
+                chatModel,
+                createEmbeddingModel(snapshot, openAiApi),
+                createTranscriptionModel(snapshot),
+                createSpeechModel(snapshot),
+                modelProperties);
     }
 
     /** 只有声明了嵌入能力的端点才装配嵌入模型，避免为纯文本端点建立无用的调用通道。 */
@@ -117,6 +136,43 @@ public class SpringAiModelClientFactory implements ModelClientFactory {
                 openAiApi,
                 MetadataMode.NONE,
                 OpenAiEmbeddingOptions.builder().model(snapshot.modelId()).build());
+    }
+
+    /** 只有声明了语音转写能力的端点才装配转写模型（非实时 STT）。 */
+    private TranscriptionModel createTranscriptionModel(ModelEndpointSnapshot snapshot) {
+        if (!snapshot.capabilities().contains(ModelCapability.SPEECH_TO_TEXT)) {
+            return null;
+        }
+        return new OpenAiAudioTranscriptionModel(
+                audioApi(snapshot),
+                OpenAiAudioTranscriptionOptions.builder()
+                        .model(snapshot.modelId())
+                        .build(),
+                singleAttemptRetryTemplate());
+    }
+
+    /** 只有声明了语音合成能力的端点才装配合成模型（非实时 TTS）。 */
+    private TextToSpeechModel createSpeechModel(ModelEndpointSnapshot snapshot) {
+        if (!snapshot.capabilities().contains(ModelCapability.TEXT_TO_SPEECH)) {
+            return null;
+        }
+        return new OpenAiAudioSpeechModel(
+                audioApi(snapshot),
+                OpenAiAudioSpeechOptions.builder().model(snapshot.modelId()).build(),
+                singleAttemptRetryTemplate());
+    }
+
+    /** 音频专用厂商客户端（与聊天客户端同一端点地址与凭据，由同一出站策略校验覆盖）。 */
+    private static OpenAiAudioApi audioApi(ModelEndpointSnapshot snapshot) {
+        return OpenAiAudioApi.builder()
+                .baseUrl(snapshot.baseUrl())
+                .apiKey(snapshot.apiKey())
+                .build();
+    }
+
+    /** 单次尝试的厂商重试模板：重试由平台受管层统一决定，厂商层不叠加重发。 */
+    private static RetryTemplate singleAttemptRetryTemplate() {
+        return RetryTemplate.builder().maxAttempts(1).build();
     }
 
     @Override

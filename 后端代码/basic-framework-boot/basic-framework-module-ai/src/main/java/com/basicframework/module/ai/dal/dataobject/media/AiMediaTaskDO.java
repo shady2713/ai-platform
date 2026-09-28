@@ -120,8 +120,14 @@ public class AiMediaTaskDO extends SoftDeletableDO {
     /** 请求产物数量 */
     private Integer outputCount;
 
-    /** 请求输出格式 */
+    /** 请求输出格式（图片生成/编辑与 TTS；转写没有输出格式，为空） */
     private String outputFormat;
+
+    /** TTS 音色标识（受理时固定；为空表示端点默认音色，X04） */
+    private String voice;
+
+    /** STT 语言提示（冻结语言的短标识；为空表示由端点自行识别，X04） */
+    private String languageHint;
 
     /** 状态（QUEUED/RUNNING/SUCCEEDED/FAILED/CANCELLED） */
     private String status;
