@@ -1,0 +1,31 @@
+{
+  "name": "@vben/ai-web-component",
+  "version": "5.6.0",
+  "description": "AI 中台 · 组件级 Chat 集成包（Web Component，自带 Shadow DOM 样式边界）",
+  "license": "MIT",
+  "author": "project-team",
+  "type": "module",
+  "scripts": {
+    "build": "vite build --config vite.config.mts && node scripts/minify-artifact.mjs",
+    "typecheck": "vue-tsc --noEmit --skipLibCheck",
+    "verify:artifact": "node scripts/verify-artifact.mjs"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "dependencies": {
+    "@vben/ai-chat-ui": "workspace:*",
+    "@vben/ai-contracts": "workspace:*",
+    "@vben/ai-embed-sdk": "workspace:*",
+    "vue": "catalog:"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "catalog:",
+    "esbuild": "catalog:",
+    "vite": "catalog:"
+  }
+}

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>AI 中台 · HTML 宿主示例（组件路径）</title>
+    <style>
+      /* 故意写"敌意"的宿主样式：验证组件内部交互不受宿主 CSS 影响（Shadow DOM 边界） */
+      * { font-size: 17px; line-height: 2; letter-spacing: 0.5px; }
+      #ai-chat-component-root { border: 1px dashed #bbb; min-height: 360px; }
+      .host-hint { color: #666; font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <h1>HTML 宿主示例（组件路径）</h1>
+    <p>
+      本页演示**组件级集成**：`&lt;ai-chat-component&gt;` 由版本化产物注册，ChatUI 直接挂进
+      Shadow DOM（宿主 CSS 进不去，见上方故意写的通配样式）；浏览器只与**同源网关**
+      （`/your-backend/app-api`）对话，票据仍由宿主后端换取、只在组件内存里。
+    </p>
+    <p class="host-hint">
+      iframe 路径见 <a href="/">宿主首页</a>；切换应用的 `appCode` 用查询参数 `?appCode=`。
+    </p>
+    <div id="status" data-testid="component-status">初始化中…</div>
+    <div class="row">
+      <button data-component-action="open" type="button">打开</button>
+      <button data-component-action="close" type="button">关闭</button>
+      <button data-component-action="inline" type="button">内嵌</button>
+      <button data-component-action="drawer" type="button">侧栏</button>
+      <button data-component-action="dialog" type="button">弹窗</button>
+      <button data-component-action="theme-dark" type="button">
+        深色主题
+      </button>
+      <button data-component-action="theme-light" type="button">
+        浅色主题
+      </button>
+      <button data-component-action="context" type="button">
+        更新业务上下文
+      </button>
+      <button data-component-action="navigate" type="button">请求导航</button>
+      <button data-component-action="report" type="button">上报报表</button>
+      <button data-component-action="switch-user" type="button">切换用户</button>
+      <button data-component-action="destroy" type="button">销毁</button>
+    </div>
+    <div id="ai-chat-component-root"></div>
+    <script type="module">
+      import { mountComponentSampleHost } from './component.js';
+
+      const parameters = new URLSearchParams(location.search);
+      const host = await mountComponentSampleHost({
+        appCode: parameters.get('appCode') ?? 'crm-portal',
+        container: document.querySelector('#ai-chat-component-root'),
+        gatewayBase:
+          parameters.get('gatewayBase') ?? '/your-backend/app-api',
+        serviceId: parameters.get('serviceId') ?? 'svc_1',
+        status: document.querySelector('#status'),
+      });
+      window.componentHost = host;
+    </script>
+  </body>
+</html>

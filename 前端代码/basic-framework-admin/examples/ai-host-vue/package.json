@@ -1,7 +1,7 @@
 {
   "name": "@ai-platform-examples/host-vue",
   "version": "0.0.0",
-  "description": "AI 中台 · Vue 第三方宿主示例（主题/上下文切换与跨源嵌入）",
+  "description": "AI 中台 · Vue 第三方宿主示例（iframe 与组件两条路径、主题/上下文切换）",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@vben/ai-embed-sdk": "workspace:*",
+    "@vben/ai-web-component": "workspace:*",
     "vue": "catalog:"
   },
   "devDependencies": {

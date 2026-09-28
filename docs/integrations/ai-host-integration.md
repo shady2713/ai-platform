@@ -4,18 +4,23 @@
 宿主只需做三件事：**换票、校验事件、决定导航**；其余（iframe、握手、上下文、主题、生命周期）都由
 `@vben/ai-embed-sdk` 提供。
 
+> 组件级集成（Web Component / Shadow DOM）的接入与迁移见
+> [组件级 Chat 集成与迁移接入（X09）](ai-web-component-integration.md)；
+> 它与本文共用同一份宿主契约（身份/换票/主题/导航/事件桥），两条路径可共存于同一页面。
+
 ## 1. 两个示例（均可运行、均不含真实凭据）
 
 | 示例 | 位置 | 运行方式 | 说明 |
 |---|---|---|---|
-| 纯 HTML 宿主 | `前端代码/basic-framework-admin/examples/ai-host-html` | `pnpm -F @ai-platform-examples/host-html serve` | 无构建步骤：页面直接加载**版本化 SDK 产物**；同目录的 `server.mjs` 是**最小换票后端** |
-| Vue 宿主 | `前端代码/basic-framework-admin/examples/ai-host-vue` | `pnpm -F @ai-platform-examples/host-vue dev` / `run build` | 主题/上下文/切用户切换的完整外壳；构建产物可托管在任意静态服务器 |
+| 纯 HTML 宿主 | `前端代码/basic-framework-admin/examples/ai-host-html` | `pnpm -F @ai-platform-examples/host-html serve` | 无构建步骤：页面直接加载**版本化 SDK 产物**；同目录的 `server.mjs` 是**最小换票后端**（X09 起还提供组件产物与 `/your-backend/app-api/*` 同源网关；组件页在 `/component.html`） |
+| Vue 宿主 | `前端代码/basic-framework-admin/examples/ai-host-vue` | `pnpm -F @ai-platform-examples/host-vue dev` / `run build` | 主题/上下文/切用户切换的完整外壳；**同一页同时演示 iframe 与组件两条路径**，宿主逻辑只写一份；构建产物可托管在任意静态服务器 |
 
 准备步骤：
 
 ```sh
 cd 前端代码/basic-framework-admin
 pnpm -F @vben/ai-embed-sdk run build          # 生成 dist/ai-embed-sdk-<version>.js（版本化自托管产物）
+pnpm -F @vben/ai-web-component run build       # 生成组件产物（组件页/组件路径需要）
 AI_APP_CODE=crm-portal \
 AI_APP_SECRET=<宿主的应用客户端凭据> \
 AI_HOST_ORIGIN=http://localhost:5180 \
@@ -23,7 +28,8 @@ AI_PLATFORM_BASE=http://localhost:48080 \
 pnpm -F @ai-platform-examples/host-html serve
 ```
 
-打开 `http://localhost:5180/` 即得到跨源宿主页（宿主端口与平台端口不同源）。
+打开 `http://localhost:5180/` 即得到跨源宿主页（宿主端口与平台端口不同源）；组件路径见
+`http://localhost:5180/component.html`。
 
 ## 2. 最小换票后端的三条红线
 
