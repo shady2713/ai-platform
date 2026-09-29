@@ -4,8 +4,8 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V90.
--- Only the 58 soft-delete tables retain a deleted column; hard-delete and
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V91.
+-- Only the 60 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
 
@@ -3140,6 +3140,11 @@ INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_i
 (4128, '人工重投', 'ai:webhook:redeliver', 3, 4, 4124, '', '', '', NULL, 0, b'1', b'1', b'1', '1', CURRENT_TIMESTAMP, '1', CURRENT_TIMESTAMP, b'0');
 
 
+-- 跨系统主体联邦权限点（V91，Y01）
+INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
+(4016, '跨系统主体联邦', 'ai:application:federation', 3, 6, 4010, '', '', '', NULL, 0, b'1', b'1', b'1', '1', CURRENT_TIMESTAMP, '1', CURRENT_TIMESTAMP, b'0');
+
+
 -- 报表受控分享与访问审计（V90，X11）
 DROP TABLE IF EXISTS `ai_report_share`;
 CREATE TABLE `ai_report_share` (
@@ -3187,6 +3192,36 @@ CREATE TABLE `ai_report_share_access` (
   KEY `idx_ai_report_share_access_subject` (`application_id`, `subject_type`, `external_user_id`, `id`),
   KEY `idx_ai_report_share_access_retention` (`create_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- 跨系统主体联邦映射（V91，Y01）
+DROP TABLE IF EXISTS `ai_subject_federation`;
+CREATE TABLE `ai_subject_federation` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '联邦映射编号',
+  `source_application_id` bigint NOT NULL COMMENT '来源系统（应用）编号：当前会话主体所属应用',
+  `source_subject_type` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'USER' COMMENT '来源主体类型（USER/APP）',
+  `source_external_user_id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '来源主体外部用户标识（APP 主体为空串）',
+  `target_application_id` bigint NOT NULL COMMENT '目标系统（应用）编号：被联邦的另一个业务系统接入',
+  `target_subject_type` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'USER' COMMENT '目标主体类型（USER/APP）',
+  `target_external_user_id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '目标主体外部用户标识（只接受服务端登记事实，绝不按同名推断）',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'PENDING' COMMENT '状态（PENDING 待独立审批/APPROVED 已批准生效/REVOKED 已撤销）',
+  `requested_by` bigint NOT NULL COMMENT '提交人（后台操作员编号）',
+  `requested_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '提交时间',
+  `approved_by` bigint DEFAULT NULL COMMENT '批准人（必须与提交人不同：独立审批）',
+  `approved_time` datetime DEFAULT NULL COMMENT '批准时间',
+  `approval_note` varchar(256) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '审批说明（≤200 字符，服务层校验）',
+  `revision` bigint NOT NULL DEFAULT '1' COMMENT '映射版本（提交=1，批准/撤销递增；范围选择指纹据此判定映射事实是否变化）',
+  `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本（批准/撤销 CAS）',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_ai_subject_federation_identity` (`source_application_id`, `source_subject_type`, `source_external_user_id`, `target_application_id`, `target_subject_type`, `target_external_user_id`),
+  KEY `idx_ai_subject_federation_source` (`source_application_id`, `source_subject_type`, `source_external_user_id`, `status`, `id`),
+  KEY `idx_ai_subject_federation_target` (`target_application_id`, `target_subject_type`, `target_external_user_id`, `status`, `id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 跨系统主体联邦映射（显式登记 + 独立审批，Y01）';
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;

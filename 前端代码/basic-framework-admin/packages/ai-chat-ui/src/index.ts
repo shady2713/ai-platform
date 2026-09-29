@@ -47,7 +47,26 @@ export type {
 export { default as AiChatPanel } from './components/AiChatPanel.vue';
 export type { ChatMessage } from './components/AiChatPanel.vue';
 export { default as ChartRenderer } from './components/ChartRenderer.vue';
+export {
+  analysisScopeLabel,
+  analysisScopeSummary,
+  createAnalysisScopeMachine,
+  modelCatalogSystemCodes,
+  planScopeSelection,
+} from './context/analysisScope';
+export type {
+  AnalysisScopeApi,
+  AnalysisScopeCatalog,
+  AnalysisScopeMachine,
+  AnalysisScopeMode,
+  AnalysisScopePhase,
+  AnalysisScopeSelection,
+  AnalysisScopeSnapshot,
+  AnalysisScopeSystem,
+  ScopeSelectionPlan,
+} from './context/analysisScope';
 export { default as ConversationPanel } from './conversation/ConversationPanel.vue';
+
 export {
   createConversationMachine,
   phaseOfRunStatus,

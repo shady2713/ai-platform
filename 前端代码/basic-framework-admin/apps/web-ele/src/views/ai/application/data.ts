@@ -1,5 +1,6 @@
 import type { VbenFormSchema } from '#/adapter/form';
 import type { VxeTableGridOptions } from '#/adapter/vxe-table';
+import type { AiDiscoveryApi } from '#/api/ai/application/discovery';
 
 import { z } from '@vben/common-ui';
 
@@ -178,6 +179,166 @@ export function useGridColumns(): VxeTableGridOptions['columns'] {
       title: '状态',
       width: 100,
       formatter: ({ cellValue }) => (cellValue ? '启用' : '停用'),
+    },
+  ];
+}
+
+/** 跨系统联邦权限码（与 V91 迁移的 system_menu 种子 4016 一一对应） */
+export const AI_FEDERATION_PERMISSIONS = {
+  manage: 'ai:application:federation',
+} as const;
+
+/** 分析范围模式选项（与服务端 AiAnalysisScopeMode 一一对应） */
+export const ANALYSIS_SCOPE_MODE_OPTIONS: Array<{
+  label: string;
+  value: AiDiscoveryApi.AnalysisScopeMode;
+}> = [
+  { label: '仅当前系统', value: 'CURRENT_SYSTEM' },
+  { label: '跨系统分析', value: 'CROSS_SYSTEM' },
+];
+
+/** 主体类型选项（USER 需要外部用户标识，APP 主体不用） */
+export const SUBJECT_TYPE_OPTIONS: Array<{
+  label: string;
+  value: AiDiscoveryApi.SubjectType;
+}> = [
+  { label: '用户主体', value: 'USER' },
+  { label: '应用主体', value: 'APP' },
+];
+
+/** 联邦映射状态说明（批准前不参与授权发现） */
+export const FEDERATION_STATUS_LABELS: Record<string, string> = {
+  APPROVED: '已批准（参与发现）',
+  PENDING: '待独立审批（不参与发现）',
+  REVOKED: '已撤销（不参与发现）',
+};
+
+/** 目录被拒绝时的固定提示：不区分"未登记/已停用/没有授权"（防枚举） */
+export const DISCOVERY_DENIED_HINT =
+  '当前主体在平台没有任何可访问系统：可能是未登记、已停用或没有任何有效授权。平台不区分这几种情况，也不返回"存在但无权"的系统。';
+
+/**
+ * 独立审批提示：拥有应用修改权不等于拥有跨系统身份映射权，
+ * 且批准人必须不同于提交人（服务端按登录态校验，前端不能自报批准人）。
+ */
+export const FEDERATION_APPROVAL_HINT =
+  '联邦映射需要独立审批：提交后由另一位持有 ai:application:federation 权限的操作员批准才生效；批准前目标系统不会出现在任何人的授权发现里。批准人由服务端按登录态判定，前端不提交批准人。';
+
+/** 不按同名推断提示（卡片逐步实施第 3 条） */
+export const FEDERATION_NO_INFERENCE_HINT =
+  '两个应用里 externalUserId 相同**不代表**同一个人：映射必须逐对显式登记，平台绝不按同名或显示名自动关联。';
+
+/** 跨系统选择的显式性提示 */
+export const CROSS_SYSTEM_SELECTION_HINT =
+  '跨系统分析必须显式包含当前系统与至少一个其它系统；范围选择会固定当时的目录指纹，之后授权或映射变化时核验会失败并需要重新发现。';
+
+/** 模式文案；未知模式原样返回（前端不猜语义） */
+export function analysisScopeModeLabel(mode: string): string {
+  return (
+    ANALYSIS_SCOPE_MODE_OPTIONS.find((option) => option.value === mode)
+      ?.label ?? mode
+  );
+}
+
+/** 状态文案；未知状态原样返回 */
+export function federationStatusLabel(status: string): string {
+  return FEDERATION_STATUS_LABELS[status] ?? status;
+}
+
+/** 单条范围的展示文本（资源类型/标识 + 动作） */
+export function formatScopeRow(scope: AiDiscoveryApi.SystemScopeRow): string {
+  const actions = (scope.actions ?? []).join('/');
+  return actions.length > 0
+    ? `${scope.resourceType}/${scope.resourceKey}（${actions}）`
+    : `${scope.resourceType}/${scope.resourceKey}`;
+}
+
+/** 系统条目的范围摘要（空范围显示"无可访问范围"，不隐藏事实） */
+export function scopeSummary(entry: AiDiscoveryApi.SystemEntry): string {
+  const rows = entry.scopes ?? [];
+  return rows.length === 0
+    ? '无可访问范围'
+    : rows.map((row) => formatScopeRow(row)).join('；');
+}
+
+/** 联邦映射的身份展示文本（来源 → 目标） */
+export function federationIdentityText(
+  federation: AiDiscoveryApi.Federation,
+): string {
+  return `${identityText(federation.sourceSubjectType, federation.sourceExternalUserId)} → ${identityText(
+    federation.targetSubjectType,
+    federation.targetExternalUserId,
+  )}`;
+}
+
+function identityText(subjectType: string, externalUserId?: string): string {
+  return subjectType === 'APP'
+    ? 'APP 主体'
+    : `${subjectType}:${externalUserId ?? ''}`;
+}
+
+/** 发现表单：身份只用于查询，不参与任何授权判定 */
+export function useDiscoveryFormSchema(): VbenFormSchema[] {
+  return [
+    {
+      fieldName: 'subjectType',
+      label: '主体类型',
+      component: 'Select',
+      componentProps: {
+        options: SUBJECT_TYPE_OPTIONS,
+        placeholder: '请选择主体类型',
+      },
+      defaultValue: 'USER',
+    },
+    {
+      fieldName: 'externalUserId',
+      label: '外部用户标识',
+      component: 'Input',
+      componentProps: {
+        maxlength: 128,
+        placeholder: '业务系统签发的外部用户标识（APP 主体留空）',
+      },
+    },
+  ];
+}
+
+/** 联邦登记表单：六段身份 + 目标应用编号 */
+export function useFederationFormSchema(): VbenFormSchema[] {
+  return [
+    {
+      fieldName: 'sourceSubjectType',
+      label: '来源主体类型',
+      component: 'Select',
+      componentProps: { options: SUBJECT_TYPE_OPTIONS },
+      defaultValue: 'USER',
+      rules: 'required',
+    },
+    {
+      fieldName: 'sourceExternalUserId',
+      label: '来源外部用户标识',
+      component: 'Input',
+      componentProps: { maxlength: 128, placeholder: '当前系统里的用户标识' },
+    },
+    {
+      fieldName: 'targetApplicationId',
+      label: '目标应用编号',
+      component: 'Input',
+      componentProps: { placeholder: '被联邦的另一个应用（系统）编号' },
+      rules: 'required',
+    },
+    {
+      fieldName: 'targetSubjectType',
+      label: '目标主体类型',
+      component: 'Select',
+      componentProps: { options: SUBJECT_TYPE_OPTIONS },
+      defaultValue: 'USER',
+      rules: 'required',
+    },
+    {
+      fieldName: 'targetExternalUserId',
+      label: '目标外部用户标识',
+      component: 'Input',
+      componentProps: { maxlength: 128, placeholder: '目标系统里的用户标识' },
     },
   ];
 }

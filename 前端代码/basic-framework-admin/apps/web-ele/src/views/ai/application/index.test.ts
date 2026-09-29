@@ -133,6 +133,7 @@ vi.mock('./data', () => ({
     rotate: 'ai:application:rotate',
     update: 'ai:application:update',
   },
+  AI_FEDERATION_PERMISSIONS: { manage: 'ai:application:federation' },
   useGridColumns: vi.fn(() => []),
   useGridFormSchema: vi.fn(() => []),
 }));
@@ -152,6 +153,18 @@ vi.mock('./modules/secret.vue', async () => {
   const { defineComponent } = await import('vue');
   return {
     default: defineComponent({ name: 'SecretStub', template: '<div />' }),
+  };
+});
+vi.mock('./modules/discovery.vue', async () => {
+  const { defineComponent } = await import('vue');
+  return {
+    default: defineComponent({ name: 'DiscoveryStub', template: '<div />' }),
+  };
+});
+vi.mock('./modules/federation.vue', async () => {
+  const { defineComponent } = await import('vue');
+  return {
+    default: defineComponent({ name: 'FederationStub', template: '<div />' }),
   };
 });
 
@@ -254,6 +267,18 @@ describe('ai application page', () => {
 
     await actionButton(wrapper, '轮换凭据').trigger('click');
 
+    expect(state.modalApi.setData).toHaveBeenCalledWith(state.row);
+  });
+
+  it('opens discovery and federation modals with the selected application', async () => {
+    const wrapper = mountPage();
+
+    // 两个入口都只把"当前应用"作为参数传进弹窗：主体与目标由弹窗内部显式填写
+    await actionButton(wrapper, '授权发现').trigger('click');
+    expect(state.modalApi.setData).toHaveBeenCalledWith(state.row);
+
+    state.modalApi.setData.mockClear();
+    await actionButton(wrapper, '系统联邦').trigger('click');
     expect(state.modalApi.setData).toHaveBeenCalledWith(state.row);
   });
 });

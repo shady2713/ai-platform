@@ -17,6 +17,7 @@
 | `1_003_008_xxx` | 服务配置 | 服务发布、评测门槛、运行快照、版本回退 |
 | `1_003_009_xxx` | 评测 | 套件、样例、评测运行与结果、人工复核 |
 | `1_003_010_xxx` | 多模态媒体（X01） | 媒体能力准入与媒体输入输出校验（图片理解/OCR/生成/编辑、非实时 STT/TTS） |
+| `1_003_013_xxx` | 跨系统（Y01） | 主体联邦映射、多系统授权发现与范围选择（`1_003_011` 为 Webhook、`1_003_012` 为流程编排，见文末分节） |
 
 框架与基础设施占用 `1_001_xxx_xxx`，system 模块占用 `1_002_xxx_xxx`；AI 中台独占 `1_003`，不与既有区间交叉。
 
@@ -272,3 +273,20 @@ HTTP 状态按 ADR 0003 的命名规则推导：`*_NOT_EXISTS` 为 404，名称�
 | `AI_WORKFLOW_VERSION_STATE_INVALID` | 1_003_012_010 | 当前流程版本状态不允许该操作 | 409 |
 | `AI_WORKFLOW_DRAFT_EXISTS` | 1_003_012_011 | 流程已有打开的草稿版本 | 409 |
 | `AI_WORKFLOW_RUN_NOT_FOUND` | 1_003_012_012 | 流程运行不存在 | 404 |
+
+## 跨系统子区间（Y01，`1_003_013_xxx`）
+
+| 名称 | 编号 | 说明 | HTTP |
+|---|---|---|---|
+| `AI_SUBJECT_FEDERATION_NOT_EXISTS` | 1_003_013_000 | 联邦映射不存在（编号无效、已删除、归属不符同语义：不回答"是否存在他人的映射"） | 404 |
+| `AI_SUBJECT_FEDERATION_DUPLICATE` | 1_003_013_001 | 同一对身份已有待审批/已批准映射（撤销后允许重新提交并复用该行） | 409 |
+| `AI_SUBJECT_FEDERATION_STATE_CONFLICT` | 1_003_013_002 | 当前状态不允许该操作（批准非 PENDING 映射、仍生效时的版本冲突） | 409 |
+| `AI_SUBJECT_FEDERATION_APPROVER_CONFLICT` | 1_003_013_003 | 独立审批：批准人必须不同于提交人 | 409 |
+| `AI_SUBJECT_FEDERATION_SUBJECT_UNAVAILABLE` | 1_003_013_004 | 映射涉及的主体未登记或已停用（提交与批准两次核验） | 422 |
+| `AI_SYSTEM_CATALOG_BUDGET_EXCEEDED` | 1_003_013_005 | 单系统授权条数超过发现预算，拒绝返回不完整目录 | 422 |
+| `AI_ANALYSIS_SCOPE_DENIED` | 1_003_013_006 | 范围选择包含当前主体不可访问的系统（fail closed，不静默缩小范围） | 422 |
+| `AI_ANALYSIS_SCOPE_VERSION_CONFLICT` | 1_003_013_007 | 范围选择依据的目录/映射事实已变化，需重新发现后再选择 | 409 |
+
+跨系统链的语义边界见 `docs/adr/0051-cross-system-subject-federation.md`：业务系统 = 接入应用
+（`app_code`），两个应用的相同 `externalUserId` **不构成**同一主体；只有显式登记且经独立审批的
+联邦映射参与授权发现，撤销下一次读取即时生效。

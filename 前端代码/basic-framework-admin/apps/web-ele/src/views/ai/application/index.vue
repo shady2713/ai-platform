@@ -19,9 +19,12 @@ import { showSuccessMessage } from '#/utils/feedback';
 
 import {
   AI_APPLICATION_PERMISSIONS,
+  AI_FEDERATION_PERMISSIONS,
   useGridColumns,
   useGridFormSchema,
 } from './data';
+import Discovery from './modules/discovery.vue';
+import Federation from './modules/federation.vue';
 import Form from './modules/form.vue';
 import Rotate from './modules/rotate.vue';
 import Secret from './modules/secret.vue';
@@ -36,6 +39,15 @@ const [RotateModal, rotateModalApi] = useVbenModal({
 });
 const [SecretModal, secretModalApi] = useVbenModal({
   connectedComponent: Secret,
+  destroyOnClose: true,
+});
+// Y01：授权发现（只读，ai:application:query）与跨系统主体联邦（独立审批，ai:application:federation）
+const [DiscoveryModal, discoveryModalApi] = useVbenModal({
+  connectedComponent: Discovery,
+  destroyOnClose: true,
+});
+const [FederationModal, federationModalApi] = useVbenModal({
+  connectedComponent: Federation,
   destroyOnClose: true,
 });
 
@@ -56,6 +68,14 @@ function handleEdit(row: AiApplicationApi.Application) {
 
 function handleRotate(row: AiApplicationApi.Application) {
   rotateModalApi.setData(row).open();
+}
+
+function handleDiscovery(row: AiApplicationApi.Application) {
+  discoveryModalApi.setData(row).open();
+}
+
+function handleFederation(row: AiApplicationApi.Application) {
+  federationModalApi.setData(row).open();
 }
 
 function handleSecret(payload: { appCode: string; secret: string }) {
@@ -109,6 +129,8 @@ const [Grid, gridApi] = useVbenVxeGrid({
     <FormModal @success="handleRefresh" @secret="handleSecret" />
     <RotateModal @secret="handleSecret" />
     <SecretModal />
+    <DiscoveryModal />
+    <FederationModal />
     <Grid table-title="应用列表">
       <template #toolbar-tools>
         <TableAction
@@ -126,6 +148,20 @@ const [Grid, gridApi] = useVbenVxeGrid({
       <template #actions="{ row }">
         <TableAction
           :actions="[
+            {
+              label: '授权发现',
+              type: 'primary',
+              link: true,
+              auth: [AI_APPLICATION_PERMISSIONS.query],
+              onClick: handleDiscovery.bind(null, row),
+            },
+            {
+              label: '系统联邦',
+              type: 'primary',
+              link: true,
+              auth: [AI_FEDERATION_PERMISSIONS.manage],
+              onClick: handleFederation.bind(null, row),
+            },
             {
               label: '轮换凭据',
               type: 'primary',

@@ -67,5 +67,8 @@ public final class AiErrorCodeRanges {
     /** 可视化流程编排子区间（X08）：流程图契约、版本隔离与受控运行。 */
     public static final int DOMAIN_WORKFLOW = 1_003_012;
 
+    /** 跨系统子区间（Y01）：主体联邦映射、多系统授权发现与范围选择。 */
+    public static final int DOMAIN_CROSS_SYSTEM = 1_003_013;
+
     private AiErrorCodeRanges() {}
 }

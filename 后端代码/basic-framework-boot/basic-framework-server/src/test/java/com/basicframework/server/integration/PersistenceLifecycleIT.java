@@ -301,6 +301,8 @@ class PersistenceLifecycleIT extends AbstractPersistenceIntegrationTest {
                         "ai_service_release_evaluation",
                         "ai_service_resource",
                         "ai_subject",
+                        // V91：跨系统主体联邦映射（显式登记 + 独立审批；撤销复用同一行）
+                        "ai_subject_federation",
                         // V79：主题修订（同应用最多一个生效修订由唯一键兜底）
                         "ai_theme",
                         "ai_tool",

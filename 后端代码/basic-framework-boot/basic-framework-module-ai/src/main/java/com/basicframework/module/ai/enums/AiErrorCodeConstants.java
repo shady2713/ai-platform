@@ -637,4 +637,35 @@ public interface AiErrorCodeConstants {
     ErrorCode AI_EVAL_PUBLISH_BLOCKER_CASE_FAILED = new ErrorCode(1_003_009_019, "阻断级评测样例未通过，禁止发布");
 
     ErrorCode AI_EVAL_PUBLISH_BELOW_THRESHOLD = new ErrorCode(1_003_009_020, "评测通过率低于发布门槛");
+
+    // ========== 跨系统（主体联邦 / 授权发现 / 范围选择）1_003_013_xxx（Y01） ==========
+
+    /**
+     * 联邦映射不存在（404）：编号无效、已删除、或与当前查询归属不符，统一同语义。
+     *
+     * <p>承重命名：{@code GlobalExceptionHandler.resolveHttpStatus} 只认常量名后缀
+     * {@code _NOT_EXISTS} → 404（ADR 0003）；改成 {@code _NOT_FOUND} 会退化为 422。
+     */
+    ErrorCode AI_SUBJECT_FEDERATION_NOT_EXISTS = new ErrorCode(1_003_013_000, "跨系统主体联邦映射不存在");
+
+    /** 同一对身份已有 PENDING/APPROVED 映射（409）：撤销后允许重新提交并复用该行。 */
+    ErrorCode AI_SUBJECT_FEDERATION_DUPLICATE = new ErrorCode(1_003_013_001, "该身份对的跨系统联邦映射已存在");
+
+    /** 状态不允许该操作（409）：例如批准非 PENDING 映射、或仍生效时的乐观锁版本冲突。 */
+    ErrorCode AI_SUBJECT_FEDERATION_STATE_CONFLICT = new ErrorCode(1_003_013_002, "该联邦映射当前状态不允许此操作");
+
+    /** 审批分离冲突（409）：独立审批要求批准人不同于提交人。 */
+    ErrorCode AI_SUBJECT_FEDERATION_APPROVER_CONFLICT = new ErrorCode(1_003_013_003, "联邦映射必须由提交人之外的审批人批准");
+
+    /** 映射涉及的主体不可用（422）：提交或批准时来源/目标主体未登记或已停用。 */
+    ErrorCode AI_SUBJECT_FEDERATION_SUBJECT_UNAVAILABLE = new ErrorCode(1_003_013_004, "联邦映射涉及的主体不存在或已停用");
+
+    /** 授权目录超预算（422）：单系统授权条数超过发现预算，拒绝返回**部分**目录（不静默截断）。 */
+    ErrorCode AI_SYSTEM_CATALOG_BUDGET_EXCEEDED = new ErrorCode(1_003_013_005, "单系统授权条数超过发现预算，拒绝返回不完整目录");
+
+    /** 范围选择被拒绝（422）：所选系统不在可访问目录内（fail closed，不静默缩小范围）。 */
+    ErrorCode AI_ANALYSIS_SCOPE_DENIED = new ErrorCode(1_003_013_006, "范围选择包含当前主体不可访问的系统");
+
+    /** 范围选择依据已变化（409）：目录或映射事实已变，历史选择必须重新发现后再选择。 */
+    ErrorCode AI_ANALYSIS_SCOPE_VERSION_CONFLICT = new ErrorCode(1_003_013_007, "范围选择依据的授权目录已变化，请重新发现后再选择");
 }
