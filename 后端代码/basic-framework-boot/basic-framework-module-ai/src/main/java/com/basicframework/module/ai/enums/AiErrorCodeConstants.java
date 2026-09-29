@@ -263,6 +263,16 @@ public interface AiErrorCodeConstants {
     /** 嵌入资产不存在（404）：请求的文件不在构建清单内（后缀 `_NOT_EXISTS` 同样是承重的）。 */
     ErrorCode AI_EMBED_ASSET_NOT_EXISTS = new ErrorCode(1_003_007_028, "嵌入资产不存在");
 
+    /**
+     * 分享不存在或不可读（404，X11）：凭据未知、非接收者、已撤销、已过期、授予者停用**共用同一码**
+     * （防枚举，不帮攻击者区分"错"与"无"）；稳定原因只进访问审计（subject-mismatch/revoked/
+     * expired/grantor-unavailable）。名称后缀 `_NOT_EXISTS` 是承重的：HTTP 404 由它推导（ADR 0003）。
+     */
+    ErrorCode AI_REPORT_SHARE_NOT_EXISTS = new ErrorCode(1_003_007_029, "分享不存在");
+
+    /** 同报表 + 同接收者的生效分享已存在（409，X11）：先撤销旧分享再创建新的。 */
+    ErrorCode AI_REPORT_SHARE_DUPLICATE = new ErrorCode(1_003_007_030, "该报表对这位接收者的生效分享已存在");
+
     // ========== 数据与工具 1_003_006_xxx ==========
 
     /** 连接器不存在（404）。 */
@@ -456,6 +466,47 @@ public interface AiErrorCodeConstants {
 
     /** 写工具只能经确认流程执行（403）：通用执行入口拒绝写工具判定（X06）。 */
     ErrorCode AI_TOOL_WRITE_REQUIRES_CONFIRMATION = new ErrorCode(1_003_006_063, "写工具只能经确认流程执行");
+
+    // ========== 可视化流程编排 1_003_012_xxx（X08） ==========
+
+    /** 流程不存在（404）：越权与不存在同语义。 */
+    ErrorCode AI_WORKFLOW_NOT_FOUND = new ErrorCode(1_003_012_000, "流程不存在");
+
+    /** 流程标识重复（409）：同一应用内 code 唯一且创建后不可修改。 */
+    ErrorCode AI_WORKFLOW_CODE_DUPLICATE = new ErrorCode(1_003_012_001, "流程标识({}) 已存在");
+
+    /** 流程已停用（409）：停用后不受理新运行。 */
+    ErrorCode AI_WORKFLOW_DISABLED = new ErrorCode(1_003_012_002, "流程已停用，不能发起运行");
+
+    /** 流程图结构不合规（400）：节点/边数量与键、端口等超出受控契约。 */
+    ErrorCode AI_WORKFLOW_GRAPH_INVALID = new ErrorCode(1_003_012_003, "流程图结构不合规");
+
+    /** 流程图存在环（400）：有界 DAG 不允许循环。 */
+    ErrorCode AI_WORKFLOW_GRAPH_CYCLE = new ErrorCode(1_003_012_004, "流程图存在循环");
+
+    /** 流程图存在无出口或不可达节点（400）：每个节点都必须在开始到结束的路径上。 */
+    ErrorCode AI_WORKFLOW_GRAPH_NO_EXIT = new ErrorCode(1_003_012_005, "流程图存在无法到达结束的节点");
+
+    /** 节点类型或端口不匹配（400）：分支端口、边方向、节点配置与类型声明不一致。 */
+    ErrorCode AI_WORKFLOW_NODE_TYPE_MISMATCH = new ErrorCode(1_003_012_006, "流程节点类型或端口不匹配");
+
+    /** 节点引用不存在（400）：引用的工具/数据集/端点/节点在发布期不存在或不可用。 */
+    ErrorCode AI_WORKFLOW_NODE_REFERENCE_INVALID = new ErrorCode(1_003_012_007, "流程节点引用了不存在或不可用的资源");
+
+    /** 流程版本不存在（404）。 */
+    ErrorCode AI_WORKFLOW_VERSION_NOT_FOUND = new ErrorCode(1_003_012_008, "流程版本不存在");
+
+    /** 流程版本不可修改（409）：已发布/已废弃的版本只能新建草稿。 */
+    ErrorCode AI_WORKFLOW_VERSION_IMMUTABLE = new ErrorCode(1_003_012_009, "流程版本已发布，不可修改，请新建草稿");
+
+    /** 流程版本状态不允许该操作（409）：例如发布非草稿版本。 */
+    ErrorCode AI_WORKFLOW_VERSION_STATE_INVALID = new ErrorCode(1_003_012_010, "当前流程版本状态不允许该操作");
+
+    /** 已有打开的草稿（409）：同一流程同时最多一个草稿版本。 */
+    ErrorCode AI_WORKFLOW_DRAFT_EXISTS = new ErrorCode(1_003_012_011, "流程已有打开的草稿版本");
+
+    /** 流程运行不存在（404）：越权与不存在同语义。 */
+    ErrorCode AI_WORKFLOW_RUN_NOT_FOUND = new ErrorCode(1_003_012_012, "流程运行不存在");
 
     // ========== 应用与授权 1_003_003_xxx ==========
 

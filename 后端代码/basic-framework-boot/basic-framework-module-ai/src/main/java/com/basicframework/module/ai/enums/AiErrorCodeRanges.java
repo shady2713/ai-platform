@@ -18,6 +18,7 @@ package com.basicframework.module.ai.enums;
  *   1_003_009_xxx  评测（套件、样例、评测运行与结果、人工复核）
  *   1_003_010_xxx  多模态媒体（图片理解/OCR/生成/编辑、非实时 STT/TTS 的输入输出准入）
  *   1_003_011_xxx  受控异步结果 Webhook（目标登记、事件白名单、投递管理、人工重投）
+ *   1_003_012_xxx  可视化流程编排（流程图契约、版本隔离、受控运行与节点留痕）
  * </pre>
  *
  * <p>HTTP 映射遵循 [ADR 0003](http-status-semantics) 与 [ADR 0049](identity-boundaries)：
@@ -62,6 +63,9 @@ public final class AiErrorCodeRanges {
 
     /** 受控异步结果 Webhook 子区间（X10）：目标登记、事件白名单、投递管理与人工重投。 */
     public static final int DOMAIN_WEBHOOK = 1_003_011;
+
+    /** 可视化流程编排子区间（X08）：流程图契约、版本隔离与受控运行。 */
+    public static final int DOMAIN_WORKFLOW = 1_003_012;
 
     private AiErrorCodeRanges() {}
 }

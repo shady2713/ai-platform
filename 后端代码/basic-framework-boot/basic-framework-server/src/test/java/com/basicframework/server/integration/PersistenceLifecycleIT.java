@@ -286,9 +286,10 @@ class PersistenceLifecycleIT extends AbstractPersistenceIntegrationTest {
                         "ai_model_endpoint",
                         "ai_model_endpoint_revision",
                         "ai_model_probe",
-                        // V76：报表与版本（迁移顺序决定表顺序）
+                        // V76：报表与版本（迁移顺序决定表顺序）；V90：受控分享（凭据摘要 + 固定版本）
                         "ai_report",
                         "ai_report_refresh",
+                        "ai_report_share",
                         "ai_report_version",
                         "ai_resource_grant",
                         "ai_run",
@@ -308,6 +309,10 @@ class PersistenceLifecycleIT extends AbstractPersistenceIntegrationTest {
                         // V88：Webhook 目标与投递（投递失败不影响运行结果；尝试留痕是 append-retention 表）
                         "ai_webhook_delivery",
                         "ai_webhook_target",
+                        // V89：可视化流程（定义/版本/运行为软删除，节点留痕 append-retention）
+                        "ai_workflow",
+                        "ai_workflow_run",
+                        "ai_workflow_version",
                         "infra_config",
                         "infra_file_config",
                         "infra_job",

@@ -98,6 +98,12 @@
 | 1_003_007_022 | AI_THEME_NOT_FOUND | 404 | 主题修订不存在 |
 | 1_003_007_023 | AI_THEME_REVISION_IMMUTABLE | 409 | 主题修订已发布，不能修改（调整需新建修订） |
 | 1_003_007_024 | AI_THEME_VERSION_CONFLICT | 409 | 主题发布/回退并发冲突（乐观锁或唯一键判负） |
+| 1_003_007_025 | AI_EMBED_APP_NOT_EXISTS | 404 | 嵌入应用不存在或未启用（未知与未启用同语义，防枚举；后缀 `_NOT_EXISTS` 承重） |
+| 1_003_007_026 | AI_EMBED_ORIGIN_INVALID | 422 | 应用未配置可用的嵌入允许域（必须是精确 Origin，fail-closed） |
+| 1_003_007_027 | AI_EMBED_ASSETS_NOT_STAGED | 422 | 嵌入页构建产物未就位（资产目录或清单缺失/损坏） |
+| 1_003_007_028 | AI_EMBED_ASSET_NOT_EXISTS | 404 | 请求的嵌入资产不在构建清单内（后缀 `_NOT_EXISTS` 承重） |
+| 1_003_007_029 | AI_REPORT_SHARE_NOT_EXISTS | 404 | 分享不存在或不可读（凭据未知/非接收者/已撤销/已过期/授予者停用同语义，防枚举；稳定原因只进访问审计，X11） |
+| 1_003_007_030 | AI_REPORT_SHARE_DUPLICATE | 409 | 同报表 + 同接收者的生效分享已存在（先撤销旧分享再创建，X11） |
 | 1_003_006_000 | AI_CONNECTOR_NOT_FOUND | 404 | 连接器不存在 |
 | 1_003_006_001 | AI_CONNECTOR_CODE_DUPLICATE | 409 | 连接器标识重复（code 唯一且不可改） |
 | 1_003_006_002 | AI_CONNECTOR_CONFIG_INVALID | 400 | 连接器配置不合规（只接受声明式白名单字段） |
@@ -249,3 +255,20 @@ HTTP 状态按 ADR 0003 的命名规则推导：`*_NOT_EXISTS` 为 404，名称�
 `signing-key-unavailable` 与目标停用都是**确定失败**（不重试）；`timeout`、`connect-failed`、
 `http-server-error`、`http-rate-limited`、`internal-error` 进入**有界退避重试**，超限后落
 `1_003_011_006`。协议与接收端校验顺序见 [`webhook-protocol.md`](webhook-protocol.md)。
+## 可视化流程编排子区间（X08，`1_003_012_xxx`）
+
+| 名称 | 编号 | 说明 | HTTP |
+|---|---|---|---|
+| `AI_WORKFLOW_NOT_FOUND` | 1_003_012_000 | 流程不存在 | 404 |
+| `AI_WORKFLOW_CODE_DUPLICATE` | 1_003_012_001 | 流程标识已存在（应用内唯一） | 409 |
+| `AI_WORKFLOW_DISABLED` | 1_003_012_002 | 流程已停用，不能发起运行 | 409 |
+| `AI_WORKFLOW_GRAPH_INVALID` | 1_003_012_003 | 流程图结构不合规 | 400 |
+| `AI_WORKFLOW_GRAPH_CYCLE` | 1_003_012_004 | 流程图存在循环 | 400 |
+| `AI_WORKFLOW_GRAPH_NO_EXIT` | 1_003_012_005 | 流程图存在无法到达结束的节点 | 400 |
+| `AI_WORKFLOW_NODE_TYPE_MISMATCH` | 1_003_012_006 | 流程节点类型或端口不匹配 | 400 |
+| `AI_WORKFLOW_NODE_REFERENCE_INVALID` | 1_003_012_007 | 流程节点引用了不存在或不可用的资源 | 400 |
+| `AI_WORKFLOW_VERSION_NOT_FOUND` | 1_003_012_008 | 流程版本不存在 | 404 |
+| `AI_WORKFLOW_VERSION_IMMUTABLE` | 1_003_012_009 | 流程版本已发布，不可修改 | 409 |
+| `AI_WORKFLOW_VERSION_STATE_INVALID` | 1_003_012_010 | 当前流程版本状态不允许该操作 | 409 |
+| `AI_WORKFLOW_DRAFT_EXISTS` | 1_003_012_011 | 流程已有打开的草稿版本 | 409 |
+| `AI_WORKFLOW_RUN_NOT_FOUND` | 1_003_012_012 | 流程运行不存在 | 404 |

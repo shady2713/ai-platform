@@ -994,6 +994,88 @@
           ]
         }
       ]
+    },
+    {
+      "id": "ai-report-share",
+      "reason": "报表受控分享（X11）是主体自有数据：分享行（ai_report_share）的授予者与接收者都是外部主体（应用 + 主体类型 + 外部用户标识），授予者视角分页/撤销/审计都按当前会话主体过滤（越权与不存在同语义 404），读取凭据只认 SHA-256 摘要且必须命中当前主体；访问审计（ai_report_share_access）由读取路径按服务端会话身份写入，只有授予者本人可按 share 读取。两表都没有部门/用户行级数据权限列，改为按主体绑定（subject-bound）控制。",
+      "tables": [
+        "ai_report_share",
+        "ai_report_share_access"
+      ],
+      "controls": [
+        {
+          "kind": "subject-bound",
+          "tables": [
+            "ai_report_share",
+            "ai_report_share_access"
+          ],
+          "evidence": [
+            {
+              "table": "ai_report_share",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/report/AiReportShareMapper.java",
+              "contains": ".eq(AiReportShareDO::getGrantorExternalUserId, grantorExternalUserId)"
+            },
+            {
+              "table": "ai_report_share",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/report/share/AiReportShareServiceImpl.java",
+              "contains": "share.getGranteeExternalUserId()"
+            },
+            {
+              "table": "ai_report_share_access",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/report/AiReportShareAccessMapper.java",
+              "contains": ".eq(AiReportShareAccessDO::getShareId, shareId)"
+            },
+            {
+              "table": "ai_report_share_access",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/report/share/AiReportShareServiceImpl.java",
+              "contains": "recordAccess("
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ai-workflow",
+      "reason": "可视化流程编排（X08）：ai_workflow 与 ai_workflow_version 是管理端配置（流程定义与不可变图版本），由功能权限 ai:workflow:query/manage/delete 管控，不具有部门或用户行级归属；ai_workflow_run 与 ai_workflow_run_node 是受理即固定版本的运行事实与节点留痕（同步有界执行，受理时已声明数据分级并由执行器按当前授权复核节点资源），管理端按功能权限读取，因此没有可授权的行级主体范围。",
+      "tables": [
+        "ai_workflow",
+        "ai_workflow_run",
+        "ai_workflow_run_node",
+        "ai_workflow_version"
+      ],
+      "controls": [
+        {
+          "kind": "function-permission",
+          "tables": [
+            "ai_workflow",
+            "ai_workflow_run",
+            "ai_workflow_run_node",
+            "ai_workflow_version"
+          ],
+          "evidence": [
+            {
+              "table": "ai_workflow",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/workflow/AiWorkflowController.java",
+              "contains": "@ss.hasPermission('ai:workflow:manage')"
+            },
+            {
+              "table": "ai_workflow_version",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/workflow/AiWorkflowController.java",
+              "contains": "@ss.hasPermission('ai:workflow:query')"
+            },
+            {
+              "table": "ai_workflow_run",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/workflow/AiWorkflowRunController.java",
+              "contains": "@ss.hasPermission('ai:workflow:run')"
+            },
+            {
+              "table": "ai_workflow_run_node",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/workflow/AiWorkflowRunController.java",
+              "contains": "@ss.hasPermission('ai:workflow:query')"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

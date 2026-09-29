@@ -4,8 +4,8 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V88.
--- Only the 55 soft-delete tables retain a deleted column; hard-delete and
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V90.
+-- Only the 58 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
 
@@ -2720,6 +2720,109 @@ INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_i
 
 -- AI 主题修订与权限点（V79）
 
+DROP TABLE IF EXISTS `ai_workflow`;
+
+CREATE TABLE `ai_workflow` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '流程编号',
+  `application_id` bigint NOT NULL COMMENT '应用编号（流程属于某个 AI 应用；运行按该应用主体执行）',
+  `code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '流程标识（应用内唯一，创建后不可修改）',
+  `name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '流程名称',
+  `description` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '流程说明',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'ENABLED' COMMENT '状态（ENABLED/DISABLED；DISABLED 不受理新运行）',
+  `latest_version_no` int NOT NULL DEFAULT '0' COMMENT '最新版本序号（草稿与发布共用递增）',
+  `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_ai_workflow_code` (`application_id`, `code`, `deleted`),
+  KEY `idx_ai_workflow_app` (`application_id`, `status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 可视化流程定义（配置面，X08）';
+
+DROP TABLE IF EXISTS `ai_workflow_version`;
+
+CREATE TABLE `ai_workflow_version` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '流程版本编号（运行受理固定到该编号）',
+  `workflow_id` bigint NOT NULL COMMENT '流程编号',
+  `version_no` int NOT NULL COMMENT '版本序号（同一流程内递增，发布后不可变）',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'DRAFT' COMMENT '状态（DRAFT 可编辑/PUBLISHED 不可变/DISCARDED 已废弃）',
+  `graph_json` varchar(16000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '流程图 JSON（nodes/edges 受控契约；节点类型见 AiWorkflowNodeType）',
+  `graph_hash` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '图内容摘要（sha-256，发布时冻结）',
+  `node_count` int NOT NULL DEFAULT '0' COMMENT '节点数（发布期有界：1-32）',
+  `edge_count` int NOT NULL DEFAULT '0' COMMENT '边数（发布期有界：0-64）',
+  `published_at` datetime DEFAULT NULL COMMENT '发布时间',
+  `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_ai_workflow_version_no` (`workflow_id`, `version_no`, `deleted`),
+  UNIQUE KEY `uk_ai_workflow_version_open_draft` ((if((`status` = 'DRAFT'), `workflow_id`, NULL))),
+  KEY `idx_ai_workflow_version_status` (`workflow_id`, `status`, `version_no`),
+  CONSTRAINT `fk_ai_workflow_version_workflow` FOREIGN KEY (`workflow_id`) REFERENCES `ai_workflow` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 流程版本（不可变图快照 + 单开草稿，X08）';
+
+DROP TABLE IF EXISTS `ai_workflow_run`;
+
+CREATE TABLE `ai_workflow_run` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '流程运行编号',
+  `workflow_id` bigint NOT NULL COMMENT '流程编号',
+  `workflow_version_id` bigint NOT NULL COMMENT '流程版本编号（受理时固定的不可变快照）',
+  `idempotency_key` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '受理幂等键（同一流程内唯一；重复受理返回首次运行）',
+  `request_digest` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '受理请求摘要（同键异摘要拒绝）',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'RUNNING' COMMENT '状态（RUNNING/SUCCEEDED/FAILED；终态只能写一次）',
+  `data_level` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '数据等级（L1_PUBLIC/L2_INTERNAL；模型节点外发等级）',
+  `input_text` varchar(4000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '运行输入（开始节点的透传文本）',
+  `output_text` varchar(2000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '运行输出（结束节点的上游文本，截断存储）',
+  `error_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '失败稳定原因码（成功为空；不含上游正文）',
+  `current_node_key` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '当前（或最后）执行的节点键',
+  `node_total` int NOT NULL DEFAULT '0' COMMENT '流程图节点总数（发布时冻结）',
+  `node_executed` int NOT NULL DEFAULT '0' COMMENT '已执行节点数',
+  `max_steps` int NOT NULL DEFAULT '16' COMMENT '步数预算（本次受理快照，上限见 AiWorkflowBudget）',
+  `max_duration_millis` bigint NOT NULL DEFAULT '60000' COMMENT '耗时预算（毫秒，本次受理快照）',
+  `started_time` datetime NOT NULL COMMENT '受理时间',
+  `finished_time` datetime DEFAULT NULL COMMENT '结束时间',
+  `duration_ms` bigint DEFAULT NULL COMMENT '执行耗时（毫秒）',
+  `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本（终态写入用 CAS）',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_ai_workflow_run_accept` (`workflow_id`, `idempotency_key`, `deleted`),
+  KEY `idx_ai_workflow_run_workflow` (`workflow_id`, `id`),
+  CONSTRAINT `fk_ai_workflow_run_workflow` FOREIGN KEY (`workflow_id`) REFERENCES `ai_workflow` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_ai_workflow_run_version` FOREIGN KEY (`workflow_version_id`) REFERENCES `ai_workflow_version` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 流程运行（受理固定版本 + 同步有界执行，X08）';
+
+DROP TABLE IF EXISTS `ai_workflow_run_node`;
+
+CREATE TABLE `ai_workflow_run_node` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '节点留痕编号',
+  `run_id` bigint NOT NULL COMMENT '运行编号',
+  `node_key` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '节点键（图内唯一）',
+  `node_type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '节点类型快照（AiWorkflowNodeType）',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '状态（SUCCEEDED/FAILED）',
+  `output_text` varchar(2000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '节点输出摘要（截断存储；不含凭据与上游正文全文）',
+  `error_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '稳定错误码（成功为空）',
+  `started_time` datetime NOT NULL COMMENT '节点开始时间',
+  `finished_time` datetime NOT NULL COMMENT '节点结束时间',
+  `duration_ms` bigint NOT NULL DEFAULT '0' COMMENT '节点耗时（毫秒）',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_ai_workflow_run_node` (`run_id`, `node_key`),
+  KEY `idx_ai_workflow_run_node_run` (`run_id`, `id`),
+  CONSTRAINT `fk_ai_workflow_run_node_run` FOREIGN KEY (`run_id`) REFERENCES `ai_workflow_run` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 流程运行节点留痕（append-retention，步骤可视化与失败定位，X08）';
+
 DROP TABLE IF EXISTS `ai_theme`;
 
 CREATE TABLE `ai_theme` (
@@ -3035,6 +3138,55 @@ INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_i
 (4126, '密钥轮换', 'ai:webhook:rotate', 3, 2, 4124, '', '', '', NULL, 0, b'1', b'1', b'1', '1', CURRENT_TIMESTAMP, '1', CURRENT_TIMESTAMP, b'0'),
 (4127, '目标删除', 'ai:webhook:delete', 3, 3, 4124, '', '', '', NULL, 0, b'1', b'1', b'1', '1', CURRENT_TIMESTAMP, '1', CURRENT_TIMESTAMP, b'0'),
 (4128, '人工重投', 'ai:webhook:redeliver', 3, 4, 4124, '', '', '', NULL, 0, b'1', b'1', b'1', '1', CURRENT_TIMESTAMP, '1', CURRENT_TIMESTAMP, b'0');
+
+
+-- 报表受控分享与访问审计（V90，X11）
+DROP TABLE IF EXISTS `ai_report_share`;
+CREATE TABLE `ai_report_share` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '分享编号',
+  `token_hash` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '分享凭据的 SHA-256 摘要（小写十六进制；明文令牌不落库）',
+  `report_id` bigint NOT NULL COMMENT '报表编号（创建时校验所有者=授予者；复制 reportId 无效，读取只认令牌摘要）',
+  `version_no` int NOT NULL COMMENT '分享时固定的版本号（报表新增版本不改变分享内容）',
+  `application_id` bigint NOT NULL COMMENT '所属应用编号',
+  `grantor_subject_type` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'USER' COMMENT '授予者主体类型（固定 USER：只有用户主体可分享）',
+  `grantor_external_user_id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '授予者外部用户标识（所有者；主体停用后读取立即拒绝）',
+  `grantee_subject_type` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'USER' COMMENT '接收者主体类型（固定 USER）',
+  `grantee_external_user_id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '接收者外部用户标识（读取时必须等于当前主体，防凭据转借）',
+  `grantee_display_name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '接收者显示名（创建时快照，授予者界面展示接收范围用）',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'ACTIVE' COMMENT '状态（ACTIVE/REVOKED/EXPIRED；REVOKED 撤销、EXPIRED 到期惰性物化）',
+  `expires_time` datetime DEFAULT NULL COMMENT '过期时间（空为长期有效；过期后读取拒绝并把状态物化为 EXPIRED）',
+  `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本（撤销 CAS 使用）',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_ai_report_share_token` (`token_hash`),
+  KEY `idx_ai_report_share_grantor` (`application_id`, `grantor_subject_type`, `grantor_external_user_id`, `id`),
+  KEY `idx_ai_report_share_grantee` (`application_id`, `report_id`, `grantee_subject_type`, `grantee_external_user_id`, `status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `ai_report_share_access`;
+CREATE TABLE `ai_report_share_access` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '访问记录编号',
+  `share_id` bigint DEFAULT NULL COMMENT '分享编号（凭据无法定位分享时为空）',
+  `report_id` bigint DEFAULT NULL COMMENT '报表编号（同上；审计按 share_id 归组）',
+  `application_id` bigint NOT NULL COMMENT '应用编号（有分享行时为分享所属应用，否则为访问主体所属应用）',
+  `subject_type` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '访问者主体类型（来自服务端会话身份）',
+  `external_user_id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '访问者外部用户标识',
+  `outcome` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '结论（GRANTED 读取被受理/DENIED 读取被拒绝；降级态是 GRANTED + content_authorized=0）',
+  `reason_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '稳定原因码（subject-mismatch/revoked/expired/grantor-unavailable/scope-uncovered；完整成功为空）',
+  `content_authorized` bit(1) NOT NULL DEFAULT b'0' COMMENT '本次是否真的出库了报表内容（降级态为 0：spec/data/asOf/completeness 均未返回）',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_ai_report_share_access_share` (`share_id`, `id`),
+  KEY `idx_ai_report_share_access_subject` (`application_id`, `subject_type`, `external_user_id`, `id`),
+  KEY `idx_ai_report_share_access_retention` (`create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;

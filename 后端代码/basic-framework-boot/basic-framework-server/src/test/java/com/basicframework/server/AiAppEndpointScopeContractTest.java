@@ -116,7 +116,15 @@ class AiAppEndpointScopeContractTest {
             // R06：报表刷新与刷新状态同样按 ai_report 归属判定；刷新按当前权限重放固定查询版本，
             // 上一次结果在返回前复核范围指纹（AT-047/048）
             "com.basicframework.module.ai.controller.app.v1.report.AiReportController#refresh",
-            "com.basicframework.module.ai.controller.app.v1.report.AiReportController#refreshLast");
+            "com.basicframework.module.ai.controller.app.v1.report.AiReportController#refreshLast",
+            // X11：受控分享按主体绑定判定——授予者必须是报表所有者（越权与不存在同语义），
+            // 接收者读取必须命中凭据摘要对应的接收主体，撤销/到期/授予者停用立即 404；
+            // 可见权与源数据读取权分离：内容出库前按接收者当前源权限复核，覆盖不了即降级态
+            "com.basicframework.module.ai.controller.app.v1.report.AiReportShareController#create",
+            "com.basicframework.module.ai.controller.app.v1.report.AiReportShareController#revoke",
+            "com.basicframework.module.ai.controller.app.v1.report.AiReportShareController#page",
+            "com.basicframework.module.ai.controller.app.v1.report.AiReportShareController#read",
+            "com.basicframework.module.ai.controller.app.v1.report.AiReportShareController#accessList");
 
     private static final String AI_APP_PACKAGE = "com.basicframework.module.ai.controller.app";
 
