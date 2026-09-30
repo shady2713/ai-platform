@@ -198,6 +198,45 @@
       ]
     },
     {
+      "id": "ai-cross-source-execution",
+      "reason": "跨源执行记录（ai_cross_source_execution）与来源贡献台账（ai_cross_source_execution_source）是运行期执行事实：前者是一次跨源聚合的幂等锚点（execution_key 唯一 + plan_hash 冲突检测 + 一致性时间点与预算用量留痕），后者是\"每来源一行\"的已计入台账（唯一键 (execution_id, role, deleted) 保证重试覆盖而不叠加）。两者都没有部门/用户行级权限列：跨源数据本身的行级授权由各来源数据集（D04）的字段权限策略在来源侧承担，本表只记录已按版本化实体键聚合并脱敏为金额/计量的执行结果；写入路径由跨源执行服务（构造器注入，只接受已通过 Y03 校验的计划）承担，读取按执行键与执行编号定位，不存在\"按操作员过滤可见行\"的场景。",
+      "tables": [
+        "ai_cross_source_execution",
+        "ai_cross_source_execution_source"
+      ],
+      "controls": [
+        {
+          "kind": "function-permission",
+          "tables": [
+            "ai_cross_source_execution",
+            "ai_cross_source_execution_source"
+          ],
+          "evidence": [
+            {
+              "table": "ai_cross_source_execution",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/query/crosssource/AiCrossSourceQueryExecutor.java",
+              "contains": "public CrossSourceExecutionResult execute("
+            },
+            {
+              "table": "ai_cross_source_execution",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/crosssource/AiCrossSourceExecutionMapper.java",
+              "contains": "default AiCrossSourceExecutionDO selectByExecutionKey(String executionKey) {"
+            },
+            {
+              "table": "ai_cross_source_execution_source",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/query/crosssource/AiCrossSourceQueryExecutor.java",
+              "contains": "contributionMapper.insert(newContribution(executionId, request, amount, fetched));"
+            },
+            {
+              "table": "ai_cross_source_execution_source",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/crosssource/AiCrossSourceSourceContributionMapper.java",
+              "contains": "default AiCrossSourceExecutionSourceDO selectByRole(Long executionId, String role) {"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "ai-subject-binding",
       "reason": "AI 外部主体表按 (application_id, subject_type, external_user_id) 绑定到唯一主体，读取一律经 AiSubjectService 的主体唯一键查询，不使用部门数据范围规则；范围授权由 SubjectScopeResolver 在请求期解析并默认 DENY。 访问票据（ai_access_ticket）按签发主体绑定并只存 token 摘要，校验一律经摘要唯一键定位。 业务文件绑定（ai_file_binding）按上传主体与业务对象归属判定，读写删都经主体唯一键与服务层 ACL。",
       "tables": [

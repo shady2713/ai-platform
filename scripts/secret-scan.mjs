@@ -255,6 +255,12 @@ const publicFixtures = new Map([
     `${server}test/java/com/basicframework/server/integration/AiMysqlQueryExecutionIT.java`,
     new Set(["d06-it-readonly-password"]),
   ],
+  // Y04：跨源执行集成测试里的一次性只读账号口令（仅集成容器内使用；
+  // 该账号用于验证 D03 只读守卫确实生效——只授权 y04_catalog 的三张表，不含写权限）
+  [
+    `${server}test/java/com/basicframework/server/integration/CrossSourceWarehouseFixture.java`,
+    new Set(["y04-it-readonly-password"]),
+  ],
   [
     `${server}test/java/com/basicframework/server/integration/AiQueryPermissionIT.java`,
     new Set(["d06-it-permission-password"]),

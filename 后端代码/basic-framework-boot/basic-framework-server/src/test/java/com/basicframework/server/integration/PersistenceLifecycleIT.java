@@ -270,6 +270,9 @@ class PersistenceLifecycleIT extends AbstractPersistenceIntegrationTest {
                         "ai_connector_probe",
                         "ai_conversation",
                         "ai_conversation_message",
+                        // V95：跨源执行（执行记录为锚点，来源贡献行是"每来源一行"的已计入台账）
+                        "ai_cross_source_execution",
+                        "ai_cross_source_execution_source",
                         "ai_dataset",
                         "ai_dataset_version",
                         // V83：评测套件与样例（配置面，冻结后编辑走新修订）

@@ -7,7 +7,8 @@ import com.basicframework.framework.common.exception.ErrorCode;
  *
  * <p>当前只登记协议与授权边界上已冻结、可被其它任务直接复用的错误码；各能力域实现时在所属子区间追加编号，禁止改动既有编号语义（错误码是长期协议的一部分）。1_003_016_xxx 见 {@link AiMetricSemanticsErrorCodeConstants}。
  */
-public interface AiErrorCodeConstants extends AiMetricSemanticsErrorCodeConstants {
+public interface AiErrorCodeConstants
+        extends AiMetricSemanticsErrorCodeConstants, AiCrossSourceExecutionErrorCodeConstants {
 
     // ========== 通用/协议 1_003_001_xxx ==========
 
