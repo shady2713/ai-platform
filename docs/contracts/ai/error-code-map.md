@@ -291,6 +291,34 @@ HTTP 状态按 ADR 0003 的命名规则推导：`*_NOT_EXISTS` 为 404，名称�
 （`app_code`），两个应用的相同 `externalUserId` **不构成**同一主体；只有显式登记且经独立审批的
 联邦映射参与授权发现，撤销下一次读取即时生效。
 
+## 主数据映射子区间（Y02，`1_003_015_xxx`）
+
+主数据映射把"同一实体在不同业务系统里的标识"关联起来（跨系统链 AT-070）。HTTP 列按 ADR 0003 的**语义**
+映射；框架按常量名派生实际状态（后缀 `_NOT_EXISTS` → 404，名称含 `CONFLICT`/`EXISTS`/`DUPLICATE` → 409，
+其余 422），本表的 400/401 类码同此口径。
+
+| 名称 | 编号 | 说明 | HTTP |
+|---|---|---|---|
+| `AI_MASTER_OBJECT_NOT_EXISTS` | 1_003_015_000 | 企业统一对象不存在（编号/标识无效、已删除同语义） | 404 |
+| `AI_MASTER_OBJECT_CODE_DUPLICATE` | 1_003_015_001 | 统一对象标识已存在（标识全局唯一且不可修改） | 409 |
+| `AI_MASTER_OBJECT_DISABLED_CONFLICT` | 1_003_015_002 | 统一对象已停用，不能用于主数据判定（不回退到历史版本） | 409 |
+| `AI_MASTER_OBJECT_REVISION_NOT_EXISTS` | 1_003_015_003 | 映射版本不存在（版本号无效或不属于该对象） | 404 |
+| `AI_MASTER_OBJECT_REVISION_NOT_PUBLISHED_CONFLICT` | 1_003_015_004 | 草稿版本不是可核验事实，不能用于判定或作为报表依据 | 409 |
+| `AI_MASTER_OBJECT_REVISION_PUBLISHED_CONFLICT` | 1_003_015_005 | 已发布版本不可变：不能增删其映射条目（改映射必须新建版本） | 409 |
+| `AI_MASTER_OBJECT_REVISION_EXPIRED_CONFLICT` | 1_003_015_006 | 版本有效期不覆盖判定时刻，阻断而不是回退到最新版本 | 409 |
+| `AI_MASTER_OBJECT_REVISION_FINGERPRINT_CONFLICT` | 1_003_015_007 | 版本内容重算指纹与冻结值不符（内容被版本外改动） | 409 |
+| `AI_MASTER_MAPPING_ENTRY_INVALID` | 1_003_015_008 | 映射条目登记不合法：源键/实体类型格式、有效期窗口、匹配方式或来源系统不可用 | 422 |
+| `AI_MASTER_MAPPING_ENTRY_DUPLICATE` | 1_003_015_009 | 同一版本的同一（系统, 实体类型, 源键）已登记 | 409 |
+| `AI_MASTER_MAPPING_CONFLICT` | 1_003_015_010 | 映射冲突：一对多（同对象同系统同实体类型多条重叠）或多对一（同源键重叠时间属于多个对象），发布与判定都阻断 | 409 |
+| `AI_MASTER_MAPPING_EXPIRED_CONFLICT` | 1_003_015_011 | 源键有效期不覆盖判定时刻（未生效或已过期） | 409 |
+| `AI_MASTER_MAPPING_NOT_EXISTS` | 1_003_015_012 | 该（对象, 系统, 实体类型）没有已发布的映射事实（未映射即不关联） | 404 |
+| `AI_MASTER_OBJECT_CATALOG_BUDGET_EXCEEDED` | 1_003_015_013 | 目录/登记条目超过预算（单版本 200 条），拒绝返回**部分**内容 | 422 |
+| `AI_MASTER_OBJECT_PUBLISHER_CONFLICT` | 1_003_015_014 | 独立审核：发布人必须不同于草稿创建人 | 409 |
+
+语义边界见 `docs/adr/0053-master-data-entity-mapping-versions.md`：映射只按**显式登记的源键**关联，
+展示名不参与判定（同名不同实体不合并）；映射版本发布后不可变，旧报表按受理时的版本编号与冻结指纹解释；
+冲突与过期一律阻断，绝不"挑一个"。
+
 ## 实时语音子区间（X05，`1_003_014_xxx`）
 
 实时语音的 HTTP 列按 ADR 0003 的**语义**映射；框架按常量名派生实际状态

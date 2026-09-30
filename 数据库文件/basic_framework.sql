@@ -4,8 +4,8 @@
 -- ------------------------------------------------------
 -- Server version	8.4.8
 
--- Snapshot note: aligned with the authoritative Flyway migration chain through V92.
--- Only the 63 soft-delete tables retain a deleted column; hard-delete and
+-- Snapshot note: aligned with the authoritative Flyway migration chain through V93.
+-- Only the 65 soft-delete tables retain a deleted column; hard-delete and
 -- append-retention tables use physical deletion according to docs/data-lifecycle.md.
 -- Runtime schema source of truth: 后端代码/basic-framework-boot/basic-framework-server/src/main/resources/db/migration/
 
@@ -3338,6 +3338,99 @@ CREATE TABLE `ai_realtime_endpoint_capability` (
   UNIQUE KEY `uk_ai_realtime_endpoint_capability` (`endpoint_id`, `config_revision`, `protocol`, `deleted`),
   KEY `idx_ai_realtime_endpoint_capability_protocol` (`protocol`, `status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 实时端点能力验证台账（声明 + 真实探测确认，X05）';
+
+--
+-- V93：跨系统业务对象与主数据映射（Y02）
+--
+
+DROP TABLE IF EXISTS `ai_master_object`;
+
+CREATE TABLE `ai_master_object` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '企业统一对象编号',
+  `object_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '统一对象标识（稳定且不可修改，跨系统映射的锚点）',
+  `object_name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '对象名称（仅展示，绝不参与实体判定）',
+  `object_type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '对象类型（CUSTOMER/SUPPLIER/PRODUCT/EMPLOYEE/ORGANIZATION/OTHER）',
+  `description` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '说明（不承载判定语义）',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'ACTIVE' COMMENT '状态（ACTIVE 可用/DISABLED 停用：停用后判定阻断）',
+  `current_revision` bigint NOT NULL DEFAULT '0' COMMENT '当前已发布的映射版本（0=尚无已发布版本；判定必须显式指定版本，不回退到最新）',
+  `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_ai_master_object_code` (`object_code`, `deleted`),
+  KEY `idx_ai_master_object_status` (`status`, `id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 企业统一对象（跨系统主数据映射锚点，Y02）';
+
+DROP TABLE IF EXISTS `ai_master_object_revision`;
+
+CREATE TABLE `ai_master_object_revision` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '映射版本编号',
+  `master_object_id` bigint NOT NULL COMMENT '统一对象编号',
+  `revision_no` bigint NOT NULL COMMENT '映射版本号（对象内递增；发布后不可变，旧报表按受理时的版本解释）',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'DRAFT' COMMENT '状态（DRAFT 草稿可编辑/PUBLISHED 已发布不可变）',
+  `valid_from` datetime NOT NULL COMMENT '版本有效期起点（含）',
+  `valid_to` datetime DEFAULT NULL COMMENT '版本有效期终点（不含；NULL=长期有效；过期即阻断判定）',
+  `entry_count` int NOT NULL DEFAULT '0' COMMENT '发布时冻结的映射条目数（读取预算据此有界）',
+  `mapping_fingerprint` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '发布时冻结的内容指纹（读取时重算比对，不符即阻断）',
+  `created_by` bigint NOT NULL COMMENT '草稿创建人（发布人必须不同：独立审核）',
+  `published_by` bigint DEFAULT NULL COMMENT '发布人（必须与草稿创建人不同）',
+  `published_time` datetime DEFAULT NULL COMMENT '发布时间',
+  `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_ai_master_object_revision_no` (`master_object_id`, `revision_no`, `deleted`),
+  KEY `idx_ai_master_object_revision_status` (`master_object_id`, `status`, `revision_no`),
+  CONSTRAINT `fk_ai_master_object_revision_object` FOREIGN KEY (`master_object_id`) REFERENCES `ai_master_object` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 主数据映射版本（草稿可编辑、发布后不可变的映射快照，Y02）';
+
+DROP TABLE IF EXISTS `ai_master_object_mapping`;
+
+CREATE TABLE `ai_master_object_mapping` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '源键映射编号',
+  `master_object_id` bigint NOT NULL COMMENT '统一对象编号',
+  `revision` bigint NOT NULL COMMENT '所属映射版本（草稿期可增删；发布后随版本冻结）',
+  `application_id` bigint NOT NULL COMMENT '来源系统（接入应用）编号',
+  `entity_type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '该系统中的实体类型（如 customer/order）',
+  `source_key` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '该系统中的业务主键（显式登记事实，绝不按名称/同名推断）',
+  `source_name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '展示名（只展示，不参与判定：同名不同实体不合并）',
+  `match_method` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '匹配方式（MANUAL 人工登记/TRUSTED_FEED 可信主数据导入）',
+  `valid_from` datetime NOT NULL COMMENT '源键有效期起点（含）',
+  `valid_to` datetime DEFAULT NULL COMMENT '源键有效期终点（不含；NULL=长期有效）',
+  `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本（草稿期删除 CAS）',
+  `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_ai_master_object_mapping_entry` (`master_object_id`, `revision`, `application_id`, `entity_type`, `source_key`),
+  KEY `idx_ai_master_object_mapping_revision` (`master_object_id`, `revision`),
+  KEY `idx_ai_master_object_mapping_source` (`application_id`, `entity_type`, `source_key`, `revision`),
+  CONSTRAINT `fk_ai_master_object_mapping_object` FOREIGN KEY (`master_object_id`) REFERENCES `ai_master_object` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 主数据源键映射（显式登记的跨系统标识对应，Y02）';
+
+INSERT INTO `system_menu`
+(`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`,
+ `icon`, `component`, `component_name`, `status`, `visible`,
+ `keep_alive`, `always_show`, `creator`, `create_time`, `updater`,
+ `update_time`, `deleted`)
+VALUES (4118, '主数据映射', 'ai:semantic:query', 2, 17, 4000, 'semantic', 'ep:connection',
+        'ai/semantic/index', 'AiSemantic', 0, b'1', b'1', b'1', '1', CURRENT_TIMESTAMP, '1',
+        CURRENT_TIMESTAMP, b'0');
+
+INSERT INTO `system_menu`
+(`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`,
+ `icon`, `component`, `component_name`, `status`, `visible`,
+ `keep_alive`, `always_show`, `creator`, `create_time`, `updater`,
+ `update_time`, `deleted`)
+VALUES (4119, '主数据映射维护', 'ai:semantic:manage', 3, 18, 4118, '', '', '', NULL, 0, b'1', b'1', b'1', '1',
+        CURRENT_TIMESTAMP, '1', CURRENT_TIMESTAMP, b'0');
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;

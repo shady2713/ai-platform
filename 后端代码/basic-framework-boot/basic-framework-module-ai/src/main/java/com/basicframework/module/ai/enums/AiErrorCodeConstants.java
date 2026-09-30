@@ -732,4 +732,69 @@ public interface AiErrorCodeConstants {
 
     /** 会话已到期（409）：绝对寿命已到并已关闭；客户端应重新受理新会话（不续期）。 */
     ErrorCode AI_REALTIME_SESSION_EXPIRED_CONFLICT = new ErrorCode(1_003_014_018, "实时会话已到期并关闭");
+
+    // ========== 主数据映射（企业统一对象 / 源键映射 / 映射版本）1_003_015_xxx（Y02） ==========
+
+    /**
+     * 统一对象不存在（404）：编号或标识无效、已删除，统一同语义。
+     *
+     * <p>承重命名：{@code GlobalExceptionHandler.resolveHttpStatus} 只认常量名后缀
+     * {@code _NOT_EXISTS} → 404（ADR 0003）。
+     */
+    ErrorCode AI_MASTER_OBJECT_NOT_EXISTS = new ErrorCode(1_003_015_000, "企业统一对象不存在");
+
+    /** 统一对象标识重复（409）：对象标识全局唯一且不可修改。 */
+    ErrorCode AI_MASTER_OBJECT_CODE_DUPLICATE = new ErrorCode(1_003_015_001, "该企业统一对象标识已存在");
+
+    /** 统一对象已停用（409）：停用后一切判定受阻，不得静默当作可用。 */
+    ErrorCode AI_MASTER_OBJECT_DISABLED_CONFLICT = new ErrorCode(1_003_015_002, "企业统一对象已停用，不能用于主数据判定");
+
+    /**
+     * 映射版本不存在（404）：版本号无效或不属于该对象，统一同语义。
+     *
+     * <p>承重命名：{@code GlobalExceptionHandler.resolveHttpStatus} 只认常量名后缀
+     * {@code _NOT_EXISTS} → 404（ADR 0003）。
+     */
+    ErrorCode AI_MASTER_OBJECT_REVISION_NOT_EXISTS = new ErrorCode(1_003_015_003, "主数据映射版本不存在");
+
+    /** 映射版本尚未发布（409）：草稿不是可核验事实，不能用于判定或作为报表依据。 */
+    ErrorCode AI_MASTER_OBJECT_REVISION_NOT_PUBLISHED_CONFLICT = new ErrorCode(1_003_015_004, "映射版本尚未发布，不能用于判定");
+
+    /** 映射版本已发布（409）：已发布版本不可变，改映射必须新建版本（换版本不改旧结果）。 */
+    ErrorCode AI_MASTER_OBJECT_REVISION_PUBLISHED_CONFLICT = new ErrorCode(1_003_015_005, "映射版本已发布，不能修改或删除其映射条目");
+
+    /** 映射版本有效期已过（409）：判定时刻不在版本有效期内，阻断而不是回退到最新版本。 */
+    ErrorCode AI_MASTER_OBJECT_REVISION_EXPIRED_CONFLICT = new ErrorCode(1_003_015_006, "映射版本有效期已过，不能用于该时刻的判定");
+
+    /** 映射版本内容指纹不符（409）：冻结指纹与重算结果不一致（内容被版本外改动），判定阻断。 */
+    ErrorCode AI_MASTER_OBJECT_REVISION_FINGERPRINT_CONFLICT = new ErrorCode(1_003_015_007, "映射版本内容指纹不符，版本内容已被改动");
+
+    /** 映射条目登记不合法（422）：键/名称格式、有效期窗口或匹配方式不合规（未知匹配方式一律拒绝）。 */
+    ErrorCode AI_MASTER_MAPPING_ENTRY_INVALID = new ErrorCode(1_003_015_008, "映射条目登记不合法");
+
+    /** 映射条目重复（409）：同一版本的同一（系统, 实体类型, 源键）只能登记一次。 */
+    ErrorCode AI_MASTER_MAPPING_ENTRY_DUPLICATE = new ErrorCode(1_003_015_009, "该源键在本版本中已登记");
+
+    /**
+     * 映射冲突（409）：一对多（同一对象在同一系统/实体类型下有多条生效源键）或多对一
+     * （同一源键在重叠时间段属于多个对象）不一致，发布与判定都必须阻断，绝不静默取一个。
+     */
+    ErrorCode AI_MASTER_MAPPING_CONFLICT = new ErrorCode(1_003_015_010, "映射存在冲突，必须人工处理后才能使用：{}");
+
+    /** 映射有效期不覆盖判定时刻（409）：既未生效或已过期，都不参与判定，阻断而不是回退到其它版本。 */
+    ErrorCode AI_MASTER_MAPPING_EXPIRED_CONFLICT = new ErrorCode(1_003_015_011, "映射有效期不覆盖判定时刻，不能用于该时刻的判定");
+
+    /**
+     * 映射未登记（404）：该（系统, 实体类型, 源键）没有已发布的映射事实（未映射即不关联）。
+     *
+     * <p>承重命名：{@code GlobalExceptionHandler.resolveHttpStatus} 只认常量名后缀
+     * {@code _NOT_EXISTS} → 404（ADR 0003）。
+     */
+    ErrorCode AI_MASTER_MAPPING_NOT_EXISTS = new ErrorCode(1_003_015_012, "该源键没有已发布的跨系统映射");
+
+    /** 映射目录超预算（422）：可见条目超过单次发现预算，拒绝返回**部分**目录（不静默截断）。 */
+    ErrorCode AI_MASTER_OBJECT_CATALOG_BUDGET_EXCEEDED = new ErrorCode(1_003_015_013, "映射目录条目超过发现预算，拒绝返回不完整目录");
+
+    /** 发布人冲突（409）：独立审核要求发布人不同于草稿创建人。 */
+    ErrorCode AI_MASTER_OBJECT_PUBLISHER_CONFLICT = new ErrorCode(1_003_015_014, "映射版本必须由草稿创建人之外的审核人发布");
 }

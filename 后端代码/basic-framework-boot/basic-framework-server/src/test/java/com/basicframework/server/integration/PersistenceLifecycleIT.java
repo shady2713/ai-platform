@@ -280,6 +280,9 @@ class PersistenceLifecycleIT extends AbstractPersistenceIntegrationTest {
                         "ai_knowledge_document",
                         "ai_knowledge_document_version",
                         "ai_knowledge_ingestion_task",
+                        // V93：主数据映射（统一对象与映射版本为软删除；映射条目是草稿内容行，hard-delete）
+                        "ai_master_object",
+                        "ai_master_object_revision",
                         // V85：媒体任务与产物（X03 起图片生成/编辑，X04 复用同一任务模型）
                         "ai_media_asset",
                         "ai_media_task",

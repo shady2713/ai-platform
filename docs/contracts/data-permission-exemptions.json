@@ -32,7 +32,7 @@
     },
     {
       "id": "ai-control-plane-config",
-      "reason": "AI 控制面配置（模型端点及其不可变版本）由功能权限 ai:model-endpoint:* 管理，不具有部门或用户行级归属。 应用与客户端凭据（ai_application / ai_application_credential）同属控制面配置，凭据只存摘要，由 ai:application:* 权限管理。 AI 服务草稿与发布版本（ai_service/ai_service_release/ai_service_resource/ai_service_release_evaluation）同属控制面配置，由 ai:service:* 权限管理。 跨系统主体联邦映射（ai_subject_federation）同属控制面配置：它记录\"哪个系统的哪个外部主体等同于另一个系统的哪个外部主体\"，只由独立审批的后台操作员维护（提交/批准/撤销），读取侧（授权发现）按来源主体精确过滤，表内不含部门/用户行级权限列。",
+      "reason": "AI 控制面配置（模型端点及其不可变版本）由功能权限 ai:model-endpoint:* 管理，不具有部门或用户行级归属。 应用与客户端凭据（ai_application / ai_application_credential）同属控制面配置，凭据只存摘要，由 ai:application:* 权限管理。 AI 服务草稿与发布版本（ai_service/ai_service_release/ai_service_resource/ai_service_release_evaluation）同属控制面配置，由 ai:service:* 权限管理。 跨系统主体联邦映射（ai_subject_federation）同属控制面配置：它记录\"哪个系统的哪个外部主体等同于另一个系统的哪个外部主体\"，只由独立审批的后台操作员维护（提交/批准/撤销），读取侧（授权发现）按来源主体精确过滤，表内不含部门/用户行级权限列。 主数据映射（ai_master_object/ai_master_object_revision/ai_master_object_mapping）同属控制面配置：统一对象、映射版本与源键映射只由功能权限 ai:semantic:manage 维护（读取用 ai:semantic:query），发布必须由草稿创建人之外的审核人执行，表内没有部门/用户行级权限列，读取侧（目录发现）按 Y01 的可访问系统集合求交集（无权系统不出现）。",
       "tables": [
         "ai_model_endpoint",
         "ai_model_endpoint_revision",
@@ -44,7 +44,10 @@
         "ai_service_release",
         "ai_service_resource",
         "ai_service_release_evaluation",
-        "ai_subject_federation"
+        "ai_subject_federation",
+        "ai_master_object",
+        "ai_master_object_revision",
+        "ai_master_object_mapping"
       ],
       "controls": [
         {
@@ -60,7 +63,10 @@
             "ai_service_release",
             "ai_service_resource",
             "ai_service_release_evaluation",
-            "ai_subject_federation"
+            "ai_subject_federation",
+            "ai_master_object",
+            "ai_master_object_revision",
+            "ai_master_object_mapping"
           ],
           "evidence": [
             {
@@ -117,6 +123,36 @@
               "table": "ai_subject_federation",
               "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/application/AiApplicationDiscoveryController.java",
               "contains": "@PreAuthorize(\"@ss.hasPermission('ai:application:federation')\")"
+            },
+            {
+              "table": "ai_master_object",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/semantic/AiMasterObjectController.java",
+              "contains": "public CommonResult<Long> createObject(@Valid @RequestBody AiMasterObjectSaveReqVO reqVO) {"
+            },
+            {
+              "table": "ai_master_object_revision",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/semantic/AiMasterObjectController.java",
+              "contains": "public CommonResult<Long> createRevision(@Valid @RequestBody AiMasterRevisionDraftReqVO reqVO) {"
+            },
+            {
+              "table": "ai_master_object_mapping",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/semantic/AiMasterObjectController.java",
+              "contains": "public CommonResult<Long> createMappingEntry(@Valid @RequestBody AiMasterMappingEntryCreateReqVO reqVO) {"
+            },
+            {
+              "table": "ai_master_object",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/semantic/AiMasterObjectController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('ai:semantic:manage')\")"
+            },
+            {
+              "table": "ai_master_object_revision",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/semantic/AiMasterObjectController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('ai:semantic:manage')\")"
+            },
+            {
+              "table": "ai_master_object_mapping",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/semantic/AiMasterObjectController.java",
+              "contains": "@PreAuthorize(\"@ss.hasPermission('ai:semantic:manage')\")"
             }
           ]
         }
