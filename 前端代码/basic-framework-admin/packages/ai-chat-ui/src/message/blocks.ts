@@ -24,6 +24,7 @@
 import type { ResultBlock } from '@vben/ai-contracts';
 
 import type { ReportData, ReportSpec } from '../report/reportSpec';
+import type { CrossSourceIntegrity } from './cross-source-integrity';
 
 import { parseResultBlocks } from '@vben/ai-contracts';
 
@@ -96,6 +97,8 @@ export interface ReportBlock {
 export interface TableBlock {
   columns: TableColumn[];
   completeness?: string;
+  /** 授权维度的完整性（Y05）；缺省表示该结果不来自跨源合并。 */
+  crossSourceIntegrity?: CrossSourceIntegrity;
   kind: 'table';
   pageInfo?: TablePageInfo;
   rows: Record<string, unknown>[];
@@ -153,6 +156,12 @@ const RFC3339 =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/;
 
 const COMPLETENESS = new Set(['COMPLETE', 'PARTIAL', 'UNKNOWN']);
+/** 跨源授权完整性口径（Y05）：与上面的 COMPLETENESS 是两个不同维度，不可互相顶替。 */
+const CROSS_SOURCE_INTEGRITY_STATES = new Set<CrossSourceIntegrity['state']>([
+  'COMPLETE',
+  'PARTIAL',
+  'WITHHELD',
+]);
 const ACTION_STATUS = new Set(['CANCELLED', 'CONFIRMED', 'EXPIRED', 'PENDING']);
 
 const MAX_TABLE_ROWS = 10_000;
@@ -214,11 +223,11 @@ function integer(value: unknown, min: number, max: number): number {
   return value;
 }
 
-function enumeration(value: unknown, allowed: Set<string>): string {
-  if (typeof value !== 'string' || !allowed.has(value)) {
+function enumeration<T extends string>(value: unknown, allowed: Set<T>): T {
+  if (typeof value !== 'string' || !allowed.has(value as T)) {
     return fail('取值不在允许域内');
   }
-  return value;
+  return value as T;
 }
 
 function array(value: unknown, min: number, max: number): unknown[] {
@@ -244,6 +253,7 @@ function parseTableBlock(node: Record<string, unknown>): TableBlock {
     'rows',
     'pageInfo',
     'completeness',
+    'crossSourceIntegrity',
   ]);
   const parsed: TableBlock = {
     columns: array(input.columns, 1, 50).map((column) => {
@@ -268,7 +278,29 @@ function parseTableBlock(node: Record<string, unknown>): TableBlock {
   if (input.completeness !== undefined) {
     parsed.completeness = enumeration(input.completeness, COMPLETENESS);
   }
+  if (input.crossSourceIntegrity !== undefined) {
+    parsed.crossSourceIntegrity = parseCrossSourceIntegrity(
+      input.crossSourceIntegrity,
+    );
+  }
   return parsed;
+}
+
+/**
+ * 解析跨源完整性口径（Y05）：未知状态**解析期拒绝**，不降级成"看起来完整"。
+ *
+ * <p>这里必须 fail-closed：把一个认不出的 `state` 当成 `COMPLETE` 渲染，等于
+ * 凭空替后端宣布"你有权看这份结果"。降级成 `WITHHELD` 同样不合适——那会把
+ * 一次契约漂移显示成一次授权拒绝，把排查方向带偏。正确做法是让解析失败，
+ * 由上层按既有降级路径显式提示。
+ */
+function parseCrossSourceIntegrity(node: unknown): CrossSourceIntegrity {
+  const input = object(node, ['state', 'reason']);
+  const state = enumeration(input.state, CROSS_SOURCE_INTEGRITY_STATES);
+  if (state === 'COMPLETE') {
+    return { state };
+  }
+  return { reason: text(input.reason, 200), state };
 }
 
 function parseCitationBlock(node: Record<string, unknown>): CitationBlock {

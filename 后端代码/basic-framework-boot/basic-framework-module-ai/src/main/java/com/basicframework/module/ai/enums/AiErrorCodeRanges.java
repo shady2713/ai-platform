@@ -24,6 +24,7 @@ package com.basicframework.module.ai.enums;
  *   1_003_015_xxx  主数据映射（企业统一对象、源键映射、映射版本与冲突/过期阻断）
  *   1_003_016_xxx  跨源指标口径（口径版本、显式数据集与映射版本、扇出阻断、币种换算与缺口澄清）
  *   1_003_017_xxx  跨源有界执行（来源预算与受控结束、时间点偏移、重试去重与容量拒绝/登记）
+ *   1_003_018_xxx  跨系统授权与完整性（来源/映射/角色授权、合计与计数泄漏阻断、模型输入捕获复核）
  * </pre>
  *
  * <p>HTTP 映射遵循 [ADR 0003](http-status-semantics) 与 [ADR 0049](identity-boundaries)：
@@ -86,6 +87,9 @@ public final class AiErrorCodeRanges {
 
     /** 跨源有界执行子区间（Y04）：来源预算与受控结束、时间点偏移、重试去重与容量拒绝/登记。 */
     public static final int DOMAIN_CROSS_SOURCE_EXECUTION = 1_003_017;
+
+    /** 跨系统授权与完整性子区间（Y05）：来源/映射/角色授权、合计与计数泄漏阻断、模型输入捕获复核。 */
+    public static final int DOMAIN_CROSS_SOURCE_AUTHORIZATION = 1_003_018;
 
     private AiErrorCodeRanges() {}
 }
