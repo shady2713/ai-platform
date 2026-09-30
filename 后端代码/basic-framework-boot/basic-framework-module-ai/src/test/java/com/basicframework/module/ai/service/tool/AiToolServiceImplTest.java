@@ -1,5 +1,6 @@
 package com.basicframework.module.ai.service.tool;
 
+import static com.basicframework.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -46,8 +47,8 @@ class AiToolServiceImplTest {
 
     private final AiToolWriteGate writeGate = new AiToolWriteGate(operationMapper);
 
-    private final AiToolServiceImpl service =
-            new AiToolServiceImpl(toolMapper, versionMapper, connectorMapper, operationMapper, List.of(), writeGate);
+    private final AiToolServiceImpl service = new AiToolServiceImpl(
+            toolMapper, versionMapper, connectorMapper, operationMapper, List.of(), writeGate, List.of());
 
     private static AiToolDO tool() {
         return new AiToolDO()
@@ -156,7 +157,8 @@ class AiToolServiceImplTest {
                 connectorMapper,
                 operationMapper,
                 List.of(toolId -> Optional.of("分析步骤 st-1 正在使用该工具")),
-                writeGate);
+                writeGate,
+                List.of());
 
         assertThatThrownBy(() -> withChecker.delete(TOOL_ID, 1))
                 .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_TOOL_REFERENCED));
@@ -305,5 +307,94 @@ class AiToolServiceImplTest {
                         .setName("改名")
                         .setDescription("y".repeat(513))))
                 .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_REQUEST_INVALID));
+    }
+
+    /**
+     * X07：非 HTTP 来源的发布必须由该来源注册的守卫给出判据。
+     *
+     * <p>三条断言钉住"默认拒绝"：没有守卫时拒绝、守卫拒绝时原样传播、
+     * 守卫通过时才继续（并仍然走版本 CAS）。这里刻意<b>不</b>构造"空守卫对象"来模拟未接上——
+     * 缺省就是 {@code List.of()}，"没有守卫"就是"没有判据"，语义上等价于不通过。
+     */
+    @Test
+    void nonHttpSourceRequiresARegisteredSourceGuard() {
+        AiToolVersionDO mcpVersion = new AiToolVersionDO()
+                .setId(201L)
+                .setToolId(TOOL_ID)
+                .setVersionNo(2)
+                .setStatus(AiToolVersionDO.STATUS_DRAFT)
+                .setToolType("READ")
+                .setPolicy("DENY")
+                .setSourceKind(AiToolSourceKind.MCP_TOOL)
+                .setSourceRef("search_orders")
+                .setInputSchemaJson("{\"region\":{\"type\":\"string\",\"required\":true}}")
+                .setOutputSchemaJson("{}")
+                .setVersion(0);
+        when(versionMapper.selectById(201L)).thenReturn(mcpVersion);
+
+        // 反向：没有任何守卫 → 没有判据 → 拒绝
+        assertThatThrownBy(() -> service.publishVersion(201L, 0))
+                .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_TOOL_TYPE_UNSUPPORTED));
+
+        // 反向：守卫自己拒绝（未审批/已漂移）→ 原样传播它的稳定错误码，不得被吞掉
+        AiToolSourceGuard rejecting = guardThatThrows(AiErrorCodeConstants.AI_MCP_TOOL_SCHEMA_DRIFT_CONFLICT);
+        AiToolServiceImpl guarded = withGuards(rejecting);
+        assertThatThrownBy(() -> guarded.publishVersion(201L, 0))
+                .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_MCP_TOOL_SCHEMA_DRIFT_CONFLICT));
+
+        // 正向：守卫通过 → 进入版本 CAS（未注册成功时按状态冲突收尾，不静默发布）
+        AiToolServiceImpl approving = withGuards(passingGuard());
+        assertThatThrownBy(() -> approving.publishVersion(201L, 0))
+                .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_STATE_CONFLICT));
+        // HTTP 来源不受 MCP 守卫影响：走 operation 已发布检查（未发布 → 拒绝）
+        AiToolVersionDO httpVersion = new AiToolVersionDO()
+                .setId(202L)
+                .setToolId(TOOL_ID)
+                .setVersionNo(3)
+                .setStatus(AiToolVersionDO.STATUS_DRAFT)
+                .setToolType("READ")
+                .setPolicy("AUTO")
+                .setSourceKind(AiToolVersionDO.SOURCE_HTTP_OPERATION)
+                .setSourceRef("getOrders")
+                .setInputSchemaJson("{\"region\":{\"type\":\"string\",\"required\":true}}")
+                .setOutputSchemaJson("{}")
+                .setVersion(0);
+        when(versionMapper.selectById(202L)).thenReturn(httpVersion);
+        assertThatThrownBy(() -> withGuards(guardThatThrows(AiErrorCodeConstants.AI_MCP_TOOL_NOT_APPROVED))
+                        .publishVersion(202L, 0))
+                .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_CONNECTOR_OPERATION_NOT_FOUND));
+    }
+
+    private AiToolServiceImpl withGuards(AiToolSourceGuard guard) {
+        return new AiToolServiceImpl(
+                toolMapper, versionMapper, connectorMapper, operationMapper, List.of(), writeGate, List.of(guard));
+    }
+
+    private static AiToolSourceGuard guardThatThrows(ErrorCode code) {
+        return new AiToolSourceGuard() {
+            @Override
+            public String supportedSourceKind() {
+                return AiToolSourceKind.MCP_TOOL;
+            }
+
+            @Override
+            public void requireApprovable(Long connectorId, String sourceRef) {
+                throw exception(code);
+            }
+        };
+    }
+
+    private static AiToolSourceGuard passingGuard() {
+        return new AiToolSourceGuard() {
+            @Override
+            public String supportedSourceKind() {
+                return AiToolSourceKind.MCP_TOOL;
+            }
+
+            @Override
+            public void requireApprovable(Long connectorId, String sourceRef) {
+                // 判据通过：发布继续走版本 CAS
+            }
+        };
     }
 }

@@ -1,6 +1,7 @@
 package com.basicframework.module.ai.service.tool;
 
 import static com.basicframework.framework.common.exception.util.ServiceExceptionUtil.exception;
+import static com.basicframework.module.ai.enums.AiErrorCodeConstants.AI_MCP_TOOL_NOT_EXECUTABLE;
 import static com.basicframework.module.ai.enums.AiErrorCodeConstants.AI_TOOL_POLICY_DENIED;
 import static com.basicframework.module.ai.enums.AiErrorCodeConstants.AI_TOOL_WRITE_BINDING_INVALID;
 import static com.basicframework.module.ai.enums.AiErrorCodeConstants.AI_TOOL_WRITE_REQUIRES_CONFIRMATION;
@@ -8,6 +9,7 @@ import static com.basicframework.module.ai.enums.AiErrorCodeConstants.AI_TOOL_WR
 import com.basicframework.module.ai.adapter.connector.http.AiHttpConnectorExecutor;
 import com.basicframework.module.ai.adapter.connector.http.dto.AiConnectorExecutionRequestDTO;
 import com.basicframework.module.ai.adapter.connector.http.dto.AiConnectorExecutionResultDTO;
+import com.basicframework.module.ai.dal.dataobject.tool.AiToolVersionDO;
 import com.basicframework.module.ai.domain.tool.AiToolPolicy;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +41,7 @@ public class AiToolExecutor {
     /** 执行一次已判定的**读**工具调用（写工具判定一律拒绝，必须经受控写入口）。 */
     public AiConnectorExecutionResultDTO execute(AiToolDecision decision) {
         requireExecutable(decision);
+        requireHttpSource(decision);
         if (isWrite(decision)) {
             // 写工具不能走通用执行路径：它必须带业务幂等键并经确认动作进入
             throw exception(AI_TOOL_WRITE_REQUIRES_CONFIRMATION);
@@ -54,6 +57,7 @@ public class AiToolExecutor {
      */
     public AiConnectorExecutionResultDTO executeWrite(AiToolDecision decision, String idempotencyKey) {
         requireExecutable(decision);
+        requireHttpSource(decision);
         if (!isWrite(decision) || !StringUtils.hasText(idempotencyKey)) {
             // 没有写判定或没有业务键：写入口不可用（宁可不发，也不发一个无法去重的写）
             throw exception(AI_TOOL_WRITE_BINDING_INVALID);
@@ -83,6 +87,20 @@ public class AiToolExecutor {
         if (decision == null || !decision.executable() || decision.connectorId() == null) {
             // 没有 EXECUTE 判定就没有执行许可（CONFIRM 必须走确认流程后重新判定）
             throw exception(AI_TOOL_POLICY_DENIED);
+        }
+    }
+
+    /**
+     * 只允许 HTTP 来源的判定进入执行器（X07）。
+     *
+     * <p>MCP 工具在本卡<b>只做发现</b>：执行路径尚未接入 MCP 传输（接入需要单独评审
+     * 远程调用的副作用与幂等要求）。与其让它"看起来能执行"然后在更深处失败，
+     * 不如在执行器入口用稳定错误码明确拒绝——这样"已审批但尚未接入执行"的 MCP 工具
+     * 不会被误认为可自动执行。
+     */
+    private static void requireHttpSource(AiToolDecision decision) {
+        if (!AiToolVersionDO.SOURCE_HTTP_OPERATION.equals(decision.version().getSourceKind())) {
+            throw exception(AI_MCP_TOOL_NOT_EXECUTABLE);
         }
     }
 

@@ -83,6 +83,14 @@ public class AiToolServiceImpl implements AiToolService {
     /** 写工具准入闸门（X06）：写版本的幂等键/核对查询声明校验。 */
     private final AiToolWriteGate writeGate;
 
+    /**
+     * 非 HTTP 来源的发布判据（X07）：由各来源卡片注册实现，缺省为空列表。
+     *
+     * <p>依赖的是窄端口 {@link AiToolSourceGuard} 而不是 MCP 服务本身——MCP 服务需要回调
+     * {@code createVersion} 完成注册，直接互相依赖会构成 Spring 的构造器注入循环。
+     */
+    private final List<AiToolSourceGuard> sourceGuards;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long create(AiToolSaveDTO saveDTO) {
@@ -184,8 +192,10 @@ public class AiToolServiceImpl implements AiToolService {
         String sourceKind = StringUtils.hasText(saveDTO.getSourceKind())
                 ? saveDTO.getSourceKind().trim().toUpperCase(java.util.Locale.ROOT)
                 : AiToolVersionDO.SOURCE_HTTP_OPERATION;
-        if (!AiToolVersionDO.SOURCE_HTTP_OPERATION.equals(sourceKind)) {
-            // 首期只有一种来源；其他来源（如数据集查询）在后续卡片接入
+        if (!AiToolVersionDO.SOURCE_HTTP_OPERATION.equals(sourceKind)
+                && !AiToolSourceKind.MCP_TOOL.equals(sourceKind)) {
+            // 两种已支持来源（HTTP operation / MCP 工具）；其他来源（如数据集查询）在后续卡片接入。
+            // MCP 来源的准入判据是草稿审批状态，不是连接器 operation（见 publishVersion 的分叉）。
             throw exception(AI_TOOL_TYPE_UNSUPPORTED);
         }
         String sourceRef = saveDTO.getSourceRef();
@@ -239,13 +249,26 @@ public class AiToolServiceImpl implements AiToolService {
         // 写工具（X06）：必须声明业务幂等键与登记的核对查询，且政策不为 AUTO（写调用必须人工确认）；
         // 读工具不得声明写绑定。校验通过才允许发布，避免"发不出去的幂等键"上线。
         writeGate.requirePublishable(tool, existing);
-        // 来源必须已发布：工具执行时不应才发现"来源还是草稿"
-        AiConnectorOperationDO operation = operationMapper.selectByKey(tool.getConnectorId(), existing.getSourceRef());
-        if (operation == null) {
-            throw exception(AI_CONNECTOR_OPERATION_NOT_FOUND);
-        }
-        if (!AiConnectorOperationDO.STATUS_PUBLISHED.equals(operation.getStatus())) {
-            throw exception(AI_CONNECTOR_OPERATION_NOT_PUBLISHED);
+        if (AiToolVersionDO.SOURCE_HTTP_OPERATION.equals(existing.getSourceKind())) {
+            // 来源必须已发布：工具执行时不应才发现"来源还是草稿"
+            AiConnectorOperationDO operation =
+                    operationMapper.selectByKey(tool.getConnectorId(), existing.getSourceRef());
+            if (operation == null) {
+                throw exception(AI_CONNECTOR_OPERATION_NOT_FOUND);
+            }
+            if (!AiConnectorOperationDO.STATUS_PUBLISHED.equals(operation.getStatus())) {
+                throw exception(AI_CONNECTOR_OPERATION_NOT_PUBLISHED);
+            }
+        } else {
+            // 非 HTTP 来源（如 X07 的 MCP 工具）：准入判据由该来源注册的守卫给出。
+            // 找不到守卫 = 没有判据 = 不通过（默认拒绝），而不是"跳过检查按已通过处理"。
+            sourceGuards.stream()
+                    .filter(guard -> guard.supportedSourceKind().equals(existing.getSourceKind()))
+                    .findFirst()
+                    .ifPresentOrElse(
+                            guard -> guard.requireApprovable(tool.getConnectorId(), existing.getSourceRef()), () -> {
+                                throw exception(AI_TOOL_TYPE_UNSUPPORTED);
+                            });
         }
         if (versionMapper.updateWithVersion(
                         new AiToolVersionDO()

@@ -287,6 +287,11 @@ class PersistenceLifecycleIT extends AbstractPersistenceIntegrationTest {
                         "ai_master_object",
                         "ai_master_object_revision",
                         // V85：媒体任务与产物（X03 起图片生成/编辑，X04 复用同一任务模型）
+                        // V96：受控 MCP 客户端（草稿是上游事实与平台审批的分界；运行留痕是有界重试的可验证证据）
+                        // 注意字典序：ai_mcp_* 排在 ai_media_* 之前（'c' < 'e'），
+                        // 本断言是 containsExactly，顺序必须与 information_schema 的 ORDER BY 一致。
+                        "ai_mcp_discovery_run",
+                        "ai_mcp_tool_draft",
                         "ai_media_asset",
                         "ai_media_task",
                         // V94：跨源指标口径（口径与口径版本均为软删除配置面事实；来源声明整体冻结在版本内）

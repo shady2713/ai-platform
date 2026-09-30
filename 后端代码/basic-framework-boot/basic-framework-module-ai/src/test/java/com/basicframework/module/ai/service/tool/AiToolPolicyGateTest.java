@@ -55,8 +55,8 @@ class AiToolPolicyGateTest {
 
     private final AiToolWriteGate writeGate = new AiToolWriteGate(operationMapper);
 
-    private final AiToolServiceImpl toolService =
-            new AiToolServiceImpl(toolMapper, versionMapper, connectorMapper, operationMapper, List.of(), writeGate);
+    private final AiToolServiceImpl toolService = new AiToolServiceImpl(
+            toolMapper, versionMapper, connectorMapper, operationMapper, List.of(), writeGate, List.of());
 
     private final AiToolPolicyGate gate = new AiToolPolicyGate(toolMapper, toolService);
 
@@ -290,7 +290,8 @@ class AiToolPolicyGateTest {
                 connectorMapper,
                 operationMapper,
                 List.of(toolId -> Optional.of("服务发布版本 s-1 正在使用该工具")),
-                writeGate);
+                writeGate,
+                List.of());
         when(toolMapper.selectById(TOOL_ID))
                 .thenReturn(new AiToolDO()
                         .setId(TOOL_ID)

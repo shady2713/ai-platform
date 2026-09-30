@@ -1280,6 +1280,45 @@
           ]
         }
       ]
+    },
+    {
+      "id": "ai-mcp-client-discovery",
+      "reason": "MCP 工具草稿与发现留痕是**发现事实与审批台账**，不是业务数据：ai_mcp_tool_draft 记录上游工具名/标题/描述（不可信文本，仅供人工审阅）、观察与已审批的结构指纹、审批状态与阻断原因；ai_mcp_discovery_run 记录尝试次数、终止结果与稳定失败编号。两者都不含凭据（令牌只在请求头内存活，走 D01 连接器的密文体系）、不含业务数据行、也没有部门/用户行级归属——它们的归属是**连接器**，而连接器本身已由 D01 的功能权限体系管理。管理侧只能通过 ai:tool:* 之类的工具治理权限读到草稿状态，远程内容不可直接读取。本卡未新增管理端接口（卡片 §2 未授权控制器路径），因此按 internal-only + 工具治理功能权限双重控制。",
+      "tables": [
+        "ai_mcp_tool_draft",
+        "ai_mcp_discovery_run"
+      ],
+      "controls": [
+        {
+          "kind": "internal-only",
+          "tables": [
+            "ai_mcp_tool_draft",
+            "ai_mcp_discovery_run"
+          ],
+          "evidence": [
+            {
+              "table": "ai_mcp_tool_draft",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/mcp/AiMcpToolDraftMapper.java",
+              "contains": "default AiMcpToolDraftDO selectByUpstream("
+            },
+            {
+              "table": "ai_mcp_tool_draft",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/tool/AiMcpToolServiceImpl.java",
+              "contains": "draftMapper.selectByUpstream(connectorId, upstreamToolName)"
+            },
+            {
+              "table": "ai_mcp_discovery_run",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/mcp/AiMcpDiscoveryRunMapper.java",
+              "contains": "default java.util.List<AiMcpDiscoveryRunDO> selectRecent("
+            },
+            {
+              "table": "ai_mcp_discovery_run",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/tool/AiMcpToolServiceImpl.java",
+              "contains": "runMapper.insert(newRun("
+            }
+          ]
+        }
+      ]
     }
   ]
 }

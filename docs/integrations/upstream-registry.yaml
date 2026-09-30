@@ -258,6 +258,38 @@ components:
     localPatch: 无
     status: verified（版本/许可）；jar 完整性 pending
 
+  # ------------------------------------------------------------------ MCP Java SDK
+  - componentId: mcp-java-sdk
+    componentType: code-dependency
+    purpose: 受控 MCP **客户端**（协议级 tools/list 发现；不代执行、不做服务端）
+    upstream:
+      homepage: https://github.com/modelcontextprotocol/java-sdk
+      docs: https://modelcontextprotocol.io/specification
+      license: MIT
+      licenseEvidence:
+        - "io.modelcontextprotocol.sdk:mcp-core:2.0.1 与 mcp-json-jackson2:2.0.1 在 Maven Central 上核实可解析（HTTP 200，2026-09-30）"
+      noticeSource: "本次未逐条核对发布 jar 内的 META-INF/LICENSE（pending）；MCP 规范文本为 MIT/Java SDK 仓库声明 MIT（pending-source）"
+    selected:
+      version: 2.0.1
+      releaseDate: "pending-source（本卡未读取官方发布说明原文）"
+      coordinates:
+        - io.modelcontextprotocol.sdk:mcp-core:2.0.1（dependencyManagement 托管，版本属性 ${mcp-sdk.version}）
+        - io.modelcontextprotocol.sdk:mcp-json-jackson2:2.0.1（dependencyManagement 托管）
+      notInProductTree: "org.springframework.ai:spring-ai-mcp / spring-ai-autoconfigure-mcp-client-* **刻意不引入**：它把 MCP 工具包成 callback 直接喂模型执行，与本卡'发现只生成待审批草稿 + 未知新工具默认拒绝'方向相反（X07.md §2.1）。传递依赖仅 slf4j-api / jackson-annotations / reactor-core / jackson-databind / json-schema-validator / jakarta.servlet-api(provided)，均为本项目 Spring Boot Web 应用已有"
+      integrity:
+        state: pending
+        note: "本机未生成 SHA-256/MD5 校验和清单（环境缺口）；坐标与传递依赖树已用 dependency:tree 实测核对"
+    evidence:
+      - "mvn dependency:tree（basic-framework-spring-boot-starter-ai）实测：mcp-core:2.0.1 / mcp-json-jackson2:2.0.1 解析成功，reactor-core 与 jackson-annotations 版本由 Boot BOM 决定，未被覆盖"
+      - "javap 对 mcp-core-2.0.1.jar 逐个核实本卡实际使用的公开 API：McpClient.sync(...).requestTimeout/clientInfo/build、McpSyncClient.initialize/listTools/getServerInfo/getCurrentInitializationResult、HttpClientStreamableHttpTransport.builder(...).endpoint/connectTimeout/jsonMapper/supportedProtocolVersions/httpRequestCustomizer、McpSyncHttpClientRequestCustomizer.customize(Builder,String,URI,String,McpTransportContext)、McpSchema$Tool/ListToolsResult/InitializeResult/Implementation、JacksonMcpJsonMapperSupplier.get"
+      - "编译证据：provider/mcp 全量编译通过（McpSdkSessionFactory 直接使用上述 API）"
+    status: verified（坐标可解析、API 面已核实、编译通过）；pending（许可 NOTICCE 逐条核对、校验和清单、发布说明原文）
+    dataMigration: false
+    localPatch: 无
+    securityNotes: "本卡只做客户端，且会话端口 McpClientSession **刻意不暴露 callTool**；远程工具只能经平台注册与审批进入执行面（MCP_TOOL ���源在 D08 执行器入口被显式拒绝，错误码 AI_MCP_TOOL_NOT_EXECUTABLE）"
+    unverified:
+      - "与真实 MCP 服务器的端到端握手（initialize + tools/list）未在本机验证：手写 Streamable HTTP 假服务端未能满足 SDK 2.0.1 对 initialize 之后 GET SSE 长连接的期望（initialize 等待流建立超时）。生产代码只使用已 javap 核实的公开 API"
+
 openItems:
   - id: trivy-scan
     state: pending
@@ -267,6 +299,16 @@ openItems:
   - id: sbom-export
     state: verified
     note: "module-ai CycloneDX SBOM（170 组件）已生成并含全部冻结坐标与 Apache-2.0 许可；server 聚合 SBOM 由 dependencies 门禁在可联网环境生成"
+  - id: mcp-sdk-license-and-checksum
+    state: pending
+    blocks: "X07 依赖冻结的许可逐条核对与完整性清单"
+    reason: "本卡未逐条核对发布 jar 的 META-INF/LICENSE/NOTICE，也未生成校验和清单（环境缺口）"
+    partialSubstitute: "已核实坐标在 Maven Central 可解析、传递依赖树符合预期、API 面已 javap 核实并编译通过；不能替代许可与完整性的正式核对"
+  - id: mcp-sdk-e2e-handshake
+    state: pending
+    blocks: "X07『验证 MCP 客户端协议与传输』的端到端部分"
+    reason: "本机无法构造满足 SDK 2.0.1 期望的 MCP 服务端（initialize 后的 GET SSE 长连接）"
+    partialSubstitute: "平台侧默认拒绝语义（地址/版本/授权/有界重试/漂移阻断）已由单测与真实 MySQL IT 覆盖；缺的是与真实 MCP 服务器完成一次握手"
   - id: frontend-antv
     state: not-adopted
     note: "AntV/GPT-Vis 由 F04 登记；本台账不覆盖前端依赖"
@@ -277,3 +319,4 @@ revalidationTriggers:
   - "Tika/PDFBox/POI 升级或解析链变更"
   - "dependencies 门禁出现上述组件 HIGH/CRITICAL 命中"
   - "平台 Boot/Jackson/Netty 版本线变更"
+  - "MCP Java SDK 发布 2.x 新补丁或协议规范修订"

@@ -25,6 +25,7 @@ package com.basicframework.module.ai.enums;
  *   1_003_016_xxx  跨源指标口径（口径版本、显式数据集与映射版本、扇出阻断、币种换算与缺口澄清）
  *   1_003_017_xxx  跨源有界执行（来源预算与受控结束、时间点偏移、重试去重与容量拒绝/登记）
  *   1_003_018_xxx  跨系统授权与完整性（来源/映射/角色授权、合计与计数泄漏阻断、模型输入捕获复核）
+ *   1_003_019_xxx  受控 MCP 客户端（端点准入、协议版本、授权、发现终止、工具草稿审批与 schema 漂移阻断）
  * </pre>
  *
  * <p>HTTP 映射遵循 [ADR 0003](http-status-semantics) 与 [ADR 0049](identity-boundaries)：
@@ -90,6 +91,14 @@ public final class AiErrorCodeRanges {
 
     /** 跨系统授权与完整性子区间（Y05）：来源/映射/角色授权、合计与计数泄漏阻断、模型输入捕获复核。 */
     public static final int DOMAIN_CROSS_SOURCE_AUTHORIZATION = 1_003_018;
+
+    /**
+     * 受控 MCP 客户端子区间（X07）：端点准入、协议版本、授权、发现终止、工具草稿审批与 schema 漂移阻断。
+     *
+     * <p>本区间只回答"MCP 准入这一步能不能过"；工具能不能执行仍由数据与工具子区间
+     * （{@link #DOMAIN_CONNECTOR}，D08 的政策闸门）回答，两者刻意不共用编号。
+     */
+    public static final int DOMAIN_MCP_CLIENT = 1_003_019;
 
     private AiErrorCodeRanges() {}
 }

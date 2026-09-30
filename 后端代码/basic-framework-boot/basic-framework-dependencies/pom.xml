@@ -63,6 +63,10 @@
         <!-- AI 中台上游依赖：F02 已验证并冻结，兼容矩阵与证据见 docs/integrations/ai-platform-upstream-candidates.md -->
         <spring-ai.version>1.1.8</spring-ai.version>
         <qdrant-client.version>1.13.0</qdrant-client.version>
+        <!-- MCP Java SDK（X07 选定官方 SDK 直用，不采用 Spring AI MCP client starter：
+             starter 会把 MCP 工具包成 callback 直接喂模型执行，与"发现只生成待审批草稿 +
+             未知新工具默认拒绝"方向相反。选型理由见 docs/ai-platform/tasks/X07.md §2.1） -->
+        <mcp-sdk.version>2.0.1</mcp-sdk.version>
     </properties>
 
     <dependencyManagement>
@@ -125,6 +129,22 @@
                 <version>${spring-ai.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+
+            <!-- MCP Java SDK（X07）：官方 SDK 2.0.1 稳定线，本卡只做客户端。
+                 不引入 spring-ai-mcp starter：它把 MCP 工具包成 callback 直接喂模型执行，
+                 与本卡"发现只生成待审批草稿 + 未知新工具默认拒绝"方向相反（X07 §2.1）。
+                 传递依赖仅 slf4j-api / jackson-annotations / reactor-core / jakarta.servlet-api(provided)，
+                 均为本项目 Spring Boot Web 应用已有，不引入新的重型依赖。 -->
+            <dependency>
+                <groupId>io.modelcontextprotocol.sdk</groupId>
+                <artifactId>mcp-core</artifactId>
+                <version>${mcp-sdk.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.modelcontextprotocol.sdk</groupId>
+                <artifactId>mcp-json-jackson2</artifactId>
+                <version>${mcp-sdk.version}</version>
             </dependency>
 
             <!-- Boot 管理的 Tomcat 10.1.55 携带 CVE-2026-65182 等多个 HIGH/CRITICAL，

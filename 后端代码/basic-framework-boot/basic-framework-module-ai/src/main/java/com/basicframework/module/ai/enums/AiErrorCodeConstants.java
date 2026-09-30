@@ -3,13 +3,13 @@ package com.basicframework.module.ai.enums;
 import com.basicframework.framework.common.exception.ErrorCode;
 
 /**
- * AI 中台错误码（区间与 HTTP 映射见 {@link AiErrorCodeRanges}）。当前只登记协议与授权边界上已冻结、可被其它任务直接复用的错误码；各能力域实现时在所属子区间追加编号，禁止改动既有编号语义（错误码是长期协议的一部分）。1_003_016/017/018_xxx 见 {@link AiMetricSemanticsErrorCodeConstants}、{@link AiCrossSourceExecutionErrorCodeConstants}、{@link AiCrossSourceAuthorizationErrorCodeConstants}。
+ * AI 中台错误码（区间与 HTTP 映射见 {@link AiErrorCodeRanges}）。当前只登记协议与授权边界上已冻结、可被其它任务直接复用的错误码；各能力域实现时在所属子区间追加编号，禁止改动既有编号语义（错误码是长期协议的一部分）。1_003_016/017/018/019_xxx 见 {@link AiMetricSemanticsErrorCodeConstants}、{@link AiCrossSourceExecutionErrorCodeConstants}、{@link AiCrossSourceAuthorizationErrorCodeConstants}、{@link AiMcpClientErrorCodeConstants}。
  */
 public interface AiErrorCodeConstants
         extends AiMetricSemanticsErrorCodeConstants,
                 AiCrossSourceExecutionErrorCodeConstants,
-                AiCrossSourceAuthorizationErrorCodeConstants {
-
+                AiCrossSourceAuthorizationErrorCodeConstants,
+                AiMcpClientErrorCodeConstants {
     // ========== 通用/协议 1_003_001_xxx ==========
 
     /** 入参不合法（400）。 */

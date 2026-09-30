@@ -44,6 +44,19 @@
             <artifactId>spring-ai-openai</artifactId>
         </dependency>
 
+        <!-- MCP 客户端（X07）：唯一允许直接引用 io.modelcontextprotocol.sdk 的区域为 provider.mcp 包。
+             本卡只做客户端（协议级 tools/list 取数，不代执行）；不引入 spring-ai-mcp starter，
+             理由见 basic-framework-dependencies 的同组注释与 X07.md §2.1。
+             版本由 basic-framework-dependencies 的 ${mcp-sdk.version} 统一管理，此处不写死版本。 -->
+        <dependency>
+            <groupId>io.modelcontextprotocol.sdk</groupId>
+            <artifactId>mcp-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.modelcontextprotocol.sdk</groupId>
+            <artifactId>mcp-json-jackson2</artifactId>
+        </dependency>
+
         <!-- Test 测试相关 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
