@@ -91,6 +91,16 @@
 | `AiReportShareController#page` | 同上：只返回当前授予者的分享（接收范围 = 接收者标识 + 创建时快照显示名），按编号倒序 |
 | `AiReportShareController#read` | 同上：凭据摘要定位 + 接收者主体绑定；已撤销/已过期（读取时惰性物化）/授予者停用一律 404 防枚举（原因只进访问审计）；内容出库前按接收者**当前**源权限逐项复核 A03 指纹，覆盖不了返回降级态（spec/data/asOf/completeness 为空，不抛错）；每次读取（含拒绝）追加访问审计 |
 | `AiReportShareController#accessList` | 同上：仅授予者本人可查该分享的访问审计（越权与不存在同语义 404），最新在前 |
+| `AiRealtimeController#accept` | `ai_realtime_session`：归属由服务端会话身份（应用 + 主体类型 + 外部用户标识）决定，请求体不能自报；受理前必须通过端点+协议的实时能力验证（声明 + 真实探测确认，ADR 0052），未注册适配器或未确认即拒绝且不回退；同键同形状幂等复用（票据明文只出现一次），并发上限超限 429 |
+| `AiRealtimeController#getSession` | 同上：越权与不存在同语义（404）；到期/断线超时在读取时惰性物化并关闭 |
+| `AiRealtimeController#pushAudio` | 同上：回合栅栏（旧回合帧拒绝并计数、凭空回合拒绝）+ 有界缓冲（超限按稳定原因结束会话，不静默丢帧）；关麦期间明确拒绝 |
+| `AiRealtimeController#interrupt` | 同上：打断推进回合（条件更新单赢家），被打断回合未消费的音频作废并留痕 |
+| `AiRealtimeController#mute` | 同上：关麦/开麦只影响本人会话；关闭态不可改 |
+| `AiRealtimeController#detach` | 同上：断线标记开始有界重连窗口，重复调用不延长窗口 |
+| `AiRealtimeController#resume` | 同上 + 票据绑定：必须出示当前未过期票据（摘要比对）；重连有次数与时限上限，超出即关闭；返回既有转写与工具状态，不重复执行工具；出示票据且主体不符即按"切用户"关闭会话 |
+| `AiRealtimeController#renewTicket` | 同上 + 票据绑定：续票只接受未过期的当前票据（代次 CAS，旧票据立即失效），新票据到期不晚于会话绝对到期时间 |
+| `AiRealtimeController#close` | 同上：关闭幂等（已关闭返回既有终态），销毁本实例媒体通道 |
+| `AiRealtimeController#executeToolCall` | 同上：只执行免确认（AUTO）读工具，判定与执行走 D08/X06 受控闸门；每个调用最多执行一次（终态重放返回既有结论，执行中 409） |
 
 ## 会话身份（MEMBER 用户类型）
 

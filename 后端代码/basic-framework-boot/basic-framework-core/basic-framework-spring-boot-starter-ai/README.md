@@ -17,6 +17,8 @@ Spring AI 的位置，业务代码只消费自有契约，不感知厂商类型�
 | `AiProperties` | `com.basicframework.framework.ai.config` | 接缝配置：`enabled` 与 `capabilities` |
 | `AiModelProperties` | `com.basicframework.framework.ai.config` | 调用护栏：重试次数、输出上限、流式超时与结构化修复步数 |
 | `provider.springai` | `com.basicframework.framework.ai.provider.springai` | 唯一允许引用 `org.springframework.ai` 的区域 |
+| `provider.realtime` | `com.basicframework.framework.ai.provider.realtime` | 实时协议验证判据（必需能力、协议一致性、音频格式范围）；**不含真实供应商适配器**——本环境没有实时凭据与出网通道，接入前不得声称真实链路已验证（ADR 0052 未验证项） |
+| 实时语音契约 | `com.basicframework.framework.ai.core.realtime` | 协议与能力词汇（`RealtimeProtocol`/`RealtimeCapability`）、会话事实（`RealtimeSessionOpenRequest`/`RealtimeAudioFormat`）、事件与结束原因（`RealtimeEvent`/`RealtimeCloseReason`）、适配器接缝（`RealtimeAdapter`/`RealtimeCapabilityProbe`/`RealtimeSessionChannel`）与平台不变量模型（`RealtimeTurnFence`/`RealtimeBackpressure`）；实时能力不按供应商推断，逐（端点, 配置版本, 协议）声明 + 真实探测确认，未确认不可用（ADR 0052） |
 
 ## 启用条件与默认行为
 

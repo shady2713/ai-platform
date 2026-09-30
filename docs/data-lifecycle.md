@@ -140,3 +140,24 @@ AI 表尚未创建，本节省略具体表清单，先冻结分类与编号流�
 - **保留语义**：映射行只软删除不物理删除（审计需要回答"曾经批准过哪一对身份"）；
   最终物理清理按统一保留策略由运维流程执行。
 
+
+### 实时语音会话表（X05）
+
+实时语音按"会话与工具调用软删除 + 事件只追加 + 验证台账软删除"分治：
+
+| 表 | 策略 | 规则 |
+|---|---|---|
+| `ai_realtime_session` | soft-delete | 在线资源：`session_key` 全局唯一，受理幂等键（应用 + 主体 + 外部标识 + `request_key`）在存活行内唯一；状态机 `OPEN ↔ DETACHED`（有界重连）与 `OPEN/DETACHED → CLOSED`（终态 + 稳定原因码）；票据只存 SHA-256 摘要（`ticket_digest`，明文只在受理/续票响应出现一次），续票以票据代次 CAS 替换摘要 |
+| `ai_realtime_event` | append-retention | 事实：转写、下行音频（只记字节数与序号）、工具调用请求、过期丢弃、重连与关闭留痕；只追加不更新，按 `dedup_key` 唯一去重（重放不产生重复行）；不含音频内容、提示词与上游报文 |
+| `ai_realtime_tool_call` | soft-delete | 会话内工具调用：（会话, 回合, 调用标识）唯一，状态机 `PROPOSED → EXECUTING → EXECUTED/FAILED`（执行权条件更新单赢家）与 `PROPOSED/EXECUTING → REJECTED`；参数冻结只存 JSON 与摘要，结论只存稳定码 |
+| `ai_realtime_endpoint_capability` | soft-delete | 平台内部验证台账：（端点, 配置版本, 协议）唯一，只保存声明/确认能力、稳定明细码与耗时；配置版本变化后旧结论不再覆盖当前配置（必须重探） |
+
+- **惰性关闭**：会话到期（`session-expired`）与断线超时（`reattach-timeout`）只在读取/使用时判定并写终态，
+  不新增常驻扫描任务（X10 的教训：无界扫描把 NFR-04 accept p95 从 ≈160ms 打到 904ms）；
+  并发上限按 `expires_time > now` 计数，过期会话本来就不占用在线资源。
+- **背压不静默**：输入音频按字节有界计账（条件更新 `buffered_bytes + 帧 <= input_capacity_bytes`），
+  触顶即按 `audio-backpressure-exceeded` 结束会话；被打断回合作废的字节记 `STALE_DROPPED` 事件。
+- **身份不可跨会话复用**：出示票据的操作发现主体与会话归属不一致时立即关闭会话（`identity-switched`）；
+  只带登录会话的越权访问按不存在拒绝且不关闭（会话编号可枚举，不能让人远程终止他人会话）。
+- **保留语义**：会话与工具调用行软删除不物理删除（审计需要回答"这次会话发生了什么"）；
+  事件按统一保留策略由运维流程最终物理清理。

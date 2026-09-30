@@ -290,3 +290,35 @@ HTTP 状态按 ADR 0003 的命名规则推导：`*_NOT_EXISTS` 为 404，名称�
 跨系统链的语义边界见 `docs/adr/0051-cross-system-subject-federation.md`：业务系统 = 接入应用
 （`app_code`），两个应用的相同 `externalUserId` **不构成**同一主体；只有显式登记且经独立审批的
 联邦映射参与授权发现，撤销下一次读取即时生效。
+
+## 实时语音子区间（X05，`1_003_014_xxx`）
+
+实时语音的 HTTP 列按 ADR 0003 的**语义**映射；框架按常量名派生实际状态
+（后缀 `_NOT_EXISTS` → 404，名称含 `CONFLICT`/`EXISTS`/`DUPLICATE` → 409，其余 422），
+因此本表的 400/401/403/429 是客户端应据此处理的语义码（与既有 `AI_TICKET_INVALID`、
+`AI_RUN_BUDGET_EXCEEDED` 同一口径）。
+
+| 名称 | 编号 | 说明 | HTTP |
+|---|---|---|---|
+| `AI_REALTIME_SESSION_NOT_EXISTS` | 1_003_014_000 | 实时会话不存在（编号无效/已删除/归属不符同语义，防枚举；`_NOT_EXISTS` 承重） | 404 |
+| `AI_REALTIME_SESSION_CLOSED_CONFLICT` | 1_003_014_001 | 会话已关闭（终态），关闭原因见会话视图 `closeReason` | 409 |
+| `AI_REALTIME_SESSION_DETACHED_CONFLICT` | 1_003_014_002 | 会话已断开或本实例没有通道：先重连建立媒体面 | 409 |
+| `AI_REALTIME_SESSION_LIMIT_EXCEEDED` | 1_003_014_003 | 同一主体（2）/同一应用（32）的并发会话达到上限，不排队 | 429 |
+| `AI_REALTIME_PROTOCOL_UNVERIFIED_CONFLICT` | 1_003_014_004 | 该（端点, 配置版本, 协议）未通过实时能力验证，不放行且不回退 | 409 |
+| `AI_REALTIME_ADAPTER_UNAVAILABLE_CONFLICT` | 1_003_014_005 | 平台未注册该协议的实时适配器（平台不知道的能力一律不可用） | 409 |
+| `AI_REALTIME_AUDIO_FORMAT_UNSUPPORTED` | 1_003_014_006 | 音频格式不在适配器支持集合/已验证格式集合内，或单帧超过格式上限 | 400 |
+| `AI_REALTIME_MUTED_CONFLICT` | 1_003_014_007 | 已关麦，不接受上行音频（明确拒绝，不静默丢弃） | 409 |
+| `AI_REALTIME_BACKPRESSURE_CONFLICT` | 1_003_014_008 | 输入超过有界缓冲：会话已按 `audio-backpressure-exceeded` 结束 | 409 |
+| `AI_REALTIME_TURN_STALE_CONFLICT` | 1_003_014_009 | 回合已过期（打断前的旧回合帧被丢弃并计数） | 409 |
+| `AI_REALTIME_TURN_FUTURE_INVALID` | 1_003_014_010 | 回合号超出当前回合（客户端不能凭空发明回合） | 400 |
+| `AI_REALTIME_REATTACH_BUDGET_EXCEEDED` | 1_003_014_011 | 重连次数耗尽（有界重连），会话已关闭 | 429 |
+| `AI_REALTIME_REATTACH_TIMEOUT_CONFLICT` | 1_003_014_012 | 断线超过重连时限，会话已关闭 | 409 |
+| `AI_REALTIME_TICKET_INVALID` | 1_003_014_013 | 票据未知/已过期/已被续票替换（旧票据立即失效） | 401 |
+| `AI_REALTIME_ENDPOINT_CONFIG_CHANGED_CONFLICT` | 1_003_014_014 | 受理时固定的端点配置/凭据版本已变，不能悄悄用新配置续接 | 409 |
+| `AI_REALTIME_TOOL_CALL_NOT_EXISTS` | 1_003_014_015 | 会话内工具调用不存在或不属于该会话 | 404 |
+| `AI_REALTIME_TOOL_POLICY_DENIED` | 1_003_014_016 | 会话内只执行免确认（AUTO）读工具；写工具与需确认工具走运行/动作流程 | 403 |
+| `AI_REALTIME_TOOL_IN_PROGRESS_CONFLICT` | 1_003_014_017 | 该工具调用正在执行（执行权已消费），不重复执行 | 409 |
+| `AI_REALTIME_SESSION_EXPIRED_CONFLICT` | 1_003_014_018 | 会话已到期并关闭（惰性物化），客户端应重新受理 | 409 |
+
+协议选择、能力验证判据与"真实供应商链路未验证"的边界见
+`docs/adr/0052-realtime-voice-protocol-and-capability-verification.md`。

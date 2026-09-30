@@ -19,6 +19,8 @@ package com.basicframework.module.ai.enums;
  *   1_003_010_xxx  多模态媒体（图片理解/OCR/生成/编辑、非实时 STT/TTS 的输入输出准入）
  *   1_003_011_xxx  受控异步结果 Webhook（目标登记、事件白名单、投递管理、人工重投）
  *   1_003_012_xxx  可视化流程编排（流程图契约、版本隔离、受控运行与节点留痕）
+ *   1_003_013_xxx  跨系统（主体联邦映射、授权发现与范围选择）
+ *   1_003_014_xxx  实时语音（会话协商与短期票据、协议能力验证、背压/打断/重连）
  * </pre>
  *
  * <p>HTTP 映射遵循 [ADR 0003](http-status-semantics) 与 [ADR 0049](identity-boundaries)：
@@ -69,6 +71,9 @@ public final class AiErrorCodeRanges {
 
     /** 跨系统子区间（Y01）：主体联邦映射、多系统授权发现与范围选择。 */
     public static final int DOMAIN_CROSS_SYSTEM = 1_003_013;
+
+    /** 实时语音子区间（X05）：会话协商与生命周期、协议能力验证、背压与打断、重连与工具去重。 */
+    public static final int DOMAIN_REALTIME = 1_003_014;
 
     private AiErrorCodeRanges() {}
 }

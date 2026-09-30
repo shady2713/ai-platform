@@ -5051,6 +5051,622 @@
           }
         }
       }
+    },
+    "/app-api/ai/realtime/session": {
+      "post": {
+        "tags": [
+          "实时语音"
+        ],
+        "summary": "受理实时会话（固定端点/配置版本/协议/音频格式与短期票据；幂等键去重）",
+        "description": "受理前必须通过端点+协议的实时能力验证（适配器声明 + 真实探测确认，ADR 0052）；未注册适配器或未确认即拒绝，不回退其它协议/端点。票据明文只在本响应出现一次。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiRealtimeSessionAcceptReq"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "实时会话（含票据明文，仅本次返回）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultAiRealtimeSession"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "入参非法（格式/回合/音频参数不合规）"
+          },
+          "401": {
+            "description": "未认证或票据无效（重连/续票必须出示有效票据）"
+          },
+          "403": {
+            "description": "会话内只允许执行免确认的读工具"
+          },
+          "404": {
+            "description": "会话或工具调用不存在（越权与不存在同语义）"
+          },
+          "409": {
+            "description": "状态冲突（已关闭/已断开/已关麦/回合过期/超限结束/配置已变化/执行中）"
+          },
+          "429": {
+            "description": "并发会话数或重连次数达到上限"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "实时语音"
+        ],
+        "summary": "查询会话（惰性物化到期/断线超时；返回转写、工具状态与背压占用）",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "实时会话视图（不含票据明文）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultAiRealtimeSession"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "入参非法（格式/回合/音频参数不合规）"
+          },
+          "401": {
+            "description": "未认证或票据无效（重连/续票必须出示有效票据）"
+          },
+          "403": {
+            "description": "会话内只允许执行免确认的读工具"
+          },
+          "404": {
+            "description": "会话或工具调用不存在（越权与不存在同语义）"
+          },
+          "409": {
+            "description": "状态冲突（已关闭/已断开/已关麦/回合过期/超限结束/配置已变化/执行中）"
+          },
+          "429": {
+            "description": "并发会话数或重连次数达到上限"
+          }
+        }
+      }
+    },
+    "/app-api/ai/realtime/session/audio": {
+      "post": {
+        "tags": [
+          "实时语音"
+        ],
+        "summary": "上送一帧音频（回合栅栏 + 有界缓冲）",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "sessionId",
+                  "turnNo",
+                  "frameSeq",
+                  "payload"
+                ],
+                "properties": {
+                  "sessionId": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "会话编号"
+                  },
+                  "turnNo": {
+                    "type": "integer",
+                    "format": "int64",
+                    "minimum": 0,
+                    "description": "回合号（必须等于会话当前回合）"
+                  },
+                  "frameSeq": {
+                    "type": "integer",
+                    "format": "int64",
+                    "minimum": 0,
+                    "description": "帧序号（同一回合内递增）"
+                  },
+                  "payload": {
+                    "type": "string",
+                    "maxLength": 90000,
+                    "description": "音频字节（Base64；单帧上限由会话音频格式推导）"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "上送一帧音频（回合栅栏 + 有界缓冲）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultAiRealtimeSession"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "入参非法（格式/回合/音频参数不合规）"
+          },
+          "401": {
+            "description": "未认证或票据无效（重连/续票必须出示有效票据）"
+          },
+          "403": {
+            "description": "会话内只允许执行免确认的读工具"
+          },
+          "404": {
+            "description": "会话或工具调用不存在（越权与不存在同语义）"
+          },
+          "409": {
+            "description": "状态冲突（已关闭/已断开/已关麦/回合过期/超限结束/配置已变化/执行中）"
+          },
+          "429": {
+            "description": "并发会话数或重连次数达到上限"
+          }
+        },
+        "description": "音频字节不落库（事件只记字节数与序号）；超过有界缓冲即按 audio-backpressure-exceeded 结束会话，不静默丢帧。"
+      }
+    },
+    "/app-api/ai/realtime/session/interrupt": {
+      "post": {
+        "tags": [
+          "实时语音"
+        ],
+        "summary": "打断（回合 +1；旧回合帧与事件被丢弃并计数）",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "sessionId",
+                  "turnNo"
+                ],
+                "properties": {
+                  "sessionId": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "会话编号"
+                  },
+                  "turnNo": {
+                    "type": "integer",
+                    "format": "int64",
+                    "minimum": 0,
+                    "description": "当前回合号（更小=已打断，更大=不合规）"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "打断（回合 +1；旧回合帧与事件被丢弃并计数）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultAiRealtimeSession"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "入参非法（格式/回合/音频参数不合规）"
+          },
+          "401": {
+            "description": "未认证或票据无效（重连/续票必须出示有效票据）"
+          },
+          "403": {
+            "description": "会话内只允许执行免确认的读工具"
+          },
+          "404": {
+            "description": "会话或工具调用不存在（越权与不存在同语义）"
+          },
+          "409": {
+            "description": "状态冲突（已关闭/已断开/已关麦/回合过期/超限结束/配置已变化/执行中）"
+          },
+          "429": {
+            "description": "并发会话数或重连次数达到上限"
+          }
+        }
+      }
+    },
+    "/app-api/ai/realtime/session/mute": {
+      "post": {
+        "tags": [
+          "实时语音"
+        ],
+        "summary": "关麦/开麦（关麦期间上行音频明确拒绝）",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "sessionId",
+                  "muted"
+                ],
+                "properties": {
+                  "sessionId": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "会话编号"
+                  },
+                  "muted": {
+                    "type": "boolean",
+                    "description": "true=关麦，false=开麦"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "关麦/开麦（关麦期间上行音频明确拒绝）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultAiRealtimeSession"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "入参非法（格式/回合/音频参数不合规）"
+          },
+          "401": {
+            "description": "未认证或票据无效（重连/续票必须出示有效票据）"
+          },
+          "403": {
+            "description": "会话内只允许执行免确认的读工具"
+          },
+          "404": {
+            "description": "会话或工具调用不存在（越权与不存在同语义）"
+          },
+          "409": {
+            "description": "状态冲突（已关闭/已断开/已关麦/回合过期/超限结束/配置已变化/执行中）"
+          },
+          "429": {
+            "description": "并发会话数或重连次数达到上限"
+          }
+        }
+      }
+    },
+    "/app-api/ai/realtime/session/detach": {
+      "post": {
+        "tags": [
+          "实时语音"
+        ],
+        "summary": "标记断线（开始有界重连窗口；重复调用不延长窗口）",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "sessionId"
+                ],
+                "properties": {
+                  "sessionId": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "会话编号"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "标记断线（开始有界重连窗口；重复调用不延长窗口）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultAiRealtimeSession"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "入参非法（格式/回合/音频参数不合规）"
+          },
+          "401": {
+            "description": "未认证或票据无效（重连/续票必须出示有效票据）"
+          },
+          "403": {
+            "description": "会话内只允许执行免确认的读工具"
+          },
+          "404": {
+            "description": "会话或工具调用不存在（越权与不存在同语义）"
+          },
+          "409": {
+            "description": "状态冲突（已关闭/已断开/已关麦/回合过期/超限结束/配置已变化/执行中）"
+          },
+          "429": {
+            "description": "并发会话数或重连次数达到上限"
+          }
+        }
+      }
+    },
+    "/app-api/ai/realtime/session/resume": {
+      "post": {
+        "tags": [
+          "实时语音"
+        ],
+        "summary": "重连（必须出示票据；有界次数与时限）",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "sessionId",
+                  "ticket"
+                ],
+                "properties": {
+                  "sessionId": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "会话编号"
+                  },
+                  "ticket": {
+                    "type": "string",
+                    "minLength": 32,
+                    "maxLength": 64,
+                    "description": "当前票据明文（只在受理/续票响应出现过一次）"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "重连（必须出示票据；有界次数与时限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultAiRealtimeSession"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "入参非法（格式/回合/音频参数不合规）"
+          },
+          "401": {
+            "description": "未认证或票据无效（重连/续票必须出示有效票据）"
+          },
+          "403": {
+            "description": "会话内只允许执行免确认的读工具"
+          },
+          "404": {
+            "description": "会话或工具调用不存在（越权与不存在同语义）"
+          },
+          "409": {
+            "description": "状态冲突（已关闭/已断开/已关麦/回合过期/超限结束/配置已变化/执行中）"
+          },
+          "429": {
+            "description": "并发会话数或重连次数达到上限"
+          }
+        },
+        "description": "返回既有转写与工具状态；已终态的工具调用不会被第二次执行。次数或时限耗尽即关闭会话。"
+      }
+    },
+    "/app-api/ai/realtime/session/ticket/renew": {
+      "post": {
+        "tags": [
+          "实时语音"
+        ],
+        "summary": "续票（出示未过期的当前票据；新票据替换旧票据）",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "sessionId",
+                  "ticket"
+                ],
+                "properties": {
+                  "sessionId": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "会话编号"
+                  },
+                  "ticket": {
+                    "type": "string",
+                    "minLength": 32,
+                    "maxLength": 64,
+                    "description": "当前票据明文（未过期才可续票）"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "续票（出示未过期的当前票据；新票据替换旧票据）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultAiRealtimeSession"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "入参非法（格式/回合/音频参数不合规）"
+          },
+          "401": {
+            "description": "未认证或票据无效（重连/续票必须出示有效票据）"
+          },
+          "403": {
+            "description": "会话内只允许执行免确认的读工具"
+          },
+          "404": {
+            "description": "会话或工具调用不存在（越权与不存在同语义）"
+          },
+          "409": {
+            "description": "状态冲突（已关闭/已断开/已关麦/回合过期/超限结束/配置已变化/执行中）"
+          },
+          "429": {
+            "description": "并发会话数或重连次数达到上限"
+          }
+        },
+        "description": "续票不延长会话绝对到期时间；旧票据在续票成功后立即失效（票据代次 +1）。"
+      }
+    },
+    "/app-api/ai/realtime/session/close": {
+      "post": {
+        "tags": [
+          "实时语音"
+        ],
+        "summary": "关闭会话（幂等；销毁媒体面与通道）",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "sessionId"
+                ],
+                "properties": {
+                  "sessionId": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "会话编号"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "关闭会话（幂等；销毁媒体面与通道）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultAiRealtimeSession"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "入参非法（格式/回合/音频参数不合规）"
+          },
+          "401": {
+            "description": "未认证或票据无效（重连/续票必须出示有效票据）"
+          },
+          "403": {
+            "description": "会话内只允许执行免确认的读工具"
+          },
+          "404": {
+            "description": "会话或工具调用不存在（越权与不存在同语义）"
+          },
+          "409": {
+            "description": "状态冲突（已关闭/已断开/已关麦/回合过期/超限结束/配置已变化/执行中）"
+          },
+          "429": {
+            "description": "并发会话数或重连次数达到上限"
+          }
+        }
+      }
+    },
+    "/app-api/ai/realtime/session/tool/execute": {
+      "post": {
+        "tags": [
+          "实时语音"
+        ],
+        "summary": "执行会话内工具调用（只执行免确认读工具；幂等）",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "sessionId",
+                  "toolCallId"
+                ],
+                "properties": {
+                  "sessionId": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "会话编号"
+                  },
+                  "toolCallId": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "会话内工具调用编号（不是上游调用标识）"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "执行会话内工具调用（只执行免确认读工具；幂等）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResultAiRealtimeSession"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "入参非法（格式/回合/音频参数不合规）"
+          },
+          "401": {
+            "description": "未认证或票据无效（重连/续票必须出示有效票据）"
+          },
+          "403": {
+            "description": "会话内只允许执行免确认的读工具"
+          },
+          "404": {
+            "description": "会话或工具调用不存在（越权与不存在同语义）"
+          },
+          "409": {
+            "description": "状态冲突（已关闭/已断开/已关麦/回合过期/超限结束/配置已变化/执行中）"
+          },
+          "429": {
+            "description": "并发会话数或重连次数达到上限"
+          }
+        },
+        "description": "工具标识与参数来自会话事件里冻结的事实，客户端不能改参数；每个调用最多执行一次。"
+      }
     }
   },
   "components": {
@@ -6357,6 +6973,263 @@
           "code": 0,
           "data": true,
           "msg": ""
+        }
+      },
+      "AiRealtimeSessionAcceptReq": {
+        "type": "object",
+        "required": [
+          "requestKey",
+          "endpointId",
+          "protocol",
+          "audioFormat"
+        ],
+        "properties": {
+          "requestKey": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 40,
+            "description": "受理幂等键（同一主体内唯一）"
+          },
+          "endpointId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "模型端点编号（必须通过该协议的实时能力验证）"
+          },
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "WEBSOCKET",
+              "WEBRTC"
+            ],
+            "description": "协议（显式请求，平台不做隐式降级）"
+          },
+          "audioFormat": {
+            "type": "string",
+            "maxLength": 48,
+            "description": "音频格式规范形式（如 audio/pcm@16000:1:20）"
+          },
+          "sessionSeconds": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 1800,
+            "description": "会话寿命（秒；默认 600，到期即关闭且不续期）"
+          }
+        }
+      },
+      "AiRealtimeSessionEvent": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "TRANSCRIPT",
+              "AUDIO",
+              "TOOL_CALL",
+              "STALE_DROPPED",
+              "REATTACHED",
+              "CLOSED"
+            ],
+            "description": "事件类型"
+          },
+          "turnNo": {
+            "type": "integer",
+            "format": "int64",
+            "description": "事件所属回合"
+          },
+          "seq": {
+            "type": "integer",
+            "format": "int64",
+            "description": "回合内事件序号"
+          },
+          "text": {
+            "type": "string",
+            "description": "转写文本（其他类型为空）"
+          },
+          "byteCount": {
+            "type": "integer",
+            "description": "音频字节数（仅 AUDIO 事件）"
+          },
+          "detailCode": {
+            "type": "string",
+            "description": "稳定明细（结束原因码/工具调用标识/丢弃原因）"
+          },
+          "createTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "事件时间"
+          }
+        }
+      },
+      "AiRealtimeSessionToolCall": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "工具调用编号（执行入口用它）"
+          },
+          "turnNo": {
+            "type": "integer",
+            "format": "int64",
+            "description": "提出该调用的回合"
+          },
+          "callId": {
+            "type": "string",
+            "description": "上游工具调用标识"
+          },
+          "toolCode": {
+            "type": "string",
+            "description": "工具标识"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PROPOSED",
+              "EXECUTING",
+              "EXECUTED",
+              "REJECTED",
+              "FAILED"
+            ],
+            "description": "状态"
+          },
+          "resultCode": {
+            "type": "string",
+            "description": "结论稳定码（不含上游正文）"
+          },
+          "executedTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "执行完成时间"
+          }
+        }
+      },
+      "AiRealtimeSession": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "会话编号"
+          },
+          "sessionKey": {
+            "type": "string",
+            "description": "会话业务键（不是凭据）"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "DETACHED",
+              "CLOSED"
+            ],
+            "description": "状态"
+          },
+          "closeReason": {
+            "type": "string",
+            "description": "结束原因稳定码（client-closed/session-expired/identity-switched/audio-backpressure-exceeded/reattach-timeout/reattach-budget-exceeded/open-failed/adapter-ended/adapter-failed）"
+          },
+          "endpointId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "受理时固定的端点编号"
+          },
+          "endpointConfigRevision": {
+            "type": "integer",
+            "description": "受理时固定的端点配置版本"
+          },
+          "protocol": {
+            "type": "string",
+            "description": "协议"
+          },
+          "audioFormat": {
+            "type": "string",
+            "description": "音频格式规范形式"
+          },
+          "turnNo": {
+            "type": "integer",
+            "format": "int64",
+            "description": "当前回合号"
+          },
+          "droppedStaleFrames": {
+            "type": "integer",
+            "description": "因回合过期被丢弃的帧/事件累计数"
+          },
+          "muted": {
+            "type": "boolean",
+            "description": "是否已关麦"
+          },
+          "inputCapacityBytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "输入缓冲上限（字节）"
+          },
+          "inputBufferedBytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "输入缓冲当前占用（字节）"
+          },
+          "inputBytesTotal": {
+            "type": "integer",
+            "format": "int64",
+            "description": "累计接受输入字节"
+          },
+          "resumeAttempts": {
+            "type": "integer",
+            "description": "已用重连次数"
+          },
+          "resumeDeadline": {
+            "type": "string",
+            "format": "date-time",
+            "description": "重连时限"
+          },
+          "expiresTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "会话绝对到期时间"
+          },
+          "ticketRevision": {
+            "type": "integer",
+            "description": "票据代次（续票 +1，旧票据立即失效）"
+          },
+          "ticketExpiresTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "票据到期时间"
+          },
+          "ticket": {
+            "type": "string",
+            "description": "票据明文（只在受理与续票响应出现一次；其余为 null）"
+          },
+          "events": {
+            "type": "array",
+            "description": "最近事件（升序，有界）",
+            "items": {
+              "$ref": "#/components/schemas/AiRealtimeSessionEvent"
+            }
+          },
+          "toolCalls": {
+            "type": "array",
+            "description": "工具调用状态（升序，有界）",
+            "items": {
+              "$ref": "#/components/schemas/AiRealtimeSessionToolCall"
+            }
+          }
+        }
+      },
+      "CommonResultAiRealtimeSession": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "description": "业务错误码（0 表示成功）"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AiRealtimeSession"
+          },
+          "msg": {
+            "type": "string",
+            "description": "错误提示（成功为空）"
+          }
         }
       }
     }

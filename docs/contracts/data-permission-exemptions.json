@@ -1083,6 +1083,89 @@
           ]
         }
       ]
+    },
+    {
+      "id": "ai-realtime-session",
+      "reason": "实时语音会话、会话事件与会话内工具调用是主体自有的在线执行数据：归属由服务端会话身份（应用 + 主体类型 + 外部用户标识）决定，受理、查询、推流、打断、断线重连、续票与关闭都按当前主体过滤，越权与不存在同语义（404）；事件只保存转写文本、字节数与稳定码，工具调用只保存冻结参数与结论码，都不保存音频内容、上游报文与凭据。管理端没有跨主体读取会话正文的入口，因此不登记部门/用户数据权限列，改为按主体绑定（subject-bound）控制。",
+      "tables": [
+        "ai_realtime_event",
+        "ai_realtime_session",
+        "ai_realtime_tool_call"
+      ],
+      "controls": [
+        {
+          "kind": "subject-bound",
+          "tables": [
+            "ai_realtime_event",
+            "ai_realtime_session",
+            "ai_realtime_tool_call"
+          ],
+          "evidence": [
+            {
+              "table": "ai_realtime_session",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/realtime/AiRealtimeSessionMapper.java",
+              "contains": ".eq(AiRealtimeSessionDO::getExternalUserId, externalUserId)"
+            },
+            {
+              "table": "ai_realtime_session",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/realtime/AiRealtimeSessionLifecycle.java",
+              "contains": "subject.sameAs(session.getApplicationId(), session.getSubjectType(), session.getExternalUserId())"
+            },
+            {
+              "table": "ai_realtime_session",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/app/v1/realtime/AiRealtimeController.java",
+              "contains": "@AuthenticatedOnly"
+            },
+            {
+              "table": "ai_realtime_event",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/realtime/AiRealtimeEventMapper.java",
+              "contains": ".eq(AiRealtimeEventDO::getSessionId, sessionId)"
+            },
+            {
+              "table": "ai_realtime_event",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/realtime/AiRealtimeSessionViews.java",
+              "contains": "eventMapper.selectRecentBySession(sessionId, MAX_EVENTS)"
+            },
+            {
+              "table": "ai_realtime_tool_call",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/realtime/AiRealtimeToolCallMapper.java",
+              "contains": ".eq(AiRealtimeToolCallDO::getSessionId, sessionId)"
+            },
+            {
+              "table": "ai_realtime_tool_call",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/realtime/AiRealtimeSessionServiceImpl.java",
+              "contains": "!sessionId.equals(call.getSessionId())"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ai-realtime-endpoint-verification",
+      "reason": "实时端点能力验证台账是平台内部事实（每个（端点, 配置版本, 协议）的声明与真实探测确认结论）：只由平台验证器在会话受理/重连时写入与读取，记录稳定明细码与耗时，不含凭据、上游报文与用户数据；没有任何客户端或管理端接口直接读写它（本卡不提供管理端点），因此按 internal-only 控制。",
+      "tables": [
+        "ai_realtime_endpoint_capability"
+      ],
+      "controls": [
+        {
+          "kind": "internal-only",
+          "tables": [
+            "ai_realtime_endpoint_capability"
+          ],
+          "evidence": [
+            {
+              "table": "ai_realtime_endpoint_capability",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/realtime/AiRealtimeEndpointCapabilityMapper.java",
+              "contains": "default AiRealtimeEndpointCapabilityDO selectOneByVersion("
+            },
+            {
+              "table": "ai_realtime_endpoint_capability",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/realtime/AiRealtimeEndpointVerifier.java",
+              "contains": "capabilityMapper.upsert("
+            }
+          ]
+        }
+      ]
     }
   ]
 }

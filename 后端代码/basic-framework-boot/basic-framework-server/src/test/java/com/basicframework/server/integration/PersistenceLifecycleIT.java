@@ -287,6 +287,10 @@ class PersistenceLifecycleIT extends AbstractPersistenceIntegrationTest {
                         "ai_model_endpoint_revision",
                         "ai_model_probe",
                         // V76：报表与版本（迁移顺序决定表顺序）；V90：受控分享（凭据摘要 + 固定版本）
+                        // V92：实时语音会话（会话/工具调用/能力验证台账为软删除，事件留痕 append-retention）
+                        "ai_realtime_endpoint_capability",
+                        "ai_realtime_session",
+                        "ai_realtime_tool_call",
                         "ai_report",
                         "ai_report_refresh",
                         "ai_report_share",

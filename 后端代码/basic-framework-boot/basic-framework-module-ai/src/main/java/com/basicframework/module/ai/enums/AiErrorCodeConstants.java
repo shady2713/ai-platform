@@ -668,4 +668,68 @@ public interface AiErrorCodeConstants {
 
     /** 范围选择依据已变化（409）：目录或映射事实已变，历史选择必须重新发现后再选择。 */
     ErrorCode AI_ANALYSIS_SCOPE_VERSION_CONFLICT = new ErrorCode(1_003_013_007, "范围选择依据的授权目录已变化，请重新发现后再选择");
+
+    // ========== 实时语音会话 1_003_014_xxx（X05） ==========
+
+    /**
+     * 会话不存在（404）：编号无效、已删除、或与当前主体不符，统一同语义（防枚举）。
+     *
+     * <p>承重命名：{@code GlobalExceptionHandler.resolveHttpStatus} 只认常量名后缀
+     * {@code _NOT_EXISTS} → 404（ADR 0003）。
+     */
+    ErrorCode AI_REALTIME_SESSION_NOT_EXISTS = new ErrorCode(1_003_014_000, "实时会话不存在");
+
+    /** 会话已关闭（409）：终态不允许推流/打断/重连；关闭原因见会话视图的稳定码。 */
+    ErrorCode AI_REALTIME_SESSION_CLOSED_CONFLICT = new ErrorCode(1_003_014_001, "实时会话已关闭");
+
+    /** 会话已断线（409）：需要先重连建立媒体面；本实例没有通道时也按此码拒绝推流。 */
+    ErrorCode AI_REALTIME_SESSION_DETACHED_CONFLICT = new ErrorCode(1_003_014_002, "实时会话已断开，需要重连");
+
+    /** 并发会话超限（429）：同一主体或同一应用的有效会话数达到上限，不排队不阻塞。 */
+    ErrorCode AI_REALTIME_SESSION_LIMIT_EXCEEDED = new ErrorCode(1_003_014_003, "并发实时会话数已达上限");
+
+    /** 协议未通过验证（409）：该（端点, 配置版本, 协议）组合未确认为可用，不放行且不回退。 */
+    ErrorCode AI_REALTIME_PROTOCOL_UNVERIFIED_CONFLICT = new ErrorCode(1_003_014_004, "该端点与协议未通过实时能力验证");
+
+    /** 平台未注册该协议的实时适配器（409）：没有适配器就无法验证，属"平台不知道的能力"。 */
+    ErrorCode AI_REALTIME_ADAPTER_UNAVAILABLE_CONFLICT = new ErrorCode(1_003_014_005, "平台未注册该协议的实时适配器");
+
+    /** 音频格式不受支持（400）：不在适配器支持集合或不在已验证格式集合内。 */
+    ErrorCode AI_REALTIME_AUDIO_FORMAT_UNSUPPORTED = new ErrorCode(1_003_014_006, "实时音频格式不受支持");
+
+    /** 已关麦（409）：关麦期间不接受上行音频（不静默丢弃，明确拒绝）。 */
+    ErrorCode AI_REALTIME_MUTED_CONFLICT = new ErrorCode(1_003_014_007, "实时会话已关麦，不接受上行音频");
+
+    /** 输入超过有界缓冲（409）：会话已按 {@code audio-backpressure-exceeded} 结束，绝不静默丢帧。 */
+    ErrorCode AI_REALTIME_BACKPRESSURE_CONFLICT = new ErrorCode(1_003_014_008, "输入音频超过有界缓冲上限，会话已结束");
+
+    /** 回合已过期（409）：打断前的旧回合帧/事件被丢弃并计数，不接受继续上送。 */
+    ErrorCode AI_REALTIME_TURN_STALE_CONFLICT = new ErrorCode(1_003_014_009, "音频回合已过期（旧回合帧已被丢弃）");
+
+    /** 回合超出当前（400）：客户端不能凭空发明回合号（fail closed）。 */
+    ErrorCode AI_REALTIME_TURN_FUTURE_INVALID = new ErrorCode(1_003_014_010, "音频回合超出当前回合");
+
+    /** 重连次数耗尽（429）：有界重连；耗尽即关闭会话。 */
+    ErrorCode AI_REALTIME_REATTACH_BUDGET_EXCEEDED = new ErrorCode(1_003_014_011, "重连次数已耗尽");
+
+    /** 重连时限已过（409）：断线后超过窗口未回来，会话已关闭。 */
+    ErrorCode AI_REALTIME_REATTACH_TIMEOUT_CONFLICT = new ErrorCode(1_003_014_012, "重连时限已过，会话已关闭");
+
+    /** 票据无效（401）：凭据未知、已过期或已被续票替换（旧票据立即失效）。 */
+    ErrorCode AI_REALTIME_TICKET_INVALID = new ErrorCode(1_003_014_013, "实时会话票据无效或已过期");
+
+    /** 端点配置已变化（409）：受理时固定的配置/凭据版本已不是当前版本，不能悄悄用新配置续接。 */
+    ErrorCode AI_REALTIME_ENDPOINT_CONFIG_CHANGED_CONFLICT = new ErrorCode(1_003_014_014, "端点配置已变化，不能续接已受理的实时会话");
+
+    /** 会话内工具调用不存在（404）：编号无效或不属于该会话（越权同语义）。 */
+    ErrorCode AI_REALTIME_TOOL_CALL_NOT_EXISTS = new ErrorCode(1_003_014_015, "会话内工具调用不存在");
+
+    /** 工具调用被拒绝（403）：会话内只执行免确认（AUTO）的读工具；写工具与需确认工具走运行/动作流程。 */
+    ErrorCode AI_REALTIME_TOOL_POLICY_DENIED = new ErrorCode(1_003_014_016, "会话内只允许执行免确认的读工具");
+
+    /** 工具调用正在执行（409）：执行权已被消费，不重复执行（重连重发时返回既有结论或本码）。 */
+    ErrorCode AI_REALTIME_TOOL_IN_PROGRESS_CONFLICT = new ErrorCode(1_003_014_017, "该工具调用正在执行中");
+
+    /** 会话已到期（409）：绝对寿命已到并已关闭；客户端应重新受理新会话（不续期）。 */
+    ErrorCode AI_REALTIME_SESSION_EXPIRED_CONFLICT = new ErrorCode(1_003_014_018, "实时会话已到期并关闭");
 }

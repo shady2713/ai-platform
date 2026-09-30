@@ -124,7 +124,20 @@ class AiAppEndpointScopeContractTest {
             "com.basicframework.module.ai.controller.app.v1.report.AiReportShareController#revoke",
             "com.basicframework.module.ai.controller.app.v1.report.AiReportShareController#page",
             "com.basicframework.module.ai.controller.app.v1.report.AiReportShareController#read",
-            "com.basicframework.module.ai.controller.app.v1.report.AiReportShareController#accessList");
+            "com.basicframework.module.ai.controller.app.v1.report.AiReportShareController#accessList",
+            // X05：实时语音会话按 ai_realtime_session 归属判定（应用 + 主体类型 + 外部用户标识）；
+            // 协议与端点能力必须先通过验证（声明 + 真实探测确认），未注册适配器即拒绝且不回退；
+            // 背压/回合栅栏/重连预算/工具政策全部在服务层判定，票据只用于媒体面（重）建立与续票
+            "com.basicframework.module.ai.controller.app.v1.realtime.AiRealtimeController#accept",
+            "com.basicframework.module.ai.controller.app.v1.realtime.AiRealtimeController#getSession",
+            "com.basicframework.module.ai.controller.app.v1.realtime.AiRealtimeController#pushAudio",
+            "com.basicframework.module.ai.controller.app.v1.realtime.AiRealtimeController#interrupt",
+            "com.basicframework.module.ai.controller.app.v1.realtime.AiRealtimeController#mute",
+            "com.basicframework.module.ai.controller.app.v1.realtime.AiRealtimeController#detach",
+            "com.basicframework.module.ai.controller.app.v1.realtime.AiRealtimeController#resume",
+            "com.basicframework.module.ai.controller.app.v1.realtime.AiRealtimeController#renewTicket",
+            "com.basicframework.module.ai.controller.app.v1.realtime.AiRealtimeController#close",
+            "com.basicframework.module.ai.controller.app.v1.realtime.AiRealtimeController#executeToolCall");
 
     private static final String AI_APP_PACKAGE = "com.basicframework.module.ai.controller.app";
 

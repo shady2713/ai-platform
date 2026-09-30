@@ -157,6 +157,28 @@ export { default as MessageBlockView } from './message/MessageBlockView.vue';
 export type { MessagePorts } from './message/MessageBlockView.vue';
 export { default as MessageList } from './message/MessageList.vue';
 export type { MessageItem } from './message/MessageList.vue';
+export { default as RealtimePanel } from './realtime/RealtimePanel.vue';
+export {
+  createRealtimeMachine,
+  isDenied,
+  pressureOf,
+  REALTIME_ERROR_CODES,
+  realtimeErrorKey,
+  realtimeErrorMessage,
+  transcriptOf,
+} from './realtime/state';
+export type {
+  RealtimeAcceptInput,
+  RealtimeApi,
+  RealtimeEventView,
+  RealtimeMachine,
+  RealtimePhase,
+  RealtimePressure,
+  RealtimeSessionView,
+  RealtimeSnapshot,
+  RealtimeToolCallView,
+  RealtimeTranscriptLine,
+} from './realtime/state';
 export { default as AiReportView } from './report/AiReportView.vue';
 export {
   buildChartSpec,
