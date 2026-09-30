@@ -17,6 +17,11 @@ import { createApp, h } from 'vue';
 import AiChart from '../../../../packages/ai-chat-ui/src/chart/AiChart.vue';
 import ChartRenderer from '../../../../packages/ai-chat-ui/src/components/ChartRenderer.vue';
 import AiReportView from '../../../../packages/ai-chat-ui/src/report/AiReportView.vue';
+import ResultTable from '../../../../packages/ai-chat-ui/src/message/ResultTable.vue';
+import {
+  parseMessageBlock,
+  type TableBlock,
+} from '../../../../packages/ai-chat-ui/src/message/blocks';
 import {
   FROZEN_CHART_SPEC,
   FROZEN_LINE_SPEC,
@@ -89,5 +94,21 @@ Object.assign(globalThis, {
       );
     },
     unmountAll,
+    /**
+     * 挂载**单系统**结果表格（Y06 反向回归用）。
+     *
+     * <p>走真实的 `parseMessageBlock` + 真实 `ResultTable`：浏览器里断言的就是
+     * 生产解析器与生产组件，不在探针里另造一份渲染逻辑。
+     */
+    mountResultTable: (payload: unknown) => {
+      const parsed = parseMessageBlock(payload);
+      if (parsed.kind !== 'table') {
+        throw new Error(`期望 table 块，实际解析出 ${parsed.kind}`);
+      }
+      const block: TableBlock = parsed;
+      mountApp('result-table', '#result-table', () =>
+        h(ResultTable, { block }),
+      );
+    },
   },
 });
