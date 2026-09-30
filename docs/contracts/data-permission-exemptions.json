@@ -159,6 +159,45 @@
       ]
     },
     {
+      "id": "ai-metric-semantics-config",
+      "reason": "跨源指标口径（ai_metric_semantics/ai_metric_semantics_revision）是控制面配置事实：它登记\"哪些来源的哪些数可以相加\"（币种/单位/时区/时间窗口/主键粒度/聚合顺序），只由功能权限维护，读取一律经服务层按口径标识 + 显式版本号核验（草稿/过期/指纹不符一律阻断）。表内没有部门/用户行级权限列：口径是全局配置，不按行属主划分；跨源聚合的数据行级范围由各来源数据集（D04）的字段权限策略承担，不在本表重复登记。",
+      "tables": [
+        "ai_metric_semantics",
+        "ai_metric_semantics_revision"
+      ],
+      "controls": [
+        {
+          "kind": "function-permission",
+          "tables": [
+            "ai_metric_semantics",
+            "ai_metric_semantics_revision"
+          ],
+          "evidence": [
+            {
+              "table": "ai_metric_semantics",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/semantic/AiMetricSemanticsServiceImpl.java",
+              "contains": "public Long createSemantics(AiMetricSemanticsSaveDTO saveDTO) {"
+            },
+            {
+              "table": "ai_metric_semantics_revision",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/semantic/AiMetricSemanticsServiceImpl.java",
+              "contains": "public Long createRevision(AiMetricSemanticsRevisionDraftDTO draftDTO) {"
+            },
+            {
+              "table": "ai_metric_semantics",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/semantic/AiMetricSemanticsMapper.java",
+              "contains": "default AiMetricSemanticsDO selectByCode(String metricCode) {"
+            },
+            {
+              "table": "ai_metric_semantics_revision",
+              "path": "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/dal/mysql/semantic/AiMetricSemanticsRevisionMapper.java",
+              "contains": "default AiMetricSemanticsRevisionDO selectByRevisionNo(Long metricSemanticsId, Long revisionNo) {"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "ai-subject-binding",
       "reason": "AI 外部主体表按 (application_id, subject_type, external_user_id) 绑定到唯一主体，读取一律经 AiSubjectService 的主体唯一键查询，不使用部门数据范围规则；范围授权由 SubjectScopeResolver 在请求期解析并默认 DENY。 访问票据（ai_access_ticket）按签发主体绑定并只存 token 摘要，校验一律经摘要唯一键定位。 业务文件绑定（ai_file_binding）按上传主体与业务对象归属判定，读写删都经主体唯一键与服务层 ACL。",
       "tables": [

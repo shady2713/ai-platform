@@ -286,6 +286,9 @@ class PersistenceLifecycleIT extends AbstractPersistenceIntegrationTest {
                         // V85：媒体任务与产物（X03 起图片生成/编辑，X04 复用同一任务模型）
                         "ai_media_asset",
                         "ai_media_task",
+                        // V94：跨源指标口径（口径与口径版本均为软删除配置面事实；来源声明整体冻结在版本内）
+                        "ai_metric_semantics",
+                        "ai_metric_semantics_revision",
                         "ai_model_endpoint",
                         "ai_model_endpoint_revision",
                         "ai_model_probe",

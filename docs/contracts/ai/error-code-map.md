@@ -350,3 +350,38 @@ HTTP 状态按 ADR 0003 的命名规则推导：`*_NOT_EXISTS` 为 404，名称�
 
 协议选择、能力验证判据与"真实供应商链路未验证"的边界见
 `docs/adr/0052-realtime-voice-protocol-and-capability-verification.md`。
+
+## 跨源指标口径子区间（Y03，`1_003_016_xxx`）
+
+跨源指标口径回答"**这些来自不同系统的数能不能相加**"（跨系统链 AT-034/AT-070）。HTTP 列按 ADR 0003
+的**语义**映射；框架按常量名派生实际状态（后缀 `_NOT_EXISTS` → 404，名称含
+`CONFLICT`/`EXISTS`/`DUPLICATE` → 409，其余 422）。命名因此是承重的：把 `_CONFLICT` 去掉会静默
+把 409 变成 422。
+
+| 名称 | 编号 | 说明 | HTTP |
+|---|---|---|---|
+| `AI_METRIC_SEMANTICS_NOT_EXISTS` | 1_003_016_000 | 跨源指标口径不存在（编号/标识无效、已删除同语义） | 404 |
+| `AI_METRIC_SEMANTICS_CODE_DUPLICATE` | 1_003_016_001 | 口径标识已存在（标识全局唯一且不可修改） | 409 |
+| `AI_METRIC_SEMANTICS_DISABLED_CONFLICT` | 1_003_016_002 | 口径已停用，不能用于跨源聚合（不回退到历史版本） | 409 |
+| `AI_METRIC_SEMANTICS_REVISION_NOT_EXISTS` | 1_003_016_003 | 口径版本不存在（版本号无效或不属于该口径） | 404 |
+| `AI_METRIC_SEMANTICS_REVISION_NOT_PUBLISHED_CONFLICT` | 1_003_016_004 | 草稿版本不是可核验事实，不能用于聚合或作为报表依据 | 409 |
+| `AI_METRIC_SEMANTICS_REVISION_PUBLISHED_CONFLICT` | 1_003_016_005 | 已发布版本不可变：改口径必须新建版本 | 409 |
+| `AI_METRIC_SEMANTICS_REVISION_EXPIRED_CONFLICT` | 1_003_016_006 | 版本有效期不覆盖聚合时刻，阻断而不是回退到最新版本 | 409 |
+| `AI_METRIC_SEMANTICS_FINGERPRINT_CONFLICT` | 1_003_016_007 | 版本内容重算指纹与冻结值不符（内容被版本外改动） | 409 |
+| `AI_METRIC_SOURCE_INVALID` | 1_003_016_008 | 来源声明不合法：键白名单、角色/粒度键格式、枚举取值或数组形状不合规 | 422 |
+| `AI_METRIC_SOURCE_DUPLICATE` | 1_003_016_009 | 同一口径版本内同一数据集版本重复声明 | 409 |
+| `AI_METRIC_PLAN_SELECTION_REQUIRED` | 1_003_016_010 | 查询计划必须为每个来源显式选择数据集版本与映射版本（不接受"取当前版本"的省略写法） | 422 |
+| `AI_METRIC_PLAN_SOURCE_NOT_DECLARED` | 1_003_016_011 | 计划选择的来源不在该口径版本的来源声明内 | 422 |
+| `AI_METRIC_FANOUT_UNSAFE_CONFLICT` | 1_003_016_012 | 不安全扇出：来源未按各自主键粒度预聚合，同一事实会被重复计算 | 409 |
+| `AI_METRIC_CURRENCY_CONVERSION_MISSING_CONFLICT` | 1_003_016_013 | 来源币种不一致且未声明换算规则，**禁止跨币种求和**（绝不静默相加） | 409 |
+| `AI_METRIC_CONVERSION_RULE_CONFLICT` | 1_003_016_014 | 换算规则的目标币种与口径币种不一致，或规则声明不合法 | 409 |
+| `AI_METRIC_CALIBER_CONFLICT` | 1_003_016_015 | 来源单位/时区与口径声明冲突，必须显式解决（**绝不**让模型推断） | 409 |
+| `AI_METRIC_CALIBER_MISSING_CONFLICT` | 1_003_016_016 | 来源缺少必需口径项（单位/币种/时区/粒度），不允许按默认值补全 | 409 |
+| `AI_METRIC_AGGREGATION_ORDER_CONFLICT` | 1_003_016_017 | 聚合顺序未满足"先按各自主键粒度聚合再关联"，或未恰好覆盖每个来源 | 409 |
+| `AI_METRIC_GAP_CLARIFICATION_REQUIRED` | 1_003_016_018 | 存在数据缺口且来源未声明为可选，必须澄清（绝不按 0 静默补齐） | 422 |
+| `AI_METRIC_SEMANTICS_PUBLISHER_CONFLICT` | 1_003_016_019 | 独立审核：口径版本发布人必须不同于草稿创建人 | 409 |
+
+语义边界见 `docs/ai-platform/verification/y03-cross-source-metric-semantics-evidence.md`：跨源相加的
+前提必须先被显式登记成可版本化的口径（币种/单位/时区/时间窗口/主键粒度/聚合顺序）；查询计划必须
+逐个来源钉住数据集版本与映射版本；多对多关联一律先按各自主键粒度预聚合再关联；不同币种无换算规则
+禁止求和；口径冲突与缺失显式拒绝，绝不让模型推断。

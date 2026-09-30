@@ -22,6 +22,7 @@ package com.basicframework.module.ai.enums;
  *   1_003_013_xxx  跨系统（主体联邦映射、授权发现与范围选择）
  *   1_003_014_xxx  实时语音（会话协商与短期票据、协议能力验证、背压/打断/重连）
  *   1_003_015_xxx  主数据映射（企业统一对象、源键映射、映射版本与冲突/过期阻断）
+ *   1_003_016_xxx  跨源指标口径（口径版本、显式数据集与映射版本、扇出阻断、币种换算与缺口澄清）
  * </pre>
  *
  * <p>HTTP 映射遵循 [ADR 0003](http-status-semantics) 与 [ADR 0049](identity-boundaries)：
@@ -78,6 +79,9 @@ public final class AiErrorCodeRanges {
 
     /** 主数据映射子区间（Y02）：企业统一对象、源键映射、映射版本与冲突/过期阻断。 */
     public static final int DOMAIN_MASTER_DATA = 1_003_015;
+
+    /** 跨源指标口径子区间（Y03）：口径版本、扇出关联阻断、币种换算与缺口澄清。 */
+    public static final int DOMAIN_METRIC_SEMANTICS = 1_003_016;
 
     private AiErrorCodeRanges() {}
 }
