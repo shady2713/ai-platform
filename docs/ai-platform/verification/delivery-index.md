@@ -3,9 +3,9 @@
 > **本索引是交付台账。** `docs/ai-platform/tasks/index.json` 里全部卡片都标 `PLANNED`，
 > 那不是交付状态；**是否交付以本索引与下表列出的证据文件为准**。
 
-- 任务卡总数：**104**
-- 有完成证据的卡：**103**
-- 缺完成证据的卡：**1**（M07）
+- 任务卡总数：**105**
+- 有完成证据的卡：**104**
+- 缺完成证据的卡：**1**（F11）
 
 ## 1. 证据目录约定
 
@@ -35,13 +35,14 @@
 | F08 | 建立AI字段错误码与迁移规范 | P0 | `f08-error-code-migration-evidence.md` | — |
 | F09 | 建立受控外部HTTP传输边界 | P0 | `f09-outbound-http-evidence.md` | — |
 | F10 | 建立合成业务与协议测试夹具 | P0 | `f10-fixtures-evidence.md` | — |
+| F11 | 受控出站支持流式响应 | V1.0 | — | — |
 | M01 | 实现模型端点持久化与管理命令 | V1.0 | `m01-model-endpoint-evidence.md` | — |
 | M02 | 实现动态模型客户端工厂 | V1.0 | `m02-model-client-factory-evidence.md` | — |
 | M03 | 实现文本流与结构化输出适配 | V1.0 | `m03-text-stream-structured-output-evidence.md` | — |
 | M04 | 实现嵌入模型与能力探测 | V1.0 | `m04-embedding-and-capability-probe-evidence.md` | — |
 | M05 | 实现模型外发策略与调用计量 | V1.0 | `m05-outbound-policy-and-metering-evidence.md` | — |
 | M06 | 交付模型管理页面 | V1.0 | `m06-model-management-page-evidence.md` | — |
-| M07 | 模型通道请求级出站治理 | V1.0 | — | — |
+| M07 | 模型通道请求级出站治理 | V1.0 | `m07-outbound-transport-governance-evidence.md` | — |
 | A01 | 实现应用及客户端凭据管理 | V1.0 | `a01-application-credential-evidence.md` | — |
 | A02 | 实现外部主体与范围映射 | V1.0 | `a02-subject-scope-evidence.md` | — |
 | A03 | 实现应用和主体资源授权 | V1.0 | `a03-resource-authorization-evidence.md` | — |
@@ -145,4 +146,6 @@
 1. **新卡的证据默认放** `docs/ai-platform/verification/<卡号>-<主题>-evidence.md`。
 2. 若该卡的证据天然属于验收/升级/发布/运维/部署，**可以**放对应目录，但文件名仍以卡号开头，
    并在提交信息里说明，便于本索引登记。
-3. 本索引随卡片增删更新；`contracts` 门禁不校验本文件，**由主会话人工维护**。
+3. **新建卡片前必须先确认编号未被占用**（`index.json` 与 `docs/ai-platform/tasks/<编号>.md` 都要查）——
+   编号撞车会静默覆盖既有卡片。
+4. 本索引随卡片增删更新；`contracts` 门禁不校验本文件，**由主会话人工维护**。

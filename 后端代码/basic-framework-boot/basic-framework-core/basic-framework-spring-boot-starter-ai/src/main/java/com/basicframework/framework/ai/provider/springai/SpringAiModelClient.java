@@ -674,10 +674,21 @@ public class SpringAiModelClient implements ModelPort {
         }
     }
 
-    /** 失败映射：只暴露稳定原因，不回传厂商原始报文。 */
+    /**
+     * 失败映射：只暴露稳定原因，不回传厂商原始报文。
+     *
+     * <p>M07：先沿因果链识别 F09 出站边界的拒绝（{@code ExternalHttpException}），映射为
+     * {@code TARGET_NOT_ALLOWED}/{@code TIMEOUT}/{@code UPSTREAM_FAILED}；这一步必须在类名匹配之前，
+     * 因为厂商模型会把请求期异常包进 {@code NonTransientAiException}（会被误判为"上游拒绝"）。
+     * 守卫原因一律不含上游响应内容与凭据。
+     */
     static ModelException mapFailure(Exception exception) {
         if (exception instanceof ModelException modelException) {
             return modelException;
+        }
+        ModelException.Reason deniedReason = GuardedExternalHttpTransport.toModelReason(exception);
+        if (deniedReason != null) {
+            return new ModelException(deniedReason, outboundDenialMessage(deniedReason), exception);
         }
         String name = exception.getClass().getName().toLowerCase(Locale.ROOT);
         if (name.contains("timeout")) {
@@ -690,6 +701,15 @@ public class SpringAiModelClient implements ModelPort {
             return new ModelException(ModelException.Reason.RATE_LIMITED, "上游限流或短暂不可用", exception);
         }
         return new ModelException(ModelException.Reason.UPSTREAM_FAILED, "模型调用失败", exception);
+    }
+
+    /** 出站边界的稳定文案：不区分"主机不在清单"与"解析到私网"，也不回带目标地址。 */
+    private static String outboundDenialMessage(ModelException.Reason reason) {
+        return switch (reason) {
+            case TARGET_NOT_ALLOWED -> "出站请求被受控边界拒绝";
+            case TIMEOUT -> "模型调用超时";
+            default -> "模型调用失败";
+        };
     }
 
     /** 关闭客户端：释放厂商资源并拒绝后续请求。 */

@@ -943,6 +943,46 @@
       ]
     },
     {
+      "id": "F11",
+      "phase": "V1.0",
+      "title": "受控出站支持流式响应",
+      "status": "PLANNED",
+      "requirements": [
+        "FR-40"
+      ],
+      "dependsOn": [
+        "F09",
+        "M07"
+      ],
+      "reads": [
+        "01-framework-baseline.md",
+        "05-data-security-contracts.md",
+        "03-architecture-integration.md",
+        "08-testing-acceptance.md"
+      ],
+      "scopeAliases": [
+        "AIT/core-http",
+        "AIT/provider-springai"
+      ],
+      "allowedPaths": [
+        "后端代码/basic-framework-boot/basic-framework-core/basic-framework-spring-boot-starter-ai/src/main/java/com/basicframework/framework/ai/core/http",
+        "后端代码/basic-framework-boot/basic-framework-core/basic-framework-spring-boot-starter-ai/src/main/java/com/basicframework/framework/ai/provider/springai"
+      ],
+      "steps": [
+        "在守卫上增加流式入口（与现有请求/响应入口并存而非替换），逐块仍受允许清单/私网判定/超时约束，超限改为终止流并给稳定错误码",
+        "重新接线 M07 的 GuardedExchangeFunction，让聊天流式与音频流式真正增量到达",
+        "补长流超过上限的用例，证明是有界终止而非静默截断或整体拒绝"
+      ],
+      "acceptance": [
+        "流式恢复增量到达（首块先于末块到达）",
+        "流式仍受治理：非允许清单地址请求期被拒",
+        "长流以 RESPONSE_TOO_LARGE 有界终止",
+        "M07 五条通道拒绝语义不回退",
+        "F09 原有入口行为不变"
+      ],
+      "risk": "HIGH"
+    },
+    {
       "id": "M01",
       "phase": "V1.0",
       "title": "实现模型端点持久化与管理命令",

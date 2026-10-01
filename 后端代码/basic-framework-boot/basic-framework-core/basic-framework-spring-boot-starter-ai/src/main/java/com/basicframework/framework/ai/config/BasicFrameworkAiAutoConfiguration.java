@@ -54,12 +54,23 @@ public class BasicFrameworkAiAutoConfiguration {
      * 受管模型客户端工厂：按端点快照与版本键有界缓存 Spring AI 客户端。
      * 与出站 HTTP 边界共用同一份允许清单策略（AiHttpProperties），
      * 并把 M03 的调用护栏（输出上限、有界重试、流式超时）下发给每个客户端。
+     *
+     * <p>M07：工厂通过 {@link ExternalHttpClient}（构造器注入）拿到受控出站边界，
+     * 四条模型通道的每一次出站请求都经它，而不是只在创建期校验一次地址。
      */
     @Bean(destroyMethod = "close")
     @ConditionalOnMissingBean(ModelClientFactory.class)
     @ConditionalOnProperty(prefix = "basic-framework.ai", name = "enabled", havingValue = "true")
-    public ModelClientFactory aiModelClientFactory(AiHttpProperties httpProperties, AiModelProperties modelProperties) {
-        return new SpringAiModelClientFactory(httpProperties, modelProperties);
+    public ModelClientFactory aiModelClientFactory(
+            AiHttpProperties httpProperties,
+            AiModelProperties modelProperties,
+            ObjectProvider<ExternalHttpClient> externalHttpClients) {
+        return new SpringAiModelClientFactory(
+                httpProperties,
+                modelProperties,
+                SpringAiModelClientFactory.DEFAULT_MAX_CLIENTS,
+                externalHttpClients.getIfAvailable(() -> new GuardedExternalHttpClient(httpProperties)),
+                false);
     }
 
     /**

@@ -219,6 +219,12 @@ const publicFixtures = new Map([
     `${moduleAi}test/java/com/basicframework/module/ai/adapter/connector/http/AiConnectorAuthHeadersTest.java`,
     new Set(["it-connector-secret"]),
   ],
+  // M07：出站治理通道单测里的替身 API Key（只在本文件内作为被测值；断言里还要验证
+  // 它不出现在错误文案中——sk-must-not-leak 那条刻意不登记，靠它反向证明不泄漏）
+  [
+    "后端代码/basic-framework-boot/basic-framework-core/basic-framework-spring-boot-starter-ai/src/test/java/com/basicframework/framework/ai/provider/springai/OutboundGovernanceChannelTest.java",
+    new Set(["sk-guard-test"]),
+  ],
   // D03：只读连接器单测/集成测试里的一次性替身口令与只读账号口令（仅测试容器内使用）
   [
     `${moduleAi}test/java/com/basicframework/module/ai/adapter/connector/mysql/AiMysqlSqlGuardTest.java`,

@@ -58,7 +58,7 @@
 
 ## 6. 未验证项
 
-1. **请求级传输治理**：Spring AI 客户端自身的 HTTP 传输尚未替换为 F09 的 `GuardedExternalHttpClient`；当前在**创建期**校验出站允许清单、并在解析层拒绝停用端点，请求级强制（每请求经过受控边界）待后续任务接线。这是本卡明确的剩余风险。
+1. ~~**请求级传输治理**~~ → **已验证（M07，2026-10-01）**。Spring AI 客户端的两种传输都已替换为 F09 受控边界适配器（`OpenAiApi`/`OpenAiAudioApi` 的 `restClientBuilder` 与 `webClientBuilder`），四条通道（聊天同步/聊天流式/嵌入/转写/语音合成）每一次出站请求都重新过 `GuardedExternalHttpClient`。命令与退出码（`cd 后端代码/basic-framework-boot`，`S=basic-framework-core/basic-framework-spring-boot-starter-ai`）：`./mvnw -o -pl $S test -Dtest='GuardedExternalHttpTransportTest,OutboundGovernanceChannelTest,SpringAiEndpointIsolationTest' -DfailIfNoTests=false` → 0（33 例通过）；`./mvnw -o -pl $S test` → 0（295 例通过，本卡前基线 264 例）；`./mvnw -o -pl $S jacoco:report` → 0。断言内容：① 四通道逐条断言守卫调用次数为 1、URL 落在对应协议路径、夹具收到该路径与 `Bearer` 凭据；② 反向用例——主机/端口在允许清单内但目标为未批准的环回地址时，**构造期校验通过、请求期被守卫拒绝**，五条路径逐条得到稳定错误码 `TARGET_NOT_ALLOWED`，且 `gateway.requestCount()==0`（请求根本没离开进程）、`attempts==1`（不被重试放大）；③ 主机/端口不在允许清单、协议为 http、携带 Cookie 头的请求在请求期分别得到 `TARGET_NOT_ALLOWED` / `TARGET_NOT_ALLOWED` / `TARGET_NOT_ALLOWED` / `INVALID_REQUEST`；④ 非回退：上游超时仍为 `TIMEOUT` 且按平台 `maxAttempts` 重发，上游 5xx 仍为 `RATE_LIMITED` 且重试次数只由平台预算决定，错误消息不含上游报文与凭据。创建期校验与解析层停用端点拒绝保持原样、`SpringAiEndpointIsolationTest` 断言零删除。详见 `m07-outbound-transport-governance-evidence.md`。
 2. **流式事件与结构化输出**：M03。
 3. **真实模型端点**：AT-001/AT-004 用假 OpenAI 兼容端点验证协议与隔离；真实厂商端点调用属环境验收（需凭据）。
 4. 平台级（管理员配置 → 调用）端到端链路待 M03/M05 接线后再补。

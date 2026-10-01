@@ -96,6 +96,8 @@ class SpringAiEndpointIsolationTest {
             AiHttpProperties properties = new AiHttpProperties();
             properties.setAllowedHosts(List.of("127.0.0.1"));
             properties.setAllowedPorts(List.of(endpointA.port(), endpointB.port()));
+            // M07：请求已接入 F09 受控边界，环回夹具端点必须显式批准为私网目标
+            properties.setAllowPrivateTargets(true);
             SpringAiModelClientFactory factory = new SpringAiModelClientFactory(properties);
 
             ModelEndpointSnapshot snapshotA =
@@ -128,6 +130,8 @@ class SpringAiEndpointIsolationTest {
             AiHttpProperties properties = new AiHttpProperties();
             properties.setAllowedHosts(List.of("127.0.0.1"));
             properties.setAllowedPorts(List.of(endpoint.port()));
+            // M07：请求已接入 F09 受控边界，环回夹具端点必须显式批准为私网目标
+            properties.setAllowPrivateTargets(true);
             SpringAiModelClientFactory factory = new SpringAiModelClientFactory(properties);
             String baseUrl = "http://127.0.0.1:" + endpoint.port();
 
