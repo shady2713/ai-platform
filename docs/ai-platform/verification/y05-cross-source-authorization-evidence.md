@@ -173,7 +173,7 @@ mappingAuthorized  主体能否看到"源键↔统一实体"这条对应关系
 要么继续保留本节记录的 fail-open 缺口。拆成 `crossSource` + `crossSourceIntegrity`
 两个字段之后，两件事各归各，且都可用可观测状态区分——详见 ADR 0056 §2.1。
 
-**交付 commit**：`待主会话提交后回填`（本卡按铁律未执行任何 git 提交）。
+**交付 commit**：`4957823`（Y07，`feat(backend): close cross-source integrity contract gap with merge entry`）。
 待回填的证据：本节表格、上述证据文档 §4.1（专项一的 10 条反向用例）、
 §4.3（专项三的单系统逐字段无差异），以及前端 `at-070` 兼容测试 7 条原样通过。
 
