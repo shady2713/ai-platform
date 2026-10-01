@@ -24,7 +24,7 @@
 | 错误码 | `1_003_019_000`–`1_003_019_010`，新登记册 `AiMcpClientErrorCodeConstants`（主文件 `extends`，未追加常量） |
 | 卡片 §5 产出 | 准入矩阵、管理接入流程、权限与协议回归（见上方配套链接） |
 | 上游登记 | `docs/integrations/upstream-registry.yaml` 新增 `mcp-java-sdk` 组件 + 2 条 openItems |
-| 测试 | starter-ai `Mcp*Test`（55 例）、module-ai MCP 单测（67 例）、`AiMcpClientIT`（11 例，真实 MySQL） |
+| 测试 | starter-ai `Mcp*Test`（58 例）、module-ai MCP 单测（67 例）、`AiMcpClientIT`（11 例，真实 MySQL） |
 
 ## 2. 与卡片逐步实施的对应
 
@@ -131,7 +131,7 @@ MCP 工具的执行路径（刻意，见 ADR 0055）、服务端 MCP Server、�
 
 | 命令 | 退出码 | 结论 |
 |---|---|---|
-| `./mvnw -o -pl basic-framework-core/basic-framework-spring-boot-starter-ai test` | 0 | 257 例通过（MCP 新增 55 例） |
+| `./mvnw -o -pl basic-framework-core/basic-framework-spring-boot-starter-ai test` | 0 | 260 例通过（MCP 新增 58 例） |
 | `./mvnw -o -pl basic-framework-module-ai test` | 0 | 1734 例通过（MCP 新增 67 例：schema 映射 13、服务 30、端点装配 13、Mapper 7、守卫 4） |
 | `./mvnw -o -pl basic-framework-server verify -Pintegration -Dit.test='AiMcpClientIT'` | 0 | 11 例通过（真实 MySQL Testcontainers） |
 | `./mvnw -o -pl basic-framework-server verify -Pintegration -Dit.test='AiMcpClientIT,PersistenceLifecycleIT'` | 0 | 11 + 1 例通过（V96 两表进软删除台账与生命周期断言） |
@@ -164,12 +164,31 @@ SDK record 构造器自身已断言非空的 null 字段）。
 
 ## 10. 未验证项
 
-1. **与真实 MCP 服务器的端到端握手未验证**（`initialize` + `tools/list`）：
-   本机用 JDK `HttpServer` 手写 Streamable HTTP 假服务端，SDK 2.0.1 在 `initialize` 之后会另开
-   **GET SSE 长连接**，该连接未能被满足，`initialize` 等待流建立超时（尝试过 JSON 响应、
-   SSE 帧响应、会话头、保持连接、keepalive 帧、自动初始化等组合均未通过）。
-   因此本卡对"选型能编译、API 面正确、平台侧默认拒绝语义"有执行证据，
-   对"与真实 MCP 服务器完成一次握手"**没有**。补齐方式：用官方容器或真实 MCP 服务器补一条端到端用例。
+1. **与真实 MCP 服务器的端到端握手已验证**（`initialize` + `tools/list`，协议层）：
+   上一轮失败的原因是**手写** Streamable HTTP 假服务端满足不了 SDK 2.0.1 在 `initialize` 之后
+   另开的 GET SSE 长连接。本轮不再手写协议，改用 **SDK 自带服务端**：
+   `McpServer.sync` + `StdioServerTransportProvider` + `addTool` 注册一个固定工具，
+   以独立子 JVM 进程运行（真实 MCP stdio 服务端的形态）；客户端是 SDK 自带的
+   `StdioClientTransport` + `McpSyncClient`。两端同源同版本（`mcp-core` 2.0.1），
+   跑的是真的能力协商与真的 `tools/list` 往返，不是桩、不是 mock。
+   端点形态：**stdio 子进程，不占端口、非 HTTP**，无需 Testcontainers，跑在 surefire。
+   命令 `./mvnw -o -pl basic-framework-core/basic-framework-spring-boot-starter-ai test` 退出码 0，
+   全模块 **260 例**通过（新增 `McpHandshakeE2ETest` 3 例，7.2s）。
+   断言内容：`initialize` 后 `protocolVersion` 协商为 `2025-11-25`（且属于传输自己宣告的版本集合）、
+   `serverInfo` 的 name/version 等于夹具申报值、服务端确实宣告 `tools` 能力；
+   `tools/list` 恰好 1 条，工具名与描述与注册一致，入参 schema 的 `type`/`properties`/`required`
+   逐键核对且无额外顶层键（不与夹具常量做同义反复比较）；关闭后无残留非守护线程、重复关闭幂等。
+   断言非空转已用两次变异验证：改服务端注册的工具名、把 `close()` 换成空实现，对应用例均变红。
+   **残留未验证**：HTTP 传输层——生产用的 `HttpClientStreamableHttpTransport` 对真实 HTTP MCP 服务器
+   的往返仍未验证。本模块测试 classpath 上没有 `jakarta.servlet-api`（它在 mcp-core 里是 `provided`
+   作用域，不传递）也没有嵌入式 servlet 容器，SDK 的 `HttpServletSseServerTransportProvider` /
+   `HttpServletStreamableServerTransportProvider` 在本模块**连编译都过不了**
+   （实测 `找不到 jakarta.servlet.http.HttpServlet 的类文件`）。补这一层要给本模块 pom 增加
+   test 作用域依赖，超出 §2.1 授权的 `mcp-core` + `mcp-json-jackson2` 两条，故未做。
+   过程中定位并解决的一个真实坑：stdio 把进程 stdin/stdout 当 JSON-RPC 通道，
+   夹具的 logback 日志一旦写 stdout 就会污染协议流（客户端报
+   `Unexpected character (':') Expected space separating root-level values`），
+   故新增 test 资源 `mcp-stdio-logback.xml` 把子进程日志改到 stderr。
 2. **MCP 工具的真实执行未接入**（本卡只做发现）。`AiToolExecutor` 显式拒绝非 HTTP 来源，
    故"MCP 工具执行"这条路径当前不存在，也未被验证——这是设计选择，不是缺陷。
 3. **DNS 重绑定残余风险**：`McpEndpointPolicy` 按主机名白名单放行，不做解析后地址复核（与 F09 同）。

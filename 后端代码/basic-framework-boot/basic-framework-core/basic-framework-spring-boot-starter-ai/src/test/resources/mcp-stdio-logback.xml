@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  只给 McpHandshakeE2ETest 的 stdio 子进程服务端用（由 -Dlogback.configurationFile 指向，
+  不会影响 surefire 主进程的日志配置）。
+
+  为什么必须有这个文件：MCP 的 stdio 传输把进程的标准输入/输出当作 JSON-RPC 通道，
+  任何写到 stdout 的日志都会混进协议流里，把一行报文劈成两半，客户端直接
+  "Unexpected character (':') Expected space separating root-level values"。
+  所以真实 MCP stdio 服务端只能把日志写 stderr —— 这里显式配一个 STDERR appender。
+-->
+<configuration>
+    <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.err</target>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} -- %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="STDERR"/>
+    </root>
+</configuration>
