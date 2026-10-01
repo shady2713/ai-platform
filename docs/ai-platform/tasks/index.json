@@ -9093,6 +9093,53 @@
         "没有用户明确授权的安全实现、生产动作、外部写入或部署。",
         "上游候选无法通过兼容、安全或维护状态验证；不能擅自换成不受控远程服务。"
       ]
+    },
+    {
+      "id": "Y07",
+      "phase": "V2",
+      "title": "接入跨源结果契约与跨源合并对外入口",
+      "status": "PLANNED",
+      "requirements": [
+        "FR-38",
+        "FR-40"
+      ],
+      "dependsOn": [
+        "Y04",
+        "Y05",
+        "Y06"
+      ],
+      "reads": [
+        "01-framework-baseline.md",
+        "09-model-handoff.md",
+        "02-product-requirements.md",
+        "03-architecture-integration.md",
+        "05-data-security-contracts.md",
+        "08-testing-acceptance.md"
+      ],
+      "scopeAliases": [
+        "AIT/crosssource",
+        "ADM/crosssource",
+        "F/ai-chat-ui"
+      ],
+      "allowedPaths": [
+        "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/query/crosssource",
+        "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/service/authorization/crosssource",
+        "后端代码/basic-framework-boot/basic-framework-module-ai/src/main/java/com/basicframework/module/ai/controller/admin/crosssource",
+        "前端代码/basic-framework-admin/packages/ai-chat-ui/src/message",
+        "docs/adr"
+      ],
+      "steps": [
+        "把 Y05 的判定结论产出为响应契约字段：跨源合并响应恒携带完整性口径，缺失即拒绝而非按完整渲染",
+        "补跨源合并的对外 HTTP 入口与鉴权，复用 Y05 的守卫与 Y04 的执行台账，不另起授权口径",
+        "让前端完整性展示对真实后端数据生效，并对单系统响应保持零影响"
+      ],
+      "acceptance": [
+        "AT-071",
+        "跨源响应恒带完整性口径，缺失视为 WITHHELD 而非 COMPLETE",
+        "无权来源在响应中不可反推明细",
+        "单系统响应与旧行为逐字段无差异"
+      ],
+      "risk": "HIGH"
     }
   ]
 }
