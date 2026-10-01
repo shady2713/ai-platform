@@ -24,7 +24,7 @@
 | 错误码 | `1_003_019_000`–`1_003_019_010`，新登记册 `AiMcpClientErrorCodeConstants`（主文件 `extends`，未追加常量） |
 | 卡片 §5 产出 | 准入矩阵、管理接入流程、权限与协议回归（见上方配套链接） |
 | 上游登记 | `docs/integrations/upstream-registry.yaml` 新增 `mcp-java-sdk` 组件 + 2 条 openItems |
-| 测试 | starter-ai `Mcp*Test`（58 例）、module-ai MCP 单测（67 例）、`AiMcpClientIT`（11 例，真实 MySQL） |
+| 测试 | starter-ai `Mcp*Test`（62 例）、module-ai MCP 单测（67 例）、`AiMcpClientIT`（11 例，真实 MySQL） |
 
 ## 2. 与卡片逐步实施的对应
 
@@ -131,7 +131,7 @@ MCP 工具的执行路径（刻意，见 ADR 0055）、服务端 MCP Server、�
 
 | 命令 | 退出码 | 结论 |
 |---|---|---|
-| `./mvnw -o -pl basic-framework-core/basic-framework-spring-boot-starter-ai test` | 0 | 260 例通过（MCP 新增 58 例） |
+| `./mvnw -o -pl basic-framework-core/basic-framework-spring-boot-starter-ai test` | 0 | 264 例通过（MCP 新增 62 例） |
 | `./mvnw -o -pl basic-framework-module-ai test` | 0 | 1734 例通过（MCP 新增 67 例：schema 映射 13、服务 30、端点装配 13、Mapper 7、守卫 4） |
 | `./mvnw -o -pl basic-framework-server verify -Pintegration -Dit.test='AiMcpClientIT'` | 0 | 11 例通过（真实 MySQL Testcontainers） |
 | `./mvnw -o -pl basic-framework-server verify -Pintegration -Dit.test='AiMcpClientIT,PersistenceLifecycleIT'` | 0 | 11 + 1 例通过（V96 两表进软删除台账与生命周期断言） |
@@ -164,27 +164,55 @@ SDK record 构造器自身已断言非空的 null 字段）。
 
 ## 10. 未验证项
 
-1. **与真实 MCP 服务器的端到端握手已验证**（`initialize` + `tools/list`，协议层）：
-   上一轮失败的原因是**手写** Streamable HTTP 假服务端满足不了 SDK 2.0.1 在 `initialize` 之后
-   另开的 GET SSE 长连接。本轮不再手写协议，改用 **SDK 自带服务端**：
+1. **与真实 MCP 服务器的端到端握手已验证**（`initialize` + `tools/list`，**协议层与
+   Streamable HTTP 传输层两层都已验证**）：
+   **（a）协议层**——上一轮失败的原因是**手写** Streamable HTTP 假服务端满足不了 SDK 2.0.1 在
+   `initialize` 之后另开的 GET SSE 长连接。改用 **SDK 自带服务端**：
    `McpServer.sync` + `StdioServerTransportProvider` + `addTool` 注册一个固定工具，
    以独立子 JVM 进程运行（真实 MCP stdio 服务端的形态）；客户端是 SDK 自带的
    `StdioClientTransport` + `McpSyncClient`。两端同源同版本（`mcp-core` 2.0.1），
    跑的是真的能力协商与真的 `tools/list` 往返，不是桩、不是 mock。
    端点形态：**stdio 子进程，不占端口、非 HTTP**，无需 Testcontainers，跑在 surefire。
-   命令 `./mvnw -o -pl basic-framework-core/basic-framework-spring-boot-starter-ai test` 退出码 0，
-   全模块 **260 例**通过（新增 `McpHandshakeE2ETest` 3 例，7.2s）。
    断言内容：`initialize` 后 `protocolVersion` 协商为 `2025-11-25`（且属于传输自己宣告的版本集合）、
    `serverInfo` 的 name/version 等于夹具申报值、服务端确实宣告 `tools` 能力；
    `tools/list` 恰好 1 条，工具名与描述与注册一致，入参 schema 的 `type`/`properties`/`required`
    逐键核对且无额外顶层键（不与夹具常量做同义反复比较）；关闭后无残留非守护线程、重复关闭幂等。
-   断言非空转已用两次变异验证：改服务端注册的工具名、把 `close()` 换成空实现，对应用例均变红。
-   **残留未验证**：HTTP 传输层——生产用的 `HttpClientStreamableHttpTransport` 对真实 HTTP MCP 服务器
-   的往返仍未验证。本模块测试 classpath 上没有 `jakarta.servlet-api`（它在 mcp-core 里是 `provided`
-   作用域，不传递）也没有嵌入式 servlet 容器，SDK 的 `HttpServletSseServerTransportProvider` /
-   `HttpServletStreamableServerTransportProvider` 在本模块**连编译都过不了**
-   （实测 `找不到 jakarta.servlet.http.HttpServlet 的类文件`）。补这一层要给本模块 pom 增加
-   test 作用域依赖，超出 §2.1 授权的 `mcp-core` + `mcp-json-jackson2` 两条，故未做。
+   **（b）Streamable HTTP 传输层（生产实际走的那条）**——本轮新增 `McpStreamableHttpE2ETest`：
+   对端是 **SDK 自带的 `HttpServletStreamableServerTransportProvider`（Streamable，非 SSE 版本）
+   + `McpServer.sync`**，挂在**真实嵌入式 Servlet 容器**（Tomcat 10.1.59）上对外服务；
+   客户端是与生产同款的 `HttpClientStreamableHttpTransport.builder(baseUri).endpoint("/mcp")`
+   （与 `McpSdkSessionFactory` 同一传输类型、同一端点路径）。
+   端点形态：**Streamable HTTP `POST/GET/DELETE http://127.0.0.1:<port>/mcp`**；
+   **端口策略：`tomcat.setPort(0)` 由内核分配随机端口**，测试内再断言实际端口 > 0，全程不硬编码端口，
+   避免并行执行或残留进程互相撞端口；用临时目录作 baseDir，用完即删。
+   `initialize` **成功**，协议版本协商为 `2025-11-25`；`tools/list` 返回注册的 1 个工具，
+   名、描述、入参 schema 逐键核对且无额外顶层键。
+   传输层特有的断言（stdio 上根本没有对应物，也是本条的价值所在）：容器级 `Valve`
+   （挂在被测 servlet **之下**的 Tomcat 管道上，与 SDK 传输不共用实现，故非同义反复）
+   观测到真实 HTTP 往返为
+   `POST /mcp`（initialize，无会话号，`Accept: application/json, text/event-stream`，200）
+   → `GET /mcp`（**SSE 长连接**，`Accept: text/event-stream`，200）
+   → `POST /mcp`（`notifications/initialized`，202）
+   → `POST /mcp`（`tools/list`，200）
+   → `DELETE /mcp`（**会话终止**，200）；
+   即服务端经 `Mcp-Session-Id` 响应头下发会话号、后续每个请求都带同一会话号回去（**会话粘性**）、
+   关闭必须走 `DELETE` 而非只关客户端 socket。另断言关闭后**容器真的停止监听**（探针连接被拒）、
+   重复关闭幂等。命令 `./mvnw -o -pl basic-framework-core/basic-framework-spring-boot-starter-ai test`
+   退出码 0，全模块 **264 例**通过（`McpHandshakeE2ETest` 3 例 7.1s + `McpStreamableHttpE2ETest` 4 例 2.2s）。
+   断言非空转已用变异验证：协议层改服务端注册的工具名、把 `close()` 换成空实现；
+   HTTP 层抽掉注册 schema 的 `skus` 属性（`listTools` 用例变红）、把 servlet 映射改到
+   `/not-the-mcp-endpoint/*` 而客户端仍打 `/mcp`（4 例全红，报 `Server Not Found. Status code:404`）。
+   依赖边界：`mcp-core` 把 `jakarta.servlet-api` 声明为 `provided` 作用域（不传递），
+   上一轮实测本模块连编译都过不了；按 §2.2 授权在**本模块 pom 补 test 作用域**的
+   `jakarta.servlet-api`（6.0.0，Spring Boot 依赖管理）与 `tomcat-embed-core`（10.1.59，
+   仓库 BOM 既有 CVE 修复线，**未新造版本号、未改父 POM、未升级任何传递依赖**）。
+   已核验两条均为 **test 作用域**（`dependency:tree -Dscope=compile` 不含这两条），生产依赖树不受影响。
+   `tomcat-embed-core` 的传递依赖 `tomcat-annotations-api` 按仓库既有做法排除
+   （与 `spring-boot-starter-tomcat` 对同一工件的处理一致；该 jar 只服务注解扫描，
+   本夹具用 `Tomcat.addServlet` 编程式注册），顺带避开 Spring Boot 依赖管理把它降到未修复的 10.1.55。
+   **残留未验证**：真实**第三方** MCP 服务器产品（而非 SDK 自身实现的对端）——本条验的是
+   "生产传输 ↔ SDK 服务端传输"这一对同源实现之间的完整往返；跨厂商互操作（如官方 TypeScript/Python
+   SDK 服务器）需要真实 MCP 服务器容器或第二套独立实现，属另一个量级的代价，与"缺 pom 授权"无关。
    过程中定位并解决的一个真实坑：stdio 把进程 stdin/stdout 当 JSON-RPC 通道，
    夹具的 logback 日志一旦写 stdout 就会污染协议流（客户端报
    `Unexpected character (':') Expected space separating root-level values`），

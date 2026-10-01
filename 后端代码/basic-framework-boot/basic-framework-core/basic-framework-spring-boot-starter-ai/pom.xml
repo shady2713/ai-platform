@@ -63,6 +63,35 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!-- X07 §2.2 授权（仅 test 作用域）：Streamable HTTP 传输层端到端验证的最小运行时。
+             mcp-core 把 jakarta.servlet-api 声明为 provided 作用域（不传递），而 SDK 自带的
+             HttpServletStreamableServerTransportProvider 继承 HttpServlet，没有它本模块连编译都过不了
+             （上一轮实测：找不到 jakarta.servlet.http.HttpServlet 的类文件）。
+             这两条只服务于 McpStreamableHttpE2ETest 的嵌入式容器，不得进 compile/provided。
+             版本不写死：jakarta.servlet-api 由 Spring Boot 依赖管理给出（3.5.16 → 6.0.0），
+             tomcat-embed-core 由 basic-framework-dependencies 显式钉到仓库既有修复线 10.1.59
+             （Boot 默认 10.1.55 携带 CVE-2026-65182，仓库已统一升版，此处沿用不新造版本）。 -->
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.tomcat.embed</groupId>
+            <artifactId>tomcat-embed-core</artifactId>
+            <scope>test</scope>
+            <exclusions>
+                <!-- 与仓库既有 Tomcat 用法保持一致：spring-boot-starter-tomcat 对
+                     tomcat-embed-core 同样排除 tomcat-annotations-api。该 jar 只服务于
+                     @WebServlet/@WebListener 注解扫描，本夹具用 Tomcat.addServlet 编程式注册，
+                     不走注解扫描；留着反而会被 Spring Boot 依赖管理降到未修复的 10.1.55。 -->
+                <exclusion>
+                    <groupId>org.apache.tomcat</groupId>
+                    <artifactId>tomcat-annotations-api</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
     </dependencies>
 
     <build>
