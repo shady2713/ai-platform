@@ -1450,6 +1450,49 @@
       ]
     },
     {
+      "id": "M07",
+      "phase": "V1.0",
+      "title": "模型通道请求级出站治理",
+      "status": "PLANNED",
+      "requirements": [
+        "FR-40"
+      ],
+      "dependsOn": [
+        "F09",
+        "M02"
+      ],
+      "reads": [
+        "01-framework-baseline.md",
+        "09-model-handoff.md",
+        "02-product-requirements.md",
+        "03-architecture-integration.md",
+        "05-data-security-contracts.md",
+        "08-testing-acceptance.md"
+      ],
+      "scopeAliases": [
+        "AIT/provider/springai",
+        "AIT/config",
+        "AIT/core-model"
+      ],
+      "allowedPaths": [
+        "后端代码/basic-framework-boot/basic-framework-core/basic-framework-spring-boot-starter-ai/src/main/java/com/basicframework/framework/ai/provider/springai",
+        "后端代码/basic-framework-boot/basic-framework-core/basic-framework-spring-boot-starter-ai/src/main/java/com/basicframework/framework/ai/config",
+        "后端代码/basic-framework-boot/basic-framework-core/basic-framework-spring-boot-starter-ai/src/main/java/com/basicframework/framework/ai/core/model"
+      ],
+      "steps": [
+        "实测 Spring AI 1.1.8 的客户端接线点，逐条确认聊天/嵌入/转写/语音四条通道各用哪个客户端",
+        "写适配器把 Spring AI 的实际请求桥接到 F09 的 GuardedExternalHttpClient，使每个出站请求都过守卫",
+        "用反向用例证明出站到非允许清单地址在请求期被拒并给出稳定错误码"
+      ],
+      "acceptance": [
+        "出站到非允许清单地址在请求期被拒",
+        "四条通道都经守卫",
+        "守卫拒绝时不泄漏上游响应内容",
+        "端点停用/超时/5xx 重试行为不回退"
+      ],
+      "risk": "HIGH"
+    },
+    {
       "id": "A01",
       "phase": "V1.0",
       "title": "实现应用及客户端凭据管理",

@@ -3,15 +3,15 @@
 > **本索引是交付台账。** `docs/ai-platform/tasks/index.json` 里全部卡片都标 `PLANNED`，
 > 那不是交付状态；**是否交付以本索引与下表列出的证据文件为准**。
 
-- 任务卡总数：**103**
+- 任务卡总数：**104**
 - 有完成证据的卡：**103**
-- 缺完成证据的卡：**0**
+- 缺完成证据的卡：**1**（M07）
 
 ## 1. 证据目录约定
 
 | 目录 | 用途 |
 | --- | --- |
-| `docs/ai-platform/verification/` | **默认位置**：绝大多数卡的完成证据，文件名以卡号开头 |
+| `docs/ai-platform/verification` | **默认位置**：绝大多数卡的完成证据，文件名以卡号开头 |
 | `docs/acceptance/` | 验收/评估报告 |
 | `docs/upgrades/` | 升级演练与升级手册 |
 | `docs/release/` | 发布候选与风险登记 |
@@ -41,6 +41,7 @@
 | M04 | 实现嵌入模型与能力探测 | V1.0 | `m04-embedding-and-capability-probe-evidence.md` | — |
 | M05 | 实现模型外发策略与调用计量 | V1.0 | `m05-outbound-policy-and-metering-evidence.md` | — |
 | M06 | 交付模型管理页面 | V1.0 | `m06-model-management-page-evidence.md` | — |
+| M07 | 模型通道请求级出站治理 | V1.0 | — | — |
 | A01 | 实现应用及客户端凭据管理 | V1.0 | `a01-application-credential-evidence.md` | — |
 | A02 | 实现外部主体与范围映射 | V1.0 | `a02-subject-scope-evidence.md` | — |
 | A03 | 实现应用和主体资源授权 | V1.0 | `a03-resource-authorization-evidence.md` | — |
@@ -104,12 +105,12 @@
 | Q02 | 实现用量账本与可恢复配额控制 | V1.0 | `q02-usage-ledger-quota-evidence.md` | — |
 | Q03 | 交付运行监控与用量管理页面 | V1.0 | `q03-observability-usage-pages-evidence.md` | — |
 | Q04 | 实现评测套件、样例版本与执行器 | V1.0 | `q04-evaluation-suite-evidence.md` | — |
-| Q05 | 交付质量评测页面与发布阻断规则 | V1.0 | `q05-publish-gate-and-pages-evidence.md` | `docs/acceptance/q05-first-round-evaluation-report.md` |
+| Q05 | 交付质量评测页面与发布阻断规则 | V1.0 | `q05-publish-gate-and-pages-evidence.md` | — |
 | Q06 | 落实真实浏览器门禁与双平台接线 | V1.0 | `q06-browser-acceptance-evidence.md` | — |
-| Q07 | 验证容量、慢消费者与任务故障恢复 | V1.0 | 见补充 | `docs/acceptance/q07-backend-performance-resilience-evidence.md` / `docs/acceptance/q07-frontend-resilience-and-ops.md` / `docs/operations/q07-capacity-and-failure-injection.md` |
-| Q08 | 建立升级台账与兼容回归包 | V1.0 | 见补充 | `docs/upgrades/q08-acceptance-evidence.md` / `docs/upgrades/q08-compatibility-baseline-and-upgrade-drill-evidence.md` / `docs/upgrades/q08-upgrade-rehearsal-and-rollback.md` |
-| Q09 | 交付安装包、配置模板与恢复演练 | V1.0 | 见补充 | `docs/operations/q09-restore-drill.md` / `docs/operations/upgrade-checklist.md` / `docs/deployment/configuration-manual.md` / `docs/deployment/deployment-and-rollback.md` |
-| Q10 | 完成单业务系统端到端验收与候选发布评审 | V1.0 | 见补充 | `docs/release/q10-release-candidate.md` / `docs/release/q10-risk-and-defect-register.md` / `docs/release/q10-v1-acceptance-matrix.md` |
+| Q07 | 验证容量、慢消费者与任务故障恢复 | V1.0 | — | — |
+| Q08 | 建立升级台账与兼容回归包 | V1.0 | — | — |
+| Q09 | 交付安装包、配置模板与恢复演练 | V1.0 | 见补充 | `docs/operations/upgrade-checklist.md` / `docs/deployment/configuration-manual.md` / `docs/deployment/deployment-and-rollback.md` |
+| Q10 | 完成单业务系统端到端验收与候选发布评审 | V1.0 | — | — |
 | X01 | 扩展多模态能力契约与端点验证矩阵 | V1.1 | `x01-multimodal-capability-contract-evidence.md` | — |
 | X02 | 交付图片理解与OCR闭环 | V1.1 | `x02-image-understanding-ocr-evidence.md` | — |
 | X03 | 交付图片生成与编辑闭环 | V1.1 | `x03-image-generation-evidence.md` | — |
@@ -126,7 +127,7 @@
 | Y03 | 定义跨系统指标口径与关联粒度校验 | V2 | `y03-cross-source-metric-semantics-evidence.md` | — |
 | Y04 | 实现有界跨源查询执行与统一结果 | V2 | `y04-bounded-cross-source-execution-evidence.md` | — |
 | Y05 | 验证跨系统权限、撤销与完整性 | V2 | `y05-cross-source-authorization-evidence.md` | — |
-| Y06 | 完成跨系统报告与升级验收 | V2 | `y06-cross-source-acceptance-evidence.md` | `docs/acceptance/y06-v2-cross-source-acceptance-report.md` / `docs/upgrades/cross-source-deployment-and-upgrade-runbook.md` |
+| Y06 | 完成跨系统报告与升级验收 | V2 | `y06-cross-source-acceptance-evidence.md` | `docs/upgrades/cross-source-deployment-and-upgrade-runbook.md` |
 | Y07 | 接入跨源结果契约与跨源合并对外入口 | V2 | `y07-cross-source-result-contract-evidence.md` | — |
 
 ## 3. 一般性文档（非某张卡的完成证据）
