@@ -26,6 +26,7 @@ package com.basicframework.module.ai.enums;
  *   1_003_017_xxx  跨源有界执行（来源预算与受控结束、时间点偏移、重试去重与容量拒绝/登记）
  *   1_003_018_xxx  跨系统授权与完整性（来源/映射/角色授权、合计与计数泄漏阻断、模型输入捕获复核）
  *   1_003_019_xxx  受控 MCP 客户端（端点准入、协议版本、授权、发现终止、工具草稿审批与 schema 漂移阻断）
+ *   1_003_020_xxx  跨源结果契约（响应恒带完整性口径、执行台账缺失、结果不可出具）
  * </pre>
  *
  * <p>HTTP 映射遵循 [ADR 0003](http-status-semantics) 与 [ADR 0049](identity-boundaries)：
@@ -99,6 +100,17 @@ public final class AiErrorCodeRanges {
      * （{@link #DOMAIN_CONNECTOR}，D08 的政策闸门）回答，两者刻意不共用编号。
      */
     public static final int DOMAIN_MCP_CLIENT = 1_003_019;
+
+    /**
+     * 跨源结果契约子区间（Y07）：响应恒带完整性口径、执行台账缺失、结果不可出具。
+     *
+     * <p>本区间只回答"这份跨源结果能不能作为一份响应交出去"。它不复用 Y04
+     * （{@link #DOMAIN_CROSS_SOURCE_EXECUTION}，这次为什么没跑完）与 Y05
+     * （{@link #DOMAIN_CROSS_SOURCE_AUTHORIZATION}，这次为什么不允许你看）的编号：
+     * 那两个域的拒绝编号是已对外承诺的处置契约，塞进本区间会让调用方在
+     * "重试"、"申请授权"与"查错了"之间误判。
+     */
+    public static final int DOMAIN_CROSS_SOURCE_CONTRACT = 1_003_020;
 
     private AiErrorCodeRanges() {}
 }

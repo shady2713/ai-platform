@@ -33,6 +33,7 @@ import {
   parseReportData,
   parseReportSpec,
 } from '../report/reportSpec';
+import { CROSS_SOURCE_INTEGRITY_MISSING } from './cross-source-integrity';
 import { hasControlCharacter } from './markdown';
 
 /** 待确认动作的参数摘要（文本，绝不是请求体）。 */
@@ -97,6 +98,19 @@ export interface ReportBlock {
 export interface TableBlock {
   columns: TableColumn[];
   completeness?: string;
+  /**
+   * 跨源标记：本次结果来自跨源合并（Y07）。
+   *
+   * <p>它与 `crossSourceIntegrity` **刻意是两个字段**。只有口径字段时，
+   * "跨源响应漏发口径"与"单系统响应"在解析结果里完全一样，无法区分——
+   * 要么把单系统表格全判成 `WITHHELD`（毁掉 Y06 证明的无回退），
+   * 要么继续把缺口径的跨源响应按普通表格渲染（保留 fail-open 缺口）。
+   * 拆成两个字段之后两件事各归各：标记缺失 → 单系统路径，零影响；
+   * 标记为 `true` 而口径缺失 → `WITHHELD`，不渲染任何数字。
+   *
+   * <p>缺省表示该结果不来自跨源合并，因此旧单系统载荷解析后不会凭空多出这个键。
+   */
+  crossSource?: boolean;
   /** 授权维度的完整性（Y05）；缺省表示该结果不来自跨源合并。 */
   crossSourceIntegrity?: CrossSourceIntegrity;
   kind: 'table';
@@ -253,6 +267,7 @@ function parseTableBlock(node: Record<string, unknown>): TableBlock {
     'rows',
     'pageInfo',
     'completeness',
+    'crossSource',
     'crossSourceIntegrity',
   ]);
   const parsed: TableBlock = {
@@ -278,12 +293,31 @@ function parseTableBlock(node: Record<string, unknown>): TableBlock {
   if (input.completeness !== undefined) {
     parsed.completeness = enumeration(input.completeness, COMPLETENESS);
   }
-  if (input.crossSourceIntegrity !== undefined) {
-    parsed.crossSourceIntegrity = parseCrossSourceIntegrity(
-      input.crossSourceIntegrity,
-    );
+  if (input.crossSource !== undefined) {
+    parsed.crossSource = flag(input.crossSource, '跨源标记');
+  }
+  // 跨源口径的 fail-closed 规则（Y07）：跨源标记为 true 却没有口径字段时，
+  // 按 CROSS_SOURCE_INTEGRITY_MISSING（WITHHELD）处理，绝不按 COMPLETE 渲染。
+  // 反过来，标记缺失但口径字段在（Y05 时期的载荷）时照常解析——
+  // 那说明结果确实来自跨源，只是后端还没开始发标记，不能因此把它降级成单系统。
+  const declaredIntegrity =
+    input.crossSourceIntegrity === undefined
+      ? undefined
+      : parseCrossSourceIntegrity(input.crossSourceIntegrity);
+  if (declaredIntegrity !== undefined) {
+    parsed.crossSourceIntegrity = declaredIntegrity;
+  } else if (parsed.crossSource === true) {
+    parsed.crossSourceIntegrity = CROSS_SOURCE_INTEGRITY_MISSING;
   }
   return parsed;
+}
+
+/** 布尔标记：只接受真正的布尔值，字符串 `"true"` 之类一律拒绝（契约不做隐式转换）。 */
+function flag(value: unknown, label: string): boolean {
+  if (typeof value !== 'boolean') {
+    return fail(`${label}必须是布尔值`);
+  }
+  return value;
 }
 
 /**

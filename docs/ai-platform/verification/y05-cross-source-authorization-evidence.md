@@ -150,6 +150,33 @@ mappingAuthorized  主体能否看到"源键↔统一实体"这条对应关系
 - **Y07 必须保证**：该字段在跨源场景**恒非空**（缺失即视为 `WITHHELD`），从而消除本节记录的
   fail-open 路径；并对单系统响应保持零影响。
 
+### 9.2 缺口已关闭（由 Y07 交付）
+
+**本节记录的 fail-open 缺口已由 [Y07](../../tasks/Y07.md) 交付并关闭。**
+证据见
+[y07-cross-source-result-contract-evidence.md](y07-cross-source-result-contract-evidence.md)，
+决策见
+[ADR 0056](../../adr/0056-cross-source-result-contract-and-merge-entry.md)。
+
+上面第 3 条的三个事实逐条对照：
+
+| 当时记录 | 现状 |
+| --- | --- |
+| **后端零产出**：`后端代码/` 树下 `crossSourceIntegrity` 无任何命中 | 后端产出该字段，且**恒非空**：`CrossSourceResultContract` 构造器把 `null` 口径归一为 `WITHHELD`，`CrossSourceIntegrity` 把 `null`/空白/未知字面量归一为 `WITHHELD` |
+| **前端字段是可选的**：`blocks.ts` 仅在 `!== undefined` 时解析，缺失时照常渲染全部数字 | 缺口径的 fail-open 路径已消除：**新增独立的 `crossSource` 判别键**，标记为 `true` 而口径缺失时按 `WITHHELD` 渲染；标记缺失走单系统路径，对 Y06 的无回退判据零影响 |
+| **字段存在但状态认不出时严格 fail-closed**（两处行为不对称） | **保留未变**，Y05 的语义未被削弱：状态认不出仍然解析期整块拒绝。Y07 只补上了"字段缺失"那一侧，两侧现在都 fail-closed |
+
+**为什么必须新增判别键而不是直接让字段必填**（这是本缺口最难的一处取舍）：
+只有一个 `crossSourceIntegrity` 字段时，"跨源响应漏发口径"与"单系统响应"
+在解析结果里**完全无法区分**。要么把缺口径的表格一律判成 `WITHHELD`
+（毁掉 Y06 已证明的"单系统无回退"，旧单系统报表整片消失，看起来像故障），
+要么继续保留本节记录的 fail-open 缺口。拆成 `crossSource` + `crossSourceIntegrity`
+两个字段之后，两件事各归各，且都可用可观测状态区分——详见 ADR 0056 §2.1。
+
+**交付 commit**：`待主会话提交后回填`（本卡按铁律未执行任何 git 提交）。
+待回填的证据：本节表格、上述证据文档 §4.1（专项一的 10 条反向用例）、
+§4.3（专项三的单系统逐字段无差异），以及前端 `at-070` 兼容测试 7 条原样通过。
+
 ## 10. 验证记录
 
 聚焦测试（未跑任何门禁）：

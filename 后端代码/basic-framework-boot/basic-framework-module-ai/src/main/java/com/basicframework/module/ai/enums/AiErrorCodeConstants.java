@@ -3,13 +3,14 @@ package com.basicframework.module.ai.enums;
 import com.basicframework.framework.common.exception.ErrorCode;
 
 /**
- * AI 中台错误码（区间与 HTTP 映射见 {@link AiErrorCodeRanges}）。当前只登记协议与授权边界上已冻结、可被其它任务直接复用的错误码；各能力域实现时在所属子区间追加编号，禁止改动既有编号语义（错误码是长期协议的一部分）。1_003_016/017/018/019_xxx 见 {@link AiMetricSemanticsErrorCodeConstants}、{@link AiCrossSourceExecutionErrorCodeConstants}、{@link AiCrossSourceAuthorizationErrorCodeConstants}、{@link AiMcpClientErrorCodeConstants}。
+ * AI 中台错误码（区间与 HTTP 映射见 {@link AiErrorCodeRanges}）。当前只登记协议与授权边界上已冻结、可被其它任务直接复用的错误码；各能力域实现时在所属子区间追加编号，禁止改动既有编号语义（错误码是长期协议的一部分）。1_003_016~020_xxx 见 {@link AiMetricSemanticsErrorCodeConstants}、{@link AiCrossSourceExecutionErrorCodeConstants}、{@link AiCrossSourceAuthorizationErrorCodeConstants}、{@link AiMcpClientErrorCodeConstants}、{@link AiCrossSourceContractErrorCodeConstants}。
  */
 public interface AiErrorCodeConstants
         extends AiMetricSemanticsErrorCodeConstants,
                 AiCrossSourceExecutionErrorCodeConstants,
                 AiCrossSourceAuthorizationErrorCodeConstants,
-                AiMcpClientErrorCodeConstants {
+                AiMcpClientErrorCodeConstants,
+                AiCrossSourceContractErrorCodeConstants {
     // ========== 通用/协议 1_003_001_xxx ==========
 
     /** 入参不合法（400）。 */
@@ -93,10 +94,7 @@ public interface AiErrorCodeConstants
     /** Webhook 目标不存在（404）：越权与不存在同语义。 */
     ErrorCode AI_WEBHOOK_TARGET_NOT_FOUND = new ErrorCode(1_003_011_000, "Webhook 目标不存在");
 
-    /**
-     * Webhook 目标已停用（409）：停用即停发——不再入队、发送前复检也会拒绝、人工重投被拒；
-     * 已在途的投递按当时事实收尾（不谎报成功，也不回写运行结果）。
-     */
+    /** Webhook 目标已停用（409）：停用即停发——不再入队、发送前复检也会拒绝、人工重投被拒；已在途的投递按当时事实收尾（不谎报成功，也不回写运行结果）。 */
     ErrorCode AI_WEBHOOK_TARGET_DISABLED = new ErrorCode(1_003_011_001, "Webhook 目标已停用");
 
     /** Webhook 投递地址不合规（400）：非 http/https、缺少主机、携带 URL 凭据信息或超出存储上限。 */
