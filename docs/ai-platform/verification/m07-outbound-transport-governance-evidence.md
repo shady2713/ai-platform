@@ -217,7 +217,7 @@ M02 的 `SpringAiEndpointIsolationTest` 用 `http://127.0.0.1:<port>` 假端点�
 因此响应式通道也只能"先读完整个 SSE 响应再交给 Reactor"——**流式不再是增量到达**，
 且超长流会以 `RESPONSE_TOO_LARGE` **整体拒绝**（非截断）。
 
-**已由 [F11](../../tasks/F11.md) 交付解决（commit `F11_COMMIT_PLACEHOLDER`）**：
+**已由 [F11](../../tasks/F11.md) 交付解决（commit `07c5e43`）**：
 守卫新增 `openStream` 流式入口（与既有请求/响应入口**并存而非替换**，两者共用同一个
 `prepare` 闸门链），逐块下发，超限改为**有界终止**并给稳定错误码。
 
