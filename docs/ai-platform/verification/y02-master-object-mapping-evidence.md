@@ -249,7 +249,46 @@ export PATH="/tmp/harness-shim:$HOME/.local/bin:$PATH"
 2. **未接真实主数据源**。`TRUSTED_FEED` 匹配方式只提供**登记入口**与判定语义，本卡不含任何真实 MDM/HUB 系统的对接（卡片逐步实施第 2 条只要求"先支持人工登记或可信主数据接口"的模型侧，真实对接属后续集成）。该取值当前只由管理员显式登记产生，判定路径对它与 MANUAL 一视同仁（都要求显式源键）。
 3. **未新增模型调用**。Y02 不产生文本/媒体生成，判定路径是纯数据库只读，无 `ModelClientFactory` 依赖，因此"本机未装配模型客户端"这一既有环境限制对 Y02 无影响。
 4. **`all` 门禁的 dependencies 段未验证**。Trivy 漏洞库 `mirror.gcr.io` 在本网络不可达，`verify.sh all` 的 dependencies 段必然失败。这是既有环境缺口（`harness-gate-runbook.md` 已记录），不是本卡引入；本卡未改动任何依赖版本或 lockfile，因此该段对本卡无实质影响，但如实登记为未验证。
-5. **未覆盖跨卡场景**：同一源键在两个对象下的历史脏数据由判定侧多对一复核阻断（单测覆盖），但没有专门的 IT 构造"绕过发布直接写库"的脏数据。补这条 IT 需要绕过服务层直连 Mapper，属于测试手段而非产品能力，本卡记为未验证。
+5. ~~**未覆盖跨卡场景**~~ → **已由 `AiMasterMappingDirtyDataIT` 补齐（4 例，真实 MySQL）**，见 §8.1。
+
+### 8.1 跨卡脏数据场景（已补齐）
+
+原登记：判定侧多对一复核只有 Mockito 单测覆盖，**从未在真实数据库上被证明有效**——
+因为写库防线只在服务层写入的路径上被验证过，而历史数据、迁移脚本、运维直连都可能绕过它。
+
+新增 `basic-framework-server/src/test/java/.../integration/AiMasterMappingDirtyDataIT.java`
+（4 例，全部经真实 MySQL）。夹具先按正常链路把源键登记到对象甲并独立审核发布，
+再用 `jdbcTemplate` 直连改库制造脏数据——**绕过服务层、绕过发布检查、绕过 Mapper 写路径**。
+
+写这条 IT 的过程本身纠正了三个错误认知，值得留档：
+
+| 用例 | 脏数据形态 | 结论 |
+|---|---|---|
+| `naiveDirectWriteIsCaughtByTheFrozenFingerprintDefense` | 改挂内容但**不重算冻结指纹** | 被**指纹防御**拦（`AI_MASTER_OBJECT_REVISION_FINGERPRINT_CONFLICT`）——"意外改挂"在这一层就露馅 |
+| `selfConsistentRepointIsALegitimateReassignmentNotAConflict` | 改挂 + **重算指纹** | **不报冲突**，判定给出新归属。这是**合法改派**，不是不一致 |
+| `sameSourceKeyPointedAtTwoObjectsAtOnceIsAlsoRefused` | 同一源键**并挂**两个对象 | 被**多对一复核**拦（`AI_MASTER_MAPPING_CONFLICT`） |
+| `dirtyDataPointingAtDisabledObjectIsRefused` | 指向**已停用**对象 | 拒绝，且**不是**多对一冲突码 |
+
+**两个必须钉死的实现细节**（否则测不到目标分支）：
+
+1. 脏化时必须把 `revision` 对齐到目标对象的**当前版本号**，且目标对象要有**已发布**版本——
+   否则判定会在更早的"版本不存在"（`AI_MASTER_OBJECT_REVISION_NOT_EXISTS`）上就拒掉。
+2. 复算指纹**必须用 `AiMasterMappingFacts.fingerprint` 这个生产用的同一实现**，
+   不能自己拼摘要，否则测的就不是线上真实判定所依据的那套指纹。
+
+**顺带确认了 Y02 的防线优先级**：判定链里多对象检查排在 `revisionVerifier.verify` **之前**
+（`AiMasterMappingResolverImpl.java:124-133` 早于 `:148`），所以"并挂"即使动了目标对象的
+指纹，也会先被多对一复核拦下。三道防线各司其职，真实数据上逐条验证成立。
+
+复现：
+
+```sh
+cd 后端代码/basic-framework-boot
+./mvnw -o -q -pl basic-framework-module-ai -am install -DskipTests -Djacoco.skip=true
+./mvnw -o -pl basic-framework-server verify -Pintegration -Dit.test='AiMasterMappingDirtyDataIT' -DfailIfNoTests=false
+```
+
+`Tests run: 4, Failures: 0, Errors: 0, Skipped: 0`（70.066 s，含 Testcontainers 启动），`BUILD SUCCESS`。
 
 ## 9. 门禁结果
 
