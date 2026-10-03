@@ -49,6 +49,7 @@
     "后端代码/basic-framework-boot/basic-framework-core/basic-framework-spring-boot-starter-ai/src/main/java/com/basicframework/framework/ai/config/AiProperties.java": 100,
     "后端代码/basic-framework-boot/basic-framework-core/basic-framework-spring-boot-starter-ai/src/main/java/com/basicframework/framework/ai/config/AiProviderValidator.java": 100,
     "后端代码/basic-framework-boot/basic-framework-core/basic-framework-spring-boot-starter-ai/src/main/java/com/basicframework/framework/ai/config/BasicFrameworkAiAutoConfiguration.java": 100,
+    "后端代码/basic-framework-boot/basic-framework-core/basic-framework-spring-boot-starter-ai/src/main/java/com/basicframework/framework/ai/core/http/BoundedExternalHttpStreamResponse.java": 100,
     "后端代码/basic-framework-boot/basic-framework-core/basic-framework-spring-boot-starter-ai/src/main/java/com/basicframework/framework/ai/core/http/ExternalHttpException.java": 100,
     "后端代码/basic-framework-boot/basic-framework-core/basic-framework-spring-boot-starter-ai/src/main/java/com/basicframework/framework/ai/core/http/ExternalHttpRequest.java": 100,
     "后端代码/basic-framework-boot/basic-framework-core/basic-framework-spring-boot-starter-ai/src/main/java/com/basicframework/framework/ai/core/http/ExternalHttpResponse.java": 100,

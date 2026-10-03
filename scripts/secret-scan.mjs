@@ -225,6 +225,11 @@ const publicFixtures = new Map([
     "后端代码/basic-framework-boot/basic-framework-core/basic-framework-spring-boot-starter-ai/src/test/java/com/basicframework/framework/ai/provider/springai/OutboundGovernanceChannelTest.java",
     new Set(["sk-guard-test"]),
   ],
+  // F11：流式治理通道单测里的同一个替身 Key（两处用例各自成文，故逐文件登记）
+  [
+    "后端代码/basic-framework-boot/basic-framework-core/basic-framework-spring-boot-starter-ai/src/test/java/com/basicframework/framework/ai/provider/springai/OutboundStreamingGovernanceTest.java",
+    new Set(["sk-guard-test"]),
+  ],
   // D03：只读连接器单测/集成测试里的一次性替身口令与只读账号口令（仅测试容器内使用）
   [
     `${moduleAi}test/java/com/basicframework/module/ai/adapter/connector/mysql/AiMysqlSqlGuardTest.java`,

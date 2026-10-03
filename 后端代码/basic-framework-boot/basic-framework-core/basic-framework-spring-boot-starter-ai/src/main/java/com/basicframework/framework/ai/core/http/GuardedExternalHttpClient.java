@@ -39,8 +39,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * <p>已知残余风险：DNS 校验与实际连接之间存在解析结果变化的窗口（TOCTOU）。当前通过“允许清单 + 私网显式批准”
  * 收窄影响面；需要更强保证时应在网络层做出口网关限制，见 {@code docs/security/outbound-http-boundary.md}。
+ *
+ * <p>F11：同时提供 {@link ExternalHttpStreamSupport} 流式入口，与请求/响应入口**并存**。两个入口共用
+ * {@link #prepare} 做全部请求期判定（关闭检查、请求卫生、允许清单、私网判定、协议与超时），
+ * 因此流式请求的治理面与请求/响应请求**逐条相同**；差别只在响应体逐块交付、超限改为终止流。
  */
-public class GuardedExternalHttpClient implements ExternalHttpClient {
+public class GuardedExternalHttpClient implements ExternalHttpClient, ExternalHttpStreamSupport {
 
     /** 不允许出现在出站请求里的头：传输层头与宿主凭据头。 */
     private static final Set<String> BLOCKED_HEADERS =
@@ -87,6 +91,45 @@ public class GuardedExternalHttpClient implements ExternalHttpClient {
     }
 
     private CompletableFuture<ExternalHttpResponse> send(ExternalHttpRequest request) {
+        return httpClient
+                .sendAsync(prepare(request), HttpResponse.BodyHandlers.ofInputStream())
+                .thenApply(this::readBounded)
+                .exceptionally(exception -> {
+                    throw mapFailure(exception instanceof CompletionException ? exception.getCause() : exception);
+                });
+    }
+
+    /**
+     * 流式入口（F11）：请求期判定与 {@link #send} 共用 {@link #prepare}，因此流式请求同样在
+     * 发出任何字节之前完成允许清单、私网判定、协议、请求头卫生与超时判定；被拒时请求不离开进程。
+     *
+     * <p>响应体不再整体缓冲：返回的 {@link ExternalHttpStreamResponse} 由调用方逐块读取，
+     * 累计超过 {@code max-response-bytes} 时以 {@code RESPONSE_TOO_LARGE} 终止流
+     * （此前已交付的块不回收成完整结果）。调用方必须关闭它以释放上游连接。
+     */
+    @Override
+    public ExternalHttpStreamResponse openStream(ExternalHttpRequest request) {
+        try {
+            HttpResponse<InputStream> response = httpClient
+                    .sendAsync(prepare(request), HttpResponse.BodyHandlers.ofInputStream())
+                    .join();
+            return new BoundedExternalHttpStreamResponse(
+                    response.statusCode(),
+                    flatten(response.headers().map()),
+                    response.headers().firstValueAsLong("content-length").orElse(-1L),
+                    properties.getMaxResponseBytes(),
+                    response.body());
+        } catch (CompletionException exception) {
+            throw mapFailure(exception.getCause() == null ? exception : exception.getCause());
+        }
+    }
+
+    /**
+     * 两个入口共用的请求期闸门：关闭检查 → 请求卫生 → 允许清单 → 私网判定 → 协议与端口 → 超时与请求体。
+     *
+     * <p>流式入口复用本方法，是“流式仍受同一份治理”的结构性保证，而不是靠两处代码同步维护。
+     */
+    private HttpRequest prepare(ExternalHttpRequest request) {
         if (closed.get()) {
             throw new ExternalHttpException(ExternalHttpException.Reason.INVALID_REQUEST, "出站客户端已关闭");
         }
@@ -101,13 +144,7 @@ public class GuardedExternalHttpClient implements ExternalHttpClient {
             builder.method(request.method(), HttpRequest.BodyPublishers.ofByteArray(request.body()));
         }
         request.headers().forEach(builder::header);
-
-        return httpClient
-                .sendAsync(builder.build(), HttpResponse.BodyHandlers.ofInputStream())
-                .thenApply(this::readBounded)
-                .exceptionally(exception -> {
-                    throw mapFailure(exception instanceof CompletionException ? exception.getCause() : exception);
-                });
+        return builder.build();
     }
 
     /** 把底层失败收敛为稳定错误：调用方不需要理解底层异常类型。 */

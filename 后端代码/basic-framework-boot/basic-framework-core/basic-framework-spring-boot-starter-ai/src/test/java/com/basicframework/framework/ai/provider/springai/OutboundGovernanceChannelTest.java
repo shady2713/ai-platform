@@ -9,6 +9,8 @@ import com.basicframework.framework.ai.core.http.ExternalHttpClient;
 import com.basicframework.framework.ai.core.http.ExternalHttpException;
 import com.basicframework.framework.ai.core.http.ExternalHttpRequest;
 import com.basicframework.framework.ai.core.http.ExternalHttpResponse;
+import com.basicframework.framework.ai.core.http.ExternalHttpStreamResponse;
+import com.basicframework.framework.ai.core.http.ExternalHttpStreamSupport;
 import com.basicframework.framework.ai.core.http.GuardedExternalHttpClient;
 import com.basicframework.framework.ai.core.model.EmbeddingRequest;
 import com.basicframework.framework.ai.core.model.ModelCapability;
@@ -49,8 +51,13 @@ class OutboundGovernanceChannelTest {
 
     private static final String API_KEY = "sk-guard-test";
 
-    /** 包住真实守卫的计数装饰器：只统计，不改写任何决策（放行与拒绝都出自守卫）。 */
-    private static final class RecordingHttpClient implements ExternalHttpClient {
+    /**
+     * 包住真实守卫的计数装饰器：只统计，不改写任何决策（放行与拒绝都出自守卫）。
+     *
+     * <p>F11：同时实现流式能力并把 {@code openStream} 计入 {@code attempts}，因此
+     * {@code attempts == 1} 对流式通道同样意味着"守卫在请求期判定了一次"。
+     */
+    private static final class RecordingHttpClient implements ExternalHttpClient, ExternalHttpStreamSupport {
 
         private final ExternalHttpClient delegate;
 
@@ -74,6 +81,13 @@ class OutboundGovernanceChannelTest {
             attempts.incrementAndGet();
             urls.add(request.url());
             return delegate.executeAsync(request);
+        }
+
+        @Override
+        public ExternalHttpStreamResponse openStream(ExternalHttpRequest request) {
+            attempts.incrementAndGet();
+            urls.add(request.url());
+            return ((ExternalHttpStreamSupport) delegate).openStream(request);
         }
 
         @Override

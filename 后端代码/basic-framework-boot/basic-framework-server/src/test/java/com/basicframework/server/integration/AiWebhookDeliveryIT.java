@@ -173,24 +173,49 @@ class AiWebhookDeliveryIT extends AbstractPersistenceIntegrationTest {
         targetId = null;
     }
 
+    /**
+     * 按<b>稳定业务键</b>无条件清理整条链，不依赖 {@code applicationId} 字段。
+     *
+     * <p>原实现先看 {@code applicationId != null}：非空时按 id 删（那时已是<b>上一个</b>用例的 id），
+     * 为空时只删 {@code ai_application} 一张表、留下另外 6 张的孤儿行。
+     * 于是在复用/残留数据的库上，这个类<b>不幂等</b>：首个用例就会留下孤儿 {@code ai_run}，
+     * 后续用例的入队统计因此时对时错（例如 {@code enqueued=0}）。
+     *
+     * <p>改成按 app_code / service_code / target_code 定位后，任何历史残留都会被清干净，
+     * 本类可以在同一个库上重复运行——这正是它作为验收用例应有的性质。
+     */
     private void cleanupBusinessChain() {
-        if (applicationId != null) {
+        List<Long> appIds =
+                jdbcTemplate.queryForList("SELECT id FROM ai_application WHERE app_code = ?", Long.class, APP_CODE);
+        for (Long appId : appIds) {
             jdbcTemplate.update(
                     "DELETE FROM ai_webhook_delivery_attempt WHERE delivery_id IN"
                             + " (SELECT id FROM ai_webhook_delivery WHERE application_id = ?)",
-                    applicationId);
-            jdbcTemplate.update("DELETE FROM ai_webhook_delivery WHERE application_id = ?", applicationId);
-            jdbcTemplate.update("DELETE FROM ai_webhook_target WHERE application_id = ?", applicationId);
-            jdbcTemplate.update("DELETE FROM ai_run WHERE application_id = ?", applicationId);
+                    appId);
+            jdbcTemplate.update("DELETE FROM ai_webhook_delivery WHERE application_id = ?", appId);
+            jdbcTemplate.update("DELETE FROM ai_webhook_target WHERE application_id = ?", appId);
+            jdbcTemplate.update("DELETE FROM ai_run WHERE application_id = ?", appId);
             jdbcTemplate.update(
                     "DELETE FROM ai_service_release WHERE service_id IN"
                             + " (SELECT id FROM ai_service WHERE app_id = ?)",
-                    applicationId);
-            jdbcTemplate.update("DELETE FROM ai_service WHERE app_id = ?", applicationId);
-            jdbcTemplate.update("DELETE FROM ai_application WHERE id = ?", applicationId);
-            return;
+                    appId);
+            jdbcTemplate.update("DELETE FROM ai_service WHERE app_id = ?", appId);
+            jdbcTemplate.update("DELETE FROM ai_application WHERE id = ?", appId);
         }
+        // 孤儿行：上一轮残留里 application_id 已指向不存在的应用，按 code 再兜一次
+        jdbcTemplate.update("DELETE FROM ai_webhook_delivery_attempt WHERE delivery_id IN"
+                + " (SELECT d.id FROM ai_webhook_delivery d WHERE d.application_id NOT IN"
+                + " (SELECT id FROM ai_application))");
+        jdbcTemplate.update(
+                "DELETE FROM ai_webhook_delivery WHERE application_id NOT IN (SELECT id FROM ai_application)");
+        jdbcTemplate.update(
+                "DELETE FROM ai_webhook_target WHERE application_id NOT IN (SELECT id FROM ai_application)");
+        jdbcTemplate.update("DELETE FROM ai_run WHERE application_id NOT IN (SELECT id FROM ai_application)");
+        jdbcTemplate.update("DELETE FROM ai_service_release WHERE service_id NOT IN (SELECT id FROM ai_service)");
+        jdbcTemplate.update("DELETE FROM ai_service WHERE app_id NOT IN (SELECT id FROM ai_application)");
         jdbcTemplate.update("DELETE FROM ai_application WHERE app_code = ?", APP_CODE);
+        jdbcTemplate.update("DELETE FROM ai_service WHERE code = ?", SERVICE_CODE);
+        jdbcTemplate.update("DELETE FROM ai_webhook_target WHERE code = ?", TARGET_CODE);
     }
 
     @Test

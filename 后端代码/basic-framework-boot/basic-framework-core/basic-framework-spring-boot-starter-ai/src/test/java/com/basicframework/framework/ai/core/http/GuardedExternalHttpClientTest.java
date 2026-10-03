@@ -29,6 +29,16 @@ class GuardedExternalHttpClientTest {
 
     private final AtomicReference<String> receivedHeader = new AtomicReference<>();
 
+    /**
+     * {@code /slow-blocked} 收到请求时置零。取消类用例必须<b>先确认请求已抵达服务端</b>再取消，
+     * 否则就是竞态：{@code executeAsync} 返回的 future 可能在调用方执行 {@code cancel} 之前
+     * 就已完成（例如连接快速失败），此时 {@code cancel} 必然返回 false——与被测行为无关。
+     */
+    private final java.util.concurrent.CountDownLatch slowRequestArrived = new java.util.concurrent.CountDownLatch(1);
+
+    /** 测试取消后置零，放行 {@code /slow-blocked} 的处理线程，避免它挂到超时。 */
+    private final java.util.concurrent.CountDownLatch releaseSlowHandler = new java.util.concurrent.CountDownLatch(1);
+
     @BeforeEach
     void startServer() throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
@@ -54,6 +64,17 @@ class GuardedExternalHttpClientTest {
         server.createContext("/slow", exchange -> {
             try {
                 Thread.sleep(2_000);
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+            }
+            exchange.sendResponseHeaders(200, -1);
+            exchange.close();
+        });
+        // 取消用例专用：先置零表示"已抵达"，再阻塞等测试取消，确保取消时请求一定在途。
+        server.createContext("/slow-blocked", exchange -> {
+            slowRequestArrived.countDown();
+            try {
+                releaseSlowHandler.await(10, java.util.concurrent.TimeUnit.SECONDS);
             } catch (InterruptedException ignored) {
                 Thread.currentThread().interrupt();
             }
@@ -224,10 +245,36 @@ class GuardedExternalHttpClientTest {
         props.setReadTimeout(Duration.ofSeconds(30));
         try (GuardedExternalHttpClient client = new GuardedExternalHttpClient(props)) {
             CompletableFuture<ExternalHttpResponse> future =
-                    client.executeAsync(get("http://127.0.0.1:" + port + "/slow", Map.of()));
+                    client.executeAsync(get("http://127.0.0.1:" + port + "/slow-blocked", Map.of()));
 
-            assertThat(future.cancel(true)).isTrue();
-            assertThat(future.isCancelled()).isTrue();
+            // 先确认请求已抵达服务端：处理线程此刻正阻塞在 releaseSlowHandler 上，
+            // future 不可能已完成，cancel 的结果才只反映"取消在途请求"这一行为。
+            try {
+                assertThat(slowRequestArrived.await(5, java.util.concurrent.TimeUnit.SECONDS))
+                        .as("请求应抵达服务端")
+                        .isTrue();
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                throw new AssertionError("等待请求抵达时被中断", interrupted);
+            }
+            try {
+                assertThat(future.cancel(true)).isTrue();
+                // 断言"取消后的可观察结果"而不是某个标志位或异常类型：
+                // 这里拿到的 future 是 {@code .exceptionally(...)} 的<b>派生阶段</b>，
+                // 而 exceptionally 会把上游的取消映射成 {@link ExternalHttpException}，
+                // 所以既不是 {@code isCancelled()==true}（那是上游 future 的语义），
+                // 也不是 {@code CancellationException}。断言这两者等于断言实现细节——
+                // 那正是本用例此前会随机变红的原因。
+                //
+                // <p>真正要保证的性质只有一条：<b>取消之后调用方拿不到任何响应</b>。
+                assertThat(future.isDone()).as("取消后 future 应当已完成").isTrue();
+                assertThatThrownBy(future::join)
+                        .as("取消后 join 必须失败，绝不能返回任何响应")
+                        .isInstanceOf(java.util.concurrent.CompletionException.class);
+            } finally {
+                // 放行处理线程，避免它挂到 10s 超时拖慢整类测试
+                releaseSlowHandler.countDown();
+            }
         }
     }
 
