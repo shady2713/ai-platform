@@ -156,3 +156,113 @@ ADR 0046 的落地步骤已做成可一键应用的补丁（见 §1.b 第二个�
 1. **授权修 §4 的缺陷 1–4**（`packages/ai-embed-sdk/**`、`packages/effects/common-ui/**`）：修完 AT-055/067 即可转绿；
 2. 接 §6 的门禁接线（`.harness` 双 provider + nightly workflow + 拒绝测试），届时浏览器门禁设为阻断；
 3. 在有后端/模型的环境补 AT-056 与 AT-057（真实 N-1 产物需 C10 之后的首个版本才能产生）。
+
+## 9. Q11 扩面：管理端页面（`apps/web-ele/src/views/ai`）的浏览器结构验收
+
+> 本节由 [Q11](../tasks/Q11.md) 追加，回答 Q11 §1 的缺口：`views/ai` 下 16 个页面目录、
+> 52 个组件测试文件，而本目录（`tests/compatibility`）此前只有 2 个 `.pw.ts`、3 条用例。
+> Q11 首批按"安全语义优先"覆盖 6 个页面，**只做结构断言**，不做像素回归（ADR 0046 决策 2）。
+
+### 9.1 复用了什么（没有另起炉灶）
+
+沿用本目录既有装置：`playwright.config.ts`（端口 5399、`webServer`、`retries: 0`）、
+`fixtures/chart-probe/{global-setup.mjs,server.mjs,page.html,entry.ts}`。
+改动只有三处**追加式**：
+
+| 位置 | 追加内容 |
+|---|---|
+| `fixtures/chart-probe/entry.ts` | 一行 `import './admin/entry'`（挂 `__q11` 桥接面） |
+| `fixtures/chart-probe/page.html` | 一个 `#admin-page` 挂载点 |
+| `fixtures/chart-probe/global-setup.mjs` | 一组 alias，把"应用外壳"换成 `admin/*` 桥接；`zod`/lucide JSON 用 `createRequire` 现场解析，不写死版本 |
+
+手法与 Y06 扩面时给 `entry.ts` 加 `mountResultTable` 一致。既有 `__q08` 与 AT-065/AT-070 三条用例**原样通过**。
+
+### 9.2 什么是真的、什么是桥接（读结论前必读）
+
+| 部件 | 真 / 桥 | 理由 |
+|---|---|---|
+| 页面 `.vue`、页面 `data.ts` | **真** | 入口显隐、插槽名、prop 名、列与词表都在这里 |
+| `TableAction`（`components/table-action/`） | **真** | `auth` 可见性判定在 `actions.ts:23` 的 `isActionVisible` |
+| `Page`、zod、element-plus 中文语言包、i18n 词表 | **真** | 无应用外壳依赖 / 真实词表 |
+| 列表数据、网格与表单控件、弹窗、HTTP | 桥 | 冻结夹具行经**页面自己的** `proxyConfig.ajax.query` 下发（只换传输）；外壳需登录态与后端，Q11 §4 排除真实凭据联调 |
+
+桥接**不实现**任何可见性或禁用判定：那些全在生产 `actions.ts` 里跑。
+element-plus 语言包必须挂中文（生产在 `#/locales` + `ElConfigProvider` 上挂），否则
+`ElPopconfirm` 确认按钮会渲染成默认英文 `Yes/No`，浮层文案断言就失真。
+
+### 9.3 实跑结果
+
+`npx playwright test --config tests/compatibility/playwright.config.ts`
+（真实 Chromium `~/.cache/ms-playwright/chromium-1243`，Playwright 1.63.0，
+`globalSetup` 现场构建 `probe.js` 6,886,982 字节；用时 58 秒）：
+
+**19 例：19 passed / 0 failed / 0 skipped**（既有 3 条 + Q11 新增 16 条），退出码 **0**。
+
+其中 §9.4 缺陷 1 曾是**唯一红灯**，生产修复后转绿（见 §9.6）。
+
+### 9.4 发现的缺陷（Q11 只报告；生产源码不在 Q11 §2 允许路径）
+
+**缺陷 1（浏览器已确认 → 已由主会话修复）**：`views/ai/semantic/index.vue:215` 给 `TableAction` 传 `:drops`，
+而真实组件只声明 `dropDownActions`（`components/table-action/table-action.vue:38`）。
+`drops` 落到 fallthrough attr 上 → `getDropdownList` 恒空 → 行内下拉**根本不渲染**，
+于是"编辑 / 停用"两个维护入口在真实浏览器里**永远不出现**。
+仓库其余 20+ 页面（`system/*`、`infra/*` 与 ai 下 `dataset`/`connector`/`knowledge`/`tool`）
+一律用 `dropDownActions`，只有 semantic 这一页写成 `drops`。
+**单测抓不到**：`views/ai/semantic/index.test.ts:130` 给 `TableAction` 垫的假组件照抄了
+`drops` 这个 prop 名，于是"维护入口可见"在单测里恒为真——这正是本卡存在的理由。
+主会话已把生产改为 `:dropDownActions`，并**同步修正了那条恒真的单测夹具**（假组件 prop 名
+一并改为 `dropDownActions`），`views/ai/semantic` 4 files / 24 tests 全绿。
+
+**缺陷 2（静态分析确认，浏览器未确认）**：5 个页面在模板里写了行内动作插槽，
+但 `data.ts` 里没有任何列声明对应的 `slots.default`，而真实 vxe-grid
+（`packages/effects/plugins/src/vxe-table/use-vxe-grid.vue` 只做 `<VxeGrid v-bind="options">`
++ 转发委托插槽，**不自动补操作列**）只在声明了该插槽的列里调用它：
+
+| 页面 | 模板插槽 | `data.ts` 声明的动作列 |
+|---|---|---|
+| `application` / `authorization` / `model-endpoint` / `service` | `#actions` | 无 |
+| `semantic` | `#action` | 无 |
+| `connector` / `dataset` / `knowledge` / `tool` | `#actions` | `slots: { default: 'actions' }` ✅ |
+
+**为何未在浏览器确认**：确认它需要真实 vxe-grid 解析插槽，而那需要完整应用外壳
+（路由 + Pinia + 后端），超出 Q11 §4 允许范围。本探针为了让**页面自身的 auth 判定**
+能被真实组件执行，对未声明动作列的页面补了一列兜底——所以 authorization /
+model-endpoint 的动作断言只证明"生产 `actions.ts` 的权限判定是对的"，
+**不能**证明"这些按钮在生产 grid 里会出现"。该偏差已写进 `admin/grid-bridge.ts` 文件头。
+
+### 9.5 已修复的装置缺陷：探针 i18n 装配（记录保真度，非产品缺陷）
+
+缺陷 1 修好之后，Q11 唯一那条红灯**又红了一次**，但这次根因在探针自己身上，如实登记：
+
+| 项 | 内容 |
+|---|---|
+| 症状 | `TableAction` 下拉触发器的可访问名是**裸 key** `page.action.more`，不是「更多」 |
+| 根因 | `admin/locales-bridge.ts` 的 `import.meta.glob` 路径多写了一层 `..`（6 级，应为 5 级），匹配到 **0 个文件**且**不报错** |
+| 为何难察觉 | 核心词表由 `@vben/locales` 自己的 glob 装载，照常生效——所以同页的"新增授权"（`ui.actionTitle.create`，核心词表）正常；只有应用词表缺失的 `page.action.more` 退化成裸 key。症状看起来像"产品词表坏了" |
+| 词表本身无问题 | `apps/web-ele/src/locales/langs/zh-CN/page.json` 的 `action.more = "更多"` 一直是对的 |
+| 修法 | glob 改为 5 级 `..`；新增 `assertAppLocaleModules()` 哨兵：glob 为空、或缺 `zh-CN`/`en-US` 任一语言包时**立刻抛错**，不允许静默降级 |
+
+**为什么这条值得单列**：它正是"装置缺陷伪装成产品缺陷"的样板——一个静默失败的 glob，
+让断言失败原因指向了错误的方向。修完之后三重加固：
+
+1. `assertAppLocaleModules()` 把静默失败变成硬失败；
+2. 用例把可访问名**逐字断言为「更多」**（`toHaveText('更多')` + `name: '更多', exact: true`），
+   裸 key 一出现就红——这条断言顺带成了探针 i18n 保真度的自检；
+3. `page.action.more` 与 `ui.actionTitle.create` 分属核心/应用两段词表，
+   两条断言同时存在就等于覆盖了两段装配。
+
+修后：Playwright **19/19 passed（exit 0）**、既有 AT-065/AT-070 三条仍全绿、
+`vitest run tests/compatibility/` 4 files / 26 tests（exit 0）、
+prettier / eslint / cspell 全 0。
+
+### 9.6 未验证项
+
+1. 缺陷 2 的运行期确认（需真实 vxe-grid + 应用外壳）。
+2. 弹窗内流程（判定/发布/凭据轮换/接口管理/对话修改）未覆盖：探针默认不挂载
+   `connectedComponent`，且这些流程需要真实后端。
+3. `tests/compatibility` 其余 10 个页面目录（application / chat-integration / evaluation /
+   knowledge / observability / open-platform / service / theme / tool / usage）**未补齐**，
+   Q11 首批只做 6 页。
+4. 真实凭据 / 真实平台 48080 联调（AT-056 等）：按 Q11 §4 不做。
+5. 像素级视觉回归：按 ADR 0046 决策 2 刻意不做。
+6. 门禁与覆盖率棘轮未跑（铁律 1/2，由主会话分三段串行执行）。

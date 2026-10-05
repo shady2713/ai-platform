@@ -212,7 +212,7 @@ const [Grid, gridApi] = useVbenVxeGrid({
               onClick: () => handleResolution(row),
             },
           ]"
-          :drops="
+          :drop-down-actions="
             canManage
               ? [
                   {

@@ -28,6 +28,8 @@ import {
   REPORT_DATA_SAMPLE,
   REPORT_SPEC_SAMPLE,
 } from '../at-065/render-samples';
+// Q11 管理端页面验收桥接（追加式）：只往 globalThis 挂 `__q11`，既有 `__q08` 行为不变。
+import './admin/entry';
 
 const apps = new Map<string, App>();
 const errors: string[] = [];

@@ -127,7 +127,7 @@ vi.mock('#/adapter/vxe-table', async () => {
       name: 'TableAction',
       props: {
         actions: { type: Array, default: () => [] },
-        drops: { type: Array, default: () => [] },
+        dropDownActions: { type: Array, default: () => [] },
       },
       setup(props) {
         return () =>
@@ -135,8 +135,8 @@ vi.mock('#/adapter/vxe-table', async () => {
             ...(props.actions as Record<string, unknown>[]).map((action) =>
               renderAction(action),
             ),
-            ...(props.drops as Record<string, unknown>[]).map((action) =>
-              renderAction(action),
+            ...(props.dropDownActions as Record<string, unknown>[]).map(
+              (action) => renderAction(action),
             ),
           ]);
       },

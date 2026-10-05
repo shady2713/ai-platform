@@ -225,6 +225,12 @@ const publicFixtures = new Map([
     "后端代码/basic-framework-boot/basic-framework-core/basic-framework-spring-boot-starter-ai/src/test/java/com/basicframework/framework/ai/provider/springai/OutboundGovernanceChannelTest.java",
     new Set(["sk-guard-test"]),
   ],
+  // Q11：浏览器探针的报表 API 桥接里的一次性替身票据（只在本文件内作为被测值；
+  // 与既有 ticket-1 同类，探针不发真实票据）
+  [
+    "前端代码/basic-framework-admin/tests/compatibility/fixtures/chart-probe/admin/api-report-bridge.ts",
+    new Set(["probe-ticket"]),
+  ],
   // F11：流式治理通道单测里的同一个替身 Key（两处用例各自成文，故逐文件登记）
   [
     "后端代码/basic-framework-boot/basic-framework-core/basic-framework-spring-boot-starter-ai/src/test/java/com/basicframework/framework/ai/provider/springai/OutboundStreamingGovernanceTest.java",
