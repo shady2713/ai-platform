@@ -3,9 +3,9 @@
 > **本索引是交付台账。** `docs/ai-platform/tasks/index.json` 里全部卡片都标 `PLANNED`，
 > 那不是交付状态；**是否交付以本索引与下表列出的证据文件为准**。
 
-- 任务卡总数：**105**
-- 有完成证据的卡：**104**
-- 缺完成证据的卡：**1**（F11）
+- 任务卡总数：**107**
+- 有完成证据的卡：**107**
+- 缺完成证据的卡：**0**
 
 ## 1. 证据目录约定
 
@@ -20,6 +20,9 @@
 
 > 历史上部分卡把证据放在上述非常规目录（文件名以卡号开头），**并未移动**——
 > 移动会改写已推送提交的引用。改为在本索引登记实际位置。
+>
+> 另有卡按其任务卡设计，把扩面结论**追加到另一张卡的证据文件内**而不另立文件
+> （Q11 → `q06-browser-acceptance-evidence.md` §9），此类同样在本表登记。
 
 ## 2. 逐卡索引
 
@@ -35,7 +38,8 @@
 | F08 | 建立AI字段错误码与迁移规范 | P0 | `f08-error-code-migration-evidence.md` | — |
 | F09 | 建立受控外部HTTP传输边界 | P0 | `f09-outbound-http-evidence.md` | — |
 | F10 | 建立合成业务与协议测试夹具 | P0 | `f10-fixtures-evidence.md` | — |
-| F11 | 受控出站支持流式响应 | V1.0 | — | — |
+| F11 | 受控出站支持流式响应 | V1.0 | `f11-outbound-streaming-evidence.md` | — |
+| F12 | 出站取消与连接失败可区分 | V1.0 | `f12-cancellation-attribution-evidence.md` | — |
 | M01 | 实现模型端点持久化与管理命令 | V1.0 | `m01-model-endpoint-evidence.md` | — |
 | M02 | 实现动态模型客户端工厂 | V1.0 | `m02-model-client-factory-evidence.md` | — |
 | M03 | 实现文本流与结构化输出适配 | V1.0 | `m03-text-stream-structured-output-evidence.md` | — |
@@ -106,12 +110,13 @@
 | Q02 | 实现用量账本与可恢复配额控制 | V1.0 | `q02-usage-ledger-quota-evidence.md` | — |
 | Q03 | 交付运行监控与用量管理页面 | V1.0 | `q03-observability-usage-pages-evidence.md` | — |
 | Q04 | 实现评测套件、样例版本与执行器 | V1.0 | `q04-evaluation-suite-evidence.md` | — |
-| Q05 | 交付质量评测页面与发布阻断规则 | V1.0 | `q05-publish-gate-and-pages-evidence.md` | — |
+| Q05 | 交付质量评测页面与发布阻断规则 | V1.0 | `q05-publish-gate-and-pages-evidence.md` | `docs/acceptance/q05-first-round-evaluation-report.md` |
 | Q06 | 落实真实浏览器门禁与双平台接线 | V1.0 | `q06-browser-acceptance-evidence.md` | — |
-| Q07 | 验证容量、慢消费者与任务故障恢复 | V1.0 | — | — |
-| Q08 | 建立升级台账与兼容回归包 | V1.0 | — | — |
-| Q09 | 交付安装包、配置模板与恢复演练 | V1.0 | 见补充 | `docs/operations/upgrade-checklist.md` / `docs/deployment/configuration-manual.md` / `docs/deployment/deployment-and-rollback.md` |
-| Q10 | 完成单业务系统端到端验收与候选发布评审 | V1.0 | — | — |
+| Q07 | 验证容量、慢消费者与任务故障恢复 | V1.0 | `docs/acceptance/q07-backend-performance-resilience-evidence.md` | `docs/acceptance/q07-frontend-resilience-and-ops.md` / `docs/operations/q07-capacity-and-failure-injection.md` |
+| Q08 | 建立升级台账与兼容回归包 | V1.0 | `docs/upgrades/q08-acceptance-evidence.md` | `docs/upgrades/q08-compatibility-baseline-and-upgrade-drill-evidence.md` / `docs/upgrades/q08-upgrade-rehearsal-and-rollback.md` |
+| Q09 | 交付安装包、配置模板与恢复演练 | V1.0 | `docs/operations/q09-restore-drill.md` | `docs/operations/upgrade-checklist.md` / `docs/deployment/configuration-manual.md` / `docs/deployment/deployment-and-rollback.md` |
+| Q10 | 完成单业务系统端到端验收与候选发布评审 | V1.0 | `docs/release/q10-v1-acceptance-matrix.md` | `docs/release/q10-release-candidate.md` / `docs/release/q10-risk-and-defect-register.md` |
+| Q11 | 补齐管理端浏览器结构验收 | V1.0 | `q06-browser-acceptance-evidence.md` §9 | 按 Q11 卡设计，扩面结论追加在 Q06 证据文件内，不另立文件 |
 | X01 | 扩展多模态能力契约与端点验证矩阵 | V1.1 | `x01-multimodal-capability-contract-evidence.md` | — |
 | X02 | 交付图片理解与OCR闭环 | V1.1 | `x02-image-understanding-ocr-evidence.md` | — |
 | X03 | 交付图片生成与编辑闭环 | V1.1 | `x03-image-generation-evidence.md` | — |
