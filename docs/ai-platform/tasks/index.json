@@ -7603,6 +7603,49 @@
       ]
     },
     {
+      "id": "Q11",
+      "phase": "V1.0",
+      "title": "补齐管理端浏览器结构验收",
+      "status": "PLANNED",
+      "requirements": [
+        "FR-40",
+        "FR-26"
+      ],
+      "dependsOn": [
+        "Q06",
+        "Y05",
+        "Y07"
+      ],
+      "reads": [
+        "01-framework-baseline.md",
+        "08-testing-acceptance.md",
+        "02-product-requirements.md",
+        "05-data-security-contracts.md",
+        "12-critical-implementation-blueprints.md"
+      ],
+      "scopeAliases": [
+        "F/tests-compatibility",
+        "ADM/views-ai"
+      ],
+      "allowedPaths": [
+        "前端代码/basic-framework-admin/tests/compatibility",
+        "前端代码/basic-framework-admin/apps/web-ele/src/views/ai"
+      ],
+      "steps": [
+        "复用 tests/compatibility 既有装置（playwright.config、chart-probe 构建探针与静态服务、support/workspace.ts），不另起炉灶",
+        "按安全语义优先补真实 Chromium 结构断言：semantic（授权拒绝时界面不暴露数字）→ authorization → report → dataset/model-endpoint/connector",
+        "每条用例配对照用例，证明断言不是恒真（沿用 Y06 的结构断言+对照模式）"
+      ],
+      "acceptance": [
+        "真实 Chromium 而非 jsdom/happy-dom",
+        "断言可观测结构事实：元素出没/文案逐位/行数列数/控件可用性",
+        "授权被拒时界面确实不出现被禁明细与合计",
+        "WITHHELD 时一个数字都不渲染而 COMPLETE 时照常渲染",
+        "不做像素级视觉回归（ADR 0046 决策 2）"
+      ],
+      "risk": "MEDIUM"
+    },
+    {
       "id": "X01",
       "phase": "V1.1",
       "title": "扩展多模态能力契约与端点验证矩阵",
