@@ -141,6 +141,7 @@
 | 文件 | 用途 |
 | --- | --- |
 | `docs/operations/drill-report-template.md` | 恢复/回退演练报告**模板**，每次演练填一份后成为 ADR 0006 的持续验收证据；非特定卡的完成证据 |
+| `docs/ai-platform/verification/runtime-verification-and-quality-fixes-evidence.md` | 真实运行验证与跨卡质量修复证据：起真实 MySQL/Redis 与打包 jar、真实浏览器登录并逐页验证 20 个 AI 页面，修复偏好 namespace 退化、配置守卫恒真、生产分支提前解引用、Qdrant 单例非线程安全 Map、评测 worker 白烧他人重试预算、调用方中断误归因。**非某张卡的完成证据**（涉及 K01、评测、F12 同类） |
 | `docs/ai-platform/verification/README.md` | 本目录说明 |
 | `docs/ai-platform/verification/bootstrap-summary.md` | 仓库初始化摘要 |
 | `docs/ai-platform/verification/report.md` | 汇总报告 |
