@@ -1,10 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   buildIntegrationSnippet,
   CAPABILITIES,
   containsTicketLiteral,
-  DEFAULT_EMBED_BASE_PATH,
   getEmbedBasePath,
   MODE_OPTIONS,
   readEmbedBasePathFromEnv,
@@ -64,8 +63,54 @@ describe('chat 集成页逻辑（C09）', () => {
   });
 
   it('入口基址只接受同源相对路径或 http(s)，其余回落默认值', () => {
-    expect(getEmbedBasePath()).toBe(DEFAULT_EMBED_BASE_PATH);
+    // 断言字面量而不是常量本身：原来的写法是
+    // `expect(getEmbedBasePath()).toBe(DEFAULT_EMBED_BASE_PATH)`，
+    // 而实现就是 `return DEFAULT_EMBED_BASE_PATH`——把常量跟它自己比，
+    // 改成任何值测试照样通过。基址是拼进复制出去的 iframe src 的，值本身就该被钉住。
+    expect(getEmbedBasePath()).toBe('/app-api/ai/v1/embed');
     // 无环境变量时返回空串（页面用默认值）
     expect(readEmbedBasePathFromEnv()).toBe('');
+  });
+
+  /**
+   * 上面那条 `it` 的标题声称覆盖"只接受同源相对路径或 http(s)"，
+   * 但 `readEmbedBasePathFromEnv` 的接受分支与全部拒绝分支此前零覆盖——
+   * 而这个值会进入复制给用户的接入代码，正是它自己注释里警告的
+   * "不能成为任意地址的来源"。这里按表驱动补齐。
+   */
+  describe('readEmbedBasePathFromEnv 的取值白名单', () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    const accepted: Array<[string, string]> = [
+      ['/app-api/ai/v1/embed', '/app-api/ai/v1/embed'],
+      ['/custom/prefix', '/custom/prefix'],
+      ['  /trimmed/path  ', '/trimmed/path'],
+      ['https://ai.example.com/embed', 'https://ai.example.com/embed'],
+      ['http://ai.example.com/embed', 'http://ai.example.com/embed'],
+    ];
+
+    it.each(accepted)('接受 %j', (input, expected) => {
+      vi.stubEnv('VITE_AI_EMBED_BASE_PATH', input);
+      expect(readEmbedBasePathFromEnv()).toBe(expected);
+    });
+
+    // 全部回落为空串：页面随后用 DEFAULT_EMBED_BASE_PATH
+    const rejected: Array<[string, string | undefined]> = [
+      ['协议相对地址（可被改写成任意外域）', '//evil.example.com'],
+      ['javascript: 伪协议', 'javascript:alert(1)'],
+      ['data: 伪协议', 'data:text/html,<script>'],
+      ['非 http(s) 的绝对地址', 'ftp://ai.example.com'],
+      ['纯空白', '   '],
+      ['空串', ''],
+      ['未配置', undefined],
+      ['普通裸词（既非路径也非 URL）', 'not a url'],
+    ];
+
+    it.each(rejected)('拒绝 %s', (_label, input) => {
+      vi.stubEnv('VITE_AI_EMBED_BASE_PATH', input);
+      expect(readEmbedBasePathFromEnv()).toBe('');
+    });
   });
 });
