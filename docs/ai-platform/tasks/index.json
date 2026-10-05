@@ -983,6 +983,43 @@
       "risk": "HIGH"
     },
     {
+      "id": "F12",
+      "phase": "V1.0",
+      "title": "出站取消与连接失败可区分",
+      "status": "PLANNED",
+      "requirements": [
+        "FR-40"
+      ],
+      "dependsOn": [
+        "F09",
+        "F11"
+      ],
+      "reads": [
+        "01-framework-baseline.md",
+        "05-data-security-contracts.md",
+        "08-testing-acceptance.md"
+      ],
+      "scopeAliases": [
+        "AIT/core-http"
+      ],
+      "allowedPaths": [
+        "后端代码/basic-framework-boot/basic-framework-core/basic-framework-spring-boot-starter-ai/src/main/java/com/basicframework/framework/ai/core/http"
+      ],
+      "steps": [
+        "给 ExternalHttpException.Reason 增加 CANCELLED 取值，并让 mapFailure 把 CancellationException 映射成它",
+        "保持取消的传播语义：取消后仍拿不到任何响应（F11/M07 已钉住，不得削弱）",
+        "检查 F11 流式入口是否走同一条映射，避免同步可区分而流式不可区分"
+      ],
+      "acceptance": [
+        "取消映射到可区分的稳定码，且不是 CONNECT_FAILED 也不是 TIMEOUT",
+        "真正的连接失败仍映射 CONNECT_FAILED（反向）",
+        "真正的超时仍映射 TIMEOUT（反向）",
+        "取消后仍不返回任何响应（F11/M07 既有断言不得删减）",
+        "错误消息不泄漏请求体/凭据/上游响应"
+      ],
+      "risk": "MEDIUM"
+    },
+    {
       "id": "M01",
       "phase": "V1.0",
       "title": "实现模型端点持久化与管理命令",
