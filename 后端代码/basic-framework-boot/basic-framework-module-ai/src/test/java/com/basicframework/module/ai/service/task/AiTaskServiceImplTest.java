@@ -79,7 +79,7 @@ class AiTaskServiceImplTest {
 
     @Test
     void claimIsCasGuardedSoOnlyOneWorkerWins() {
-        when(claimMapper.selectClaimable(10)).thenReturn(List.of(task(0, 0)));
+        when(claimMapper.selectClaimable(10, null)).thenReturn(List.of(task(0, 0)));
         when(claimMapper.claim(TASK_ID, 0, "worker-a", 60)).thenReturn(1);
         when(claimMapper.claim(TASK_ID, 0, "worker-b", 60)).thenReturn(0);
 
@@ -96,17 +96,42 @@ class AiTaskServiceImplTest {
 
     @Test
     void claimBoundsBatchAndLeaseAndRejectsInvalidInput() {
-        when(claimMapper.selectClaimable(50)).thenReturn(List.of());
+        when(claimMapper.selectClaimable(50, null)).thenReturn(List.of());
 
         service.claim("worker-a", 1_000, 100_000);
 
-        verify(claimMapper).selectClaimable(50);
+        verify(claimMapper).selectClaimable(50, null);
         assertThatThrownBy(() -> service.claim(" ", 10, 60))
                 .satisfies(exception -> assertCode(exception, AiErrorCodeConstants.AI_REQUEST_INVALID));
         assertThatThrownBy(() -> service.claim("worker-a", 0, 60))
                 .satisfies(exception -> assertCode(exception, AiErrorCodeConstants.AI_REQUEST_INVALID));
         assertThatThrownBy(() -> service.claim("worker-a", 10, 0))
                 .satisfies(exception -> assertCode(exception, AiErrorCodeConstants.AI_REQUEST_INVALID));
+    }
+
+    /**
+     * 定向领取必须把 runId 传到 SQL 过滤上。
+     *
+     * <p>这不是形式断言：CAS 领取本身会 {@code attempt_count + 1}，即"领取就消耗一次重试预算"。
+     * 只服务单个运行的 worker（评测 worker）若走不限运行的领取，会领到别人的任务，
+     * 发现不是自己的运行后只能缩短租约交还，而那次预算已经被扣掉——
+     * 目标运行会在一次都没执行过的情况下被判 FAILED，错误码指向"重试预算耗尽"，
+     * 把排查引向根本没问题的执行器/模型侧。
+     */
+    @Test
+    void runScopedClaimFiltersByRunId() {
+        when(claimMapper.selectClaimable(1, 77L)).thenReturn(List.of(task(0, 0)));
+        // CAS 也要放行：候选选出来不等于领取成功，claim 命中 1 行才会进结果
+        when(claimMapper.claim(TASK_ID, 0, "eval-worker-1", 60)).thenReturn(1);
+        when(claimMapper.claim(TASK_ID, 0, "worker-a", 60)).thenReturn(0);
+
+        List<AiTaskLeaseDTO> claimed = service.claim("eval-worker-1", 77L, 1, 60);
+
+        assertThat(claimed).hasSize(1);
+        verify(claimMapper).selectClaimable(1, 77L);
+        // 不限运行的旧入口保持原语义
+        service.claim("worker-a", 1, 60);
+        verify(claimMapper).selectClaimable(1, null);
     }
 
     @Test

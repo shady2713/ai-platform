@@ -38,8 +38,18 @@ public class QdrantRestKnowledgeIndexAdapter implements KnowledgeIndexPort {
     /** 载荷里的保留键：保存调用方的逻辑标识（向量服务的点 ID 必须是 UUID 或整数）。 */
     public static final String LOGICAL_ID_KEY = "_logical_id";
 
-    /** 集合信息缓存：维度在集合创建后不可变，避免每次写入都探测。 */
-    private final Map<String, Integer> dimensions = new LinkedHashMap<>();
+    /**
+     * 集合信息缓存：维度在集合创建后不可变，避免每次写入都探测。
+     *
+     * <p>本适配器是单例，写入方是入库作业线程，读取方是检索请求线程，
+     * 因此缓存**必须**是并发容器：原先的无同步 {@code LinkedHashMap}
+     * 在并发 {@code put} 叠加 {@code get} 时可能结构损坏，极端情况下 {@code get} 陷入死循环。
+     *
+     * <p>另外集合名含世代号（{@code kb_<code>_g<generation>}），每次换代都是新键，
+     * 进程生命周期内单调增长，所以必须设上界。两件事都由
+     * {@link BoundedDimensionCache} 承担，并有独立单测。
+     */
+    private final BoundedDimensionCache dimensions = new BoundedDimensionCache(BoundedDimensionCache.DEFAULT_CAPACITY);
 
     private final String baseUrl;
 
@@ -79,11 +89,11 @@ public class QdrantRestKnowledgeIndexAdapter implements KnowledgeIndexPort {
                 // 维度不一致：拒绝而不是"适配"（已有集合的维度不可变）
                 throw new KnowledgeIndexException(KnowledgeIndexException.Reason.DIMENSION_MISMATCH, "集合维度与请求维度不一致");
             }
-            dimensions.put(collection, dimension);
+            cacheDimension(collection, dimension);
             return existing.get();
         }
         send("PUT", "/collections/" + collection, Map.of("vectors", Map.of("size", dimension, "distance", "Cosine")));
-        dimensions.put(collection, dimension);
+        cacheDimension(collection, dimension);
         return new CollectionInfo(collection, dimension, 0L);
     }
 
@@ -242,8 +252,20 @@ public class QdrantRestKnowledgeIndexAdapter implements KnowledgeIndexPort {
             return cached;
         }
         CollectionInfo info = describe(collection);
-        dimensions.put(collection, info.dimension());
+        cacheDimension(collection, info.dimension());
         return info.dimension();
+    }
+
+    /**
+     * 唯一的缓存写入口，保证上限不会被绕过。
+     *
+     * <p>超限时整体清空而不是维护淘汰顺序：这份缓存是纯派生数据
+     * （维度在集合创建后不可变，清空后 {@code knownDimension} 会重新探测），
+     * 因此"粗暴清空"的唯一代价是多一次 describe 调用，
+     * 换来的是不需要额外结构与并发推理。
+     */
+    private void cacheDimension(String collection, int dimension) {
+        dimensions.put(collection, dimension);
     }
 
     private static void requireDimension(int dimension) {
@@ -286,9 +308,11 @@ public class QdrantRestKnowledgeIndexAdapter implements KnowledgeIndexPort {
         } catch (IOException failure) {
             throw new KnowledgeIndexException(KnowledgeIndexException.Reason.TRANSPORT_FAILED, "向量服务不可达", failure);
         } catch (InterruptedException interrupted) {
+            // 中断发生在调用方线程，语义是"被取消/容器关闭"，与向量服务无关。
+            // 报 TRANSPORT_FAILED 会让运维去查向量服务（该原因的对外文案正是"向量服务不可达"），
+            // 排查方向会被引到根本没问题的对端。分类顺序本身没错，问题只在 Reason 复用。
             Thread.currentThread().interrupt();
-            throw new KnowledgeIndexException(
-                    KnowledgeIndexException.Reason.TRANSPORT_FAILED, "向量服务调用被中断", interrupted);
+            throw new KnowledgeIndexException(KnowledgeIndexException.Reason.CANCELLED, "向量索引调用已被调用方取消", interrupted);
         }
     }
 }

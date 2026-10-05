@@ -127,7 +127,7 @@ class AiEvalRunServiceImplTest {
                 .thenReturn(List.of(evalCase("[{\"kind\":\"VALUE\",\"path\":\"status\",\"expected\":\"SUCCEEDED\"},"
                         + "{\"kind\":\"VERSION\",\"path\":\"version\",\"expected\":\"endpoint:3@2\"}]")));
         when(runService.accept(any(AiRunAcceptDTO.class))).thenReturn(new AiRunAcceptResultDTO().setRunId(55L));
-        when(taskService.claim(anyString(), anyInt(), anyInt()))
+        when(taskService.claim(anyString(), any(), anyInt(), anyInt()))
                 .thenReturn(
                         List.of(new AiTaskLeaseDTO().setTaskId(1L).setRunId(55L).setOwner("eval")));
         when(runExecutionService.execute(any(AiTaskLeaseDTO.class), any(AiRunBudget.class)))
@@ -178,7 +178,7 @@ class AiEvalRunServiceImplTest {
                 .thenReturn(List.of(evalCase("[{\"kind\":\"VALUE\",\"path\":\"status\",\"expected\":\"SUCCEEDED\"}]")
                         .setNeedsReview(true)));
         when(runService.accept(any(AiRunAcceptDTO.class))).thenReturn(new AiRunAcceptResultDTO().setRunId(55L));
-        when(taskService.claim(anyString(), anyInt(), anyInt()))
+        when(taskService.claim(anyString(), any(), anyInt(), anyInt()))
                 .thenReturn(
                         List.of(new AiTaskLeaseDTO().setTaskId(1L).setRunId(55L).setOwner("eval")));
         when(runExecutionService.execute(any(AiTaskLeaseDTO.class), any(AiRunBudget.class)))
@@ -204,7 +204,7 @@ class AiEvalRunServiceImplTest {
         when(caseMapper.selectBySuite(7L))
                 .thenReturn(List.of(evalCase("[{\"kind\":\"MONEY\",\"path\":\"amount\",\"expected\":\"450.00\"}]")));
         when(runService.accept(any(AiRunAcceptDTO.class))).thenReturn(new AiRunAcceptResultDTO().setRunId(55L));
-        when(taskService.claim(anyString(), anyInt(), anyInt()))
+        when(taskService.claim(anyString(), any(), anyInt(), anyInt()))
                 .thenReturn(
                         List.of(new AiTaskLeaseDTO().setTaskId(1L).setRunId(55L).setOwner("eval")));
         when(runExecutionService.execute(any(AiTaskLeaseDTO.class), any(AiRunBudget.class)))
@@ -250,7 +250,7 @@ class AiEvalRunServiceImplTest {
                 .thenReturn(List.of(evalCase("[{\"kind\":\"MONEY\",\"path\":\"amount\",\"expected\":\"450.00\"}]")));
         when(runService.accept(any(AiRunAcceptDTO.class))).thenReturn(new AiRunAcceptResultDTO().setRunId(55L));
         // 队列里只有别人的任务：压短租约后不再重试，最后如实记为 ERROR
-        when(taskService.claim(anyString(), anyInt(), anyInt()))
+        when(taskService.claim(anyString(), any(), anyInt(), anyInt()))
                 .thenReturn(
                         List.of(new AiTaskLeaseDTO().setTaskId(9L).setRunId(99L).setOwner("other")))
                 .thenReturn(List.of());
@@ -315,7 +315,7 @@ class AiEvalRunServiceImplTest {
         assertThat(captor.getValue().getResultDigest()).hasSize(64);
         verify(resultMapper, never()).insert(any(AiEvalResultDO.class));
         verify(aiRunMapper, never()).selectById(anyLong());
-        verify(taskService, never()).claim(anyString(), anyInt(), anyInt());
+        verify(taskService, never()).claim(anyString(), any(), anyInt(), anyInt());
     }
 
     private static AiEvalRunDO runRow() {

@@ -21,7 +21,15 @@ public class KnowledgeIndexException extends RuntimeException {
         /** 上游返回了非预期状态码。 */
         UPSTREAM_REJECTED,
         /** 请求或响应不符合本端口的契约。 */
-        INVALID_PAYLOAD
+        INVALID_PAYLOAD,
+        /**
+         * 调用方主动取消（与 F12 的出站取消归因保持一致）。
+         *
+         * <p>中断发生在**调用方线程**上，语义是"请求被取消/容器关闭"，
+         * 与向量服务无关。报成 {@link #TRANSPORT_FAILED} 会让运维去查
+         * 根本没问题的东西——而 {@code TRANSPORT_FAILED} 的对外文案是"向量服务不可达"。
+         */
+        CANCELLED
     }
 
     private final Reason reason;

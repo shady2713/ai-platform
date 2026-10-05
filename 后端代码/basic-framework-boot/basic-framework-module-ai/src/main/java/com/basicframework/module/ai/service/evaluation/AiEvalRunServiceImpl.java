@@ -294,11 +294,18 @@ public class AiEvalRunServiceImpl implements AiEvalRunService {
         return result;
     }
 
-    /** 领取本次评测运行的任务并执行；领到他任务时只缩短租约交给恢复作业。 */
+    /**
+     * 领取本次评测运行的任务并执行。
+     *
+     * <p>必须用**按运行定向**的领取：CAS 领取会 {@code attempt_count + 1}，领取即消耗一次重试预算。
+     * 原先走全局领取时，本 worker 会领到别人的任务，发现不是自己的运行后只缩短租约交还，
+     * 而那次预算已经扣掉——竞争激烈时目标运行会在一次都没执行过的情况下被判 FAILED，
+     * 错误码指向"重试预算耗尽"，把排查引向根本没问题的执行器/模型侧。
+     */
     private AiRunExecutionResultDTO claimAndExecute(Long evalRunId, Long runRef) {
         String worker = "eval-worker-" + evalRunId;
         for (int attempt = 0; attempt < CLAIM_ATTEMPTS; attempt++) {
-            List<AiTaskLeaseDTO> leases = taskService.claim(worker, 1, LEASE_SECONDS);
+            List<AiTaskLeaseDTO> leases = taskService.claim(worker, runRef, 1, LEASE_SECONDS);
             if (leases.isEmpty()) {
                 break;
             }
@@ -306,6 +313,8 @@ public class AiEvalRunServiceImpl implements AiEvalRunService {
             if (Objects.equals(lease.getRunId(), runRef)) {
                 return runExecutionService.execute(lease, AiRunBudget.of(null, null, null));
             }
+            // 定向领取后不应出现他任务；真出现说明 SQL 过滤失效，
+            // 此时交还租约而不是继续消耗预算。
             taskService.heartbeat(lease, 1);
         }
         throw exception(AI_EVAL_RUN_NOT_EXECUTED);

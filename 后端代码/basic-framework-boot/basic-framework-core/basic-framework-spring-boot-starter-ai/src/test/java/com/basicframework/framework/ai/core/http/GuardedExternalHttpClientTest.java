@@ -2,6 +2,7 @@ package com.basicframework.framework.ai.core.http;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
@@ -270,9 +271,19 @@ class GuardedExternalHttpClientTest {
                 // （F12 之后这条异常的 Reason 是 {@code CANCELLED}，不再被兜底成 {@code CONNECT_FAILED}；
                 // 本用例刻意只钉"拿不到响应"这条性质，具体码由 {@code OutboundCancellationAttributionTest} 负责。）
                 assertThat(future.isDone()).as("取消后 future 应当已完成").isTrue();
-                assertThatThrownBy(future::join)
-                        .as("取消后 join 必须失败，绝不能返回任何响应")
-                        .isInstanceOf(java.util.concurrent.CompletionException.class);
+                Throwable thrown = catchThrowable(future::join);
+                assertThat(thrown).as("取消后 join 必须失败，绝不能返回任何响应").isNotNull();
+                // 只断言"抛了取消或受控失败"，**不断言具体是哪个包装类型**：
+                // 取消后 join() 的异常形态本身是竞态的——future 已被标记取消时抛裸
+                // CancellationException，底层 HTTP 交换抢先失败时抛 CompletionException。
+                // 生产代码 await() 两种都接住（见 OutboundCancellationAttributionTest），
+                // 这里若写死 isInstanceOf(CompletionException.class) 就会随机变红——
+                // 那是本用例此前反复变红的第二个原因（第一个是断言 isCancelled()）。
+                assertThat(thrown)
+                        .as("取消只可能表现为取消本身或被映射的受控失败，两者都说明没拿到响应")
+                        .isInstanceOfAny(
+                                java.util.concurrent.CancellationException.class,
+                                java.util.concurrent.CompletionException.class);
             } finally {
                 // 放行处理线程，避免它挂到 10s 超时拖慢整类测试
                 releaseSlowHandler.countDown();

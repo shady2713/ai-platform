@@ -24,16 +24,21 @@ import org.apache.ibatis.annotations.Update;
 @Mapper
 public interface AiTaskClaimMapper {
 
-    /** 可领取的候选任务（按编号升序，限定批次大小；领取仍由 CAS 决定成败）。 */
+    /**
+     * 可领取的候选任务（按编号升序，限定批次大小；领取仍由 CAS 决定成败）。
+     *
+     * @param runId 只领取该运行的任务；为 {@code null} 时不限运行
+     */
     @Select(
             """
             SELECT * FROM ai_run_task
             WHERE deleted = 0 AND status = 'QUEUED'
               AND (next_attempt_time IS NULL OR next_attempt_time <= NOW())
+              AND (#{runId} IS NULL OR run_id = #{runId})
             ORDER BY id
             LIMIT #{limit}
             """)
-    List<AiRunTaskDO> selectClaimable(@Param("limit") int limit);
+    List<AiRunTaskDO> selectClaimable(@Param("limit") int limit, @Param("runId") Long runId);
 
     /** CAS 领取：只有期望代次与库中一致且仍待领取时才成功。 */
     @Update(

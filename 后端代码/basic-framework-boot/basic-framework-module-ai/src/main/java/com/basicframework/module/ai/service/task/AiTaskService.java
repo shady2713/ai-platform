@@ -29,6 +29,19 @@ public interface AiTaskService {
     /** 领取一批任务（短事务；返回的任务由调用方在事务之外执行）。 */
     List<AiTaskLeaseDTO> claim(String workerId, int limit, int leaseSeconds);
 
+    /**
+     * 只领取指定运行的任务。
+     *
+     * <p>CAS 领取本身会 {@code attempt_count = attempt_count + 1}，即**领取就等于消耗一次重试预算**。
+     * 因此只服务于单个运行的 worker（例如评测 worker）必须用它：否则它会领到全局最老的
+     * 他人任务，发现不是自己的运行后只能缩短租约交还，而那次预算已经被扣掉——
+     * 竞争激烈时目标运行会在一次都没执行过的情况下被判 FAILED，
+     * 且错误码指向"重试预算耗尽"，把排查引向执行器/模型侧。
+     *
+     * @param runId 目标运行编号；为 {@code null} 时等价于不限运行
+     */
+    List<AiTaskLeaseDTO> claim(String workerId, Long runId, int limit, int leaseSeconds);
+
     /** 续租；返回 false 表示租约已失效，worker 必须停止执行且不得写入结果。 */
     boolean heartbeat(AiTaskLeaseDTO lease, int leaseSeconds);
 

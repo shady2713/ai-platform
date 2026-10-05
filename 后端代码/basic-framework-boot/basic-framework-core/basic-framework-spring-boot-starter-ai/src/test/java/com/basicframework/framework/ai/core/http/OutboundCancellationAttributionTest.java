@@ -115,9 +115,7 @@ class OutboundCancellationAttributionTest {
             try {
                 assertThat(future.cancel(true)).as("取消在途请求").isTrue();
 
-                Throwable thrown = catchThrowable(future::join);
-                assertThat(thrown).as("取消后 join 必须失败，绝不能返回任何响应").isInstanceOf(CompletionException.class);
-                ExternalHttpException mapped = (ExternalHttpException) thrown.getCause();
+                ExternalHttpException mapped = cancellationFailureOf(future);
                 assertThat(mapped.getReason()).as("取消有独立的稳定码").isEqualTo(ExternalHttpException.Reason.CANCELLED);
                 // 两条"看起来同样合理"的错误归因分别断言：只看上面一条不够，
                 // 最可能的回归就是把取消塞进这两个既有取值里的某一个
@@ -263,8 +261,7 @@ class OutboundCancellationAttributionTest {
             assertThat(arrived.await(5, TimeUnit.SECONDS)).isTrue();
             try {
                 assertThat(future.cancel(true)).isTrue();
-                ExternalHttpException mapped =
-                        (ExternalHttpException) catchThrowable(future::join).getCause();
+                ExternalHttpException mapped = cancellationFailureOf(future);
 
                 assertThat(mapped.getMessage())
                         .as("消息只说清已取消")
@@ -325,6 +322,30 @@ class OutboundCancellationAttributionTest {
     }
 
     // ==================== 夹具与辅助 ====================
+
+    /**
+     * 取出取消之后的归因结果。
+     *
+     * <p><b>为什么不能直接 {@code catchThrowable(future::join).getCause()}：</b>
+     * 取消后 {@code join()} 的异常形态是**竞态**的——
+     * <ul>
+     *   <li>future 已被标记为取消时，抛的是裸 {@link CancellationException}，**没有 cause**；</li>
+     *   <li>底层 HTTP 交换抢先失败时，抛的是包着真实原因的 {@link CompletionException}。</li>
+     * </ul>
+     * 断言其中任一形态都会随机变红：写成 {@code isInstanceOf(CompletionException.class)}
+     * 会在第一种情况下失败，写成 {@code .getCause()} 会在第一种情况下 NPE。
+     *
+     * <p>生产代码 {@code await()} 两种都接住，这里必须同样处理后再断言——
+     * 真正该被钉住的不变量是"取消后拿不到任何响应"与"归因为 CANCELLED"，
+     * 而不是 JDK 恰好抛的是哪个包装类型。
+     */
+    private static ExternalHttpException cancellationFailureOf(CompletableFuture<?> future) {
+        Throwable thrown = catchThrowable(future::join);
+        assertThat(thrown).as("取消后 join 必须失败，绝不能返回任何响应").isNotNull();
+        Throwable actual =
+                thrown instanceof CompletionException && thrown.getCause() != null ? thrown.getCause() : thrown;
+        return (ExternalHttpException) GuardedExternalHttpClient.mapFailure(actual);
+    }
 
     private AiHttpProperties properties(int allowedPort, boolean allowPrivate) {
         AiHttpProperties properties = new AiHttpProperties();

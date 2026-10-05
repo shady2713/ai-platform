@@ -79,13 +79,19 @@ public class AiTaskServiceImpl implements AiTaskService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public List<AiTaskLeaseDTO> claim(String workerId, int limit, int leaseSeconds) {
+        return claim(workerId, null, limit, leaseSeconds);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public List<AiTaskLeaseDTO> claim(String workerId, Long runId, int limit, int leaseSeconds) {
         if (!StringUtils.hasText(workerId) || limit < 1 || leaseSeconds < 1) {
             throw exception(AI_REQUEST_INVALID);
         }
         int batch = Math.min(limit, MAX_CLAIM_BATCH);
         int lease = Math.min(leaseSeconds, MAX_LEASE_SECONDS);
         List<AiTaskLeaseDTO> claimed = new ArrayList<>();
-        for (AiRunTaskDO candidate : claimMapper.selectClaimable(batch)) {
+        for (AiRunTaskDO candidate : claimMapper.selectClaimable(batch, runId)) {
             int expectedEpoch = candidate.getClaimedEpoch() == null ? 0 : candidate.getClaimedEpoch();
             if (claimMapper.claim(candidate.getId(), expectedEpoch, workerId, lease) == 1) {
                 claimed.add(new AiTaskLeaseDTO()
