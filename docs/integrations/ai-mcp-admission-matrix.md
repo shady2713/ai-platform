@@ -3,8 +3,8 @@
 本矩阵回答一个问题：**一个 MCP 服务器（或一个 MCP 工具）要满足什么条件才能被平台接受，
 以及在每一层被拒绝时会发生什么。** 每一行都对应一个可执行的默认拒绝，而不是建议。
 
-配套阅读：[ADR 0055](../../adr/0055-controlled-mcp-client-discovery-and-default-deny.md)、
-[证据文档](../../ai-platform/verification/x07-mcp-client-evidence.md)。
+配套阅读：[ADR 0055](../adr/0055-controlled-mcp-client-discovery-and-default-deny.md)、
+[证据文档](../ai-platform/verification/x07-mcp-client-evidence.md)。
 
 ## 一、服务器级准入（发现之前）
 

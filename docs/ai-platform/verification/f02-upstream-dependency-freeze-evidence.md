@@ -1,9 +1,9 @@
 # F02 上游依赖冻结：复验与交接证据
 
-本文件是 [F02 验证并冻结第一组上游依赖](../ai-platform/tasks/F02.md) 的完成证据，格式按
-[09-model-handoff.md](../ai-platform/09-model-handoff.md) §6 交接模板与 §8 完成证据要求。
-兼容矩阵与 Go/No-Go 结论见 [ai-platform-upstream-candidates.md](ai-platform-upstream-candidates.md)（§1–§9 首次冻结、§10 复验）；
-精确坐标/许可证/完整性/回退材料台账见 [upstream-registry.yaml](upstream-registry.yaml)。
+本文件是 [F02 验证并冻结第一组上游依赖](../tasks/F02.md) 的完成证据，格式按
+[09-model-handoff.md](../09-model-handoff.md) §6 交接模板与 §8 完成证据要求。
+兼容矩阵与 Go/No-Go 结论见 [ai-platform-upstream-candidates.md](../../integrations/ai-platform-upstream-candidates.md)（§1–§9 首次冻结、§10 复验）；
+精确坐标/许可证/完整性/回退材料台账见 [upstream-registry.yaml](../../integrations/upstream-registry.yaml)。
 
 ## 1. 任务ID与状态
 

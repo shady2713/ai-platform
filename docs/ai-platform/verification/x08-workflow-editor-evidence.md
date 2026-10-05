@@ -4,7 +4,7 @@
 |---|---|
 | 任务卡 | [X08](../tasks/X08.md)（受限节点流程垂直切片 / 版本持久化 / 执行一致性与图验证） |
 | 需求 | FR-25/FR-26/FR-27（流程编排），见 [产品需求](../02-product-requirements.md) |
-| 依赖 | [Q10](../tasks/Q10.md)、[X06](X06.md)（受控业务写工具，已交付） |
+| 依赖 | [Q10](../tasks/Q10.md)、[X06](../tasks/X06.md)（受控业务写工具，已交付） |
 | 工作副本（唯一可写） | `/home/ctyun/桌面/zhongtai/ai-platform` |
 | 基线 commit | `2947b82`（X10 受控异步 Webhook） |
 | 后端工作目录 | `/home/ctyun/桌面/zhongtai/ai-platform/后端代码/basic-framework-boot` |

@@ -1,8 +1,8 @@
 # F04 前端包与图表集成验证：完成证据
 
-本文件是 [F04 建立前端包与图表集成验证](../ai-platform/tasks/F04.md) 的交付证据，格式按
-[09-model-handoff.md](../ai-platform/09-model-handoff.md) §6 交接模板与 §8 完成证据要求。
-配套交付物：[ChartRenderer 与前端包验证报告](ai-platform-chart-renderer-verification.md)（选型/包体/CSP/生命周期）。
+本文件是 [F04 建立前端包与图表集成验证](../tasks/F04.md) 的交付证据，格式按
+[09-model-handoff.md](../09-model-handoff.md) §6 交接模板与 §8 完成证据要求。
+配套交付物：[ChartRenderer 与前端包验证报告](../../integrations/ai-platform-chart-renderer-verification.md)（选型/包体/CSP/生命周期）。
 
 ## 0. 主管复核记录（2026-09-27）
 

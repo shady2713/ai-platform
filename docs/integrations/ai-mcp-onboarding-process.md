@@ -2,7 +2,7 @@
 
 本文是**运维/管理员侧**的操作流程。判定规则见
 [准入矩阵](ai-mcp-admission-matrix.md)，设计理由见
-[ADR 0055](../../adr/0055-controlled-mcp-client-discovery-and-default-deny.md)。
+[ADR 0055](../adr/0055-controlled-mcp-client-discovery-and-default-deny.md)。
 
 > **本卡未提供管理端 API 与页面**（卡片 §2 未授权控制器与前端路径）。
 > 下列步骤目前通过**服务层** `AiMcpToolService` / `AiToolService` 执行；

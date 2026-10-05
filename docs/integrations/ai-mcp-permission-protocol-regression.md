@@ -4,7 +4,7 @@
 的影响范围，以及必须持续成立的断言。执行一次回归 = 跑下面列出的测试类 + 人工核对项。
 
 配套：[准入矩阵](ai-mcp-admission-matrix.md)、[接入流程](ai-mcp-onboarding-process.md)、
-[ADR 0055](../../adr/0055-controlled-mcp-client-discovery-and-default-deny.md)。
+[ADR 0055](../adr/0055-controlled-mcp-client-discovery-and-default-deny.md)。
 
 ## 一、对既有能力的回归
 

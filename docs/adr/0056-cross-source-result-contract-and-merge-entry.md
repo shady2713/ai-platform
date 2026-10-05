@@ -4,8 +4,8 @@
 | --- | --- |
 | 状态 | Accepted |
 | 日期 | 2026-03-01 |
-| 决策卡 | [Y07](../../ai-platform/tasks/Y07.md) |
-| 相关 | [ADR 0054](0054-bounded-cross-source-execution-and-unified-result.md)（Y04 有界执行）、[ADR 0049](0049-identity-boundaries.md)（身份边界）、[ADR 0003](0003-http-status-semantics.md)（HTTP 状态语义） |
+| 决策卡 | [Y07](../ai-platform/tasks/Y07.md) |
+| 相关 | [ADR 0054](0054-bounded-cross-source-execution-and-unified-result.md)（Y04 有界执行）、[ADR 0049](0049-ai-open-identity-and-security-extension-boundaries.md)（身份边界）、[ADR 0003](0003-http-status-semantics.md)（HTTP 状态语义） |
 
 ## 1. 背景
 
@@ -108,7 +108,7 @@ TableBlock / AiCrossSourceMergeRespVO {
 
 把"台账里没这条执行"塞进 Y05 那个区间，会让调用方在"我无权"与"我查错了"
 之间误判处置动作。编号分段与语义边界见
-[error-code-map.md](../../contracts/ai/error-code-map.md)。
+[error-code-map.md](../contracts/ai/error-code-map.md)。
 
 ## 3. 为什么要有"只读口径"这个端点
 
@@ -170,4 +170,4 @@ Y05 逐级求交（数据面）回答"这次被请求的跨源结果里有没有
   以及 Y06 `at-070`（7 条）与 Y05 `cross-source-integrity.test.ts`（9 条）原样通过。
 
 证据见
-[y07-cross-source-result-contract-evidence.md](../../ai-platform/verification/y07-cross-source-result-contract-evidence.md)。
+[y07-cross-source-result-contract-evidence.md](../ai-platform/verification/y07-cross-source-result-contract-evidence.md)。

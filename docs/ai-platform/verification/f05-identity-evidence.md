@@ -1,6 +1,6 @@
 # F05 身份与安全扩展证据（2026-09-16）
 
-本记录是 [F05 冻结开放身份与安全扩展 ADR](../ai-platform/tasks/F05.md) 的验收证据：交付物为
+本记录是 [F05 冻结开放身份与安全扩展 ADR](../tasks/F05.md) 的验收证据：交付物为
 [ADR 0049](../../adr/0049-ai-open-identity-and-security-extension-boundaries.md) 与两处 starter README 扩展点，
 本卡只冻结契约与拒绝规则，不含实现（实现按任务卡另行授权）。
 
