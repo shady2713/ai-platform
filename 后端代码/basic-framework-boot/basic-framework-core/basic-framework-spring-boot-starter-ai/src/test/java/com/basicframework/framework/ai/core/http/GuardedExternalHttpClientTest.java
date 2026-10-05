@@ -267,6 +267,8 @@ class GuardedExternalHttpClientTest {
                 // 那正是本用例此前会随机变红的原因。
                 //
                 // <p>真正要保证的性质只有一条：<b>取消之后调用方拿不到任何响应</b>。
+                // （F12 之后这条异常的 Reason 是 {@code CANCELLED}，不再被兜底成 {@code CONNECT_FAILED}；
+                // 本用例刻意只钉"拿不到响应"这条性质，具体码由 {@code OutboundCancellationAttributionTest} 负责。）
                 assertThat(future.isDone()).as("取消后 future 应当已完成").isTrue();
                 assertThatThrownBy(future::join)
                         .as("取消后 join 必须失败，绝不能返回任何响应")

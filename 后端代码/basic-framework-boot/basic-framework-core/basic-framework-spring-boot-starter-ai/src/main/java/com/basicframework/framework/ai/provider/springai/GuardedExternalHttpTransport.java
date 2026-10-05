@@ -88,7 +88,9 @@ public class GuardedExternalHttpTransport {
         return switch (denied.getReason()) {
             case TARGET_NOT_ALLOWED, PRIVATE_TARGET_DENIED, INVALID_REQUEST -> ModelException.Reason.TARGET_NOT_ALLOWED;
             case TIMEOUT -> ModelException.Reason.TIMEOUT;
-            case CONNECT_FAILED, RESPONSE_TOO_LARGE -> ModelException.Reason.UPSTREAM_FAILED;
+            // F12：取消此前以 CONNECT_FAILED 到达这里（F12 之前守卫把它收敛进兜底分支），
+            // 归因保持不变——F12 只让守卫侧的 Reason 可区分，不改变模型契约这一层的结论。
+            case CANCELLED, CONNECT_FAILED, RESPONSE_TOO_LARGE -> ModelException.Reason.UPSTREAM_FAILED;
         };
     }
 

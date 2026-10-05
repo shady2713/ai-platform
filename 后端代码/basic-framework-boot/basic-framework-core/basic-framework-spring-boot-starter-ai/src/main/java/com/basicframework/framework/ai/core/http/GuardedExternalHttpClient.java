@@ -15,8 +15,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -43,6 +45,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * <p>F11：同时提供 {@link ExternalHttpStreamSupport} 流式入口，与请求/响应入口**并存**。两个入口共用
  * {@link #prepare} 做全部请求期判定（关闭检查、请求卫生、允许清单、私网判定、协议与超时），
  * 因此流式请求的治理面与请求/响应请求**逐条相同**；差别只在响应体逐块交付、超限改为终止流。
+ *
+ * <p>F12：失败归因区分**调用方取消**（{@link ExternalHttpException.Reason#CANCELLED}）与
+ * **连接失败**。取消是调用方自己的决定，报成 {@code CONNECT_FAILED} 会把排查方向引到网络与上游。
+ * 两个阻塞入口共用 {@link #await}，失败最终都收敛到 {@link #mapFailure}，
+ * 因此"同步可区分、流式不可区分"不会发生。
  */
 public class GuardedExternalHttpClient implements ExternalHttpClient, ExternalHttpStreamSupport {
 
@@ -74,10 +81,25 @@ public class GuardedExternalHttpClient implements ExternalHttpClient, ExternalHt
 
     @Override
     public ExternalHttpResponse execute(ExternalHttpRequest request) {
+        return await(executeAsync(request));
+    }
+
+    /**
+     * 两个阻塞入口（{@link #execute} 与 {@link #openStream}）共用的等待与归因。
+     *
+     * <p>只有一处映射入口，是"同步与流式对同一个失败给出同一个归因"的结构性保证：
+     * 否则很容易出现"同步已可区分、流式仍不可区分"。
+     *
+     * <p>{@code join()} 在 future 被取消时直接抛 {@link CancellationException}（不包
+     * {@code CompletionException}），所以两种包装都要接住。包内可见以便直接覆盖取消这条路径。
+     */
+    static <T> T await(CompletableFuture<T> future) {
         try {
-            return executeAsync(request).join();
+            return future.join();
         } catch (CompletionException exception) {
             throw mapFailure(exception.getCause() == null ? exception : exception.getCause());
+        } catch (CancellationException exception) {
+            throw mapFailure(exception);
         }
     }
 
@@ -109,19 +131,14 @@ public class GuardedExternalHttpClient implements ExternalHttpClient, ExternalHt
      */
     @Override
     public ExternalHttpStreamResponse openStream(ExternalHttpRequest request) {
-        try {
-            HttpResponse<InputStream> response = httpClient
-                    .sendAsync(prepare(request), HttpResponse.BodyHandlers.ofInputStream())
-                    .join();
-            return new BoundedExternalHttpStreamResponse(
-                    response.statusCode(),
-                    flatten(response.headers().map()),
-                    response.headers().firstValueAsLong("content-length").orElse(-1L),
-                    properties.getMaxResponseBytes(),
-                    response.body());
-        } catch (CompletionException exception) {
-            throw mapFailure(exception.getCause() == null ? exception : exception.getCause());
-        }
+        HttpResponse<InputStream> response =
+                await(httpClient.sendAsync(prepare(request), HttpResponse.BodyHandlers.ofInputStream()));
+        return new BoundedExternalHttpStreamResponse(
+                response.statusCode(),
+                flatten(response.headers().map()),
+                response.headers().firstValueAsLong("content-length").orElse(-1L),
+                properties.getMaxResponseBytes(),
+                response.body());
     }
 
     /**
@@ -153,6 +170,11 @@ public class GuardedExternalHttpClient implements ExternalHttpClient, ExternalHt
         if (cause instanceof ExternalHttpException externalHttpException) {
             return externalHttpException;
         }
+        // F12：取消必须与连接失败分开归因。放在超时与连接判定之前是语义要求——
+        // 取消是调用方的决定，与网络无关，报成 CONNECT_FAILED 会把排查方向引到网络与上游。
+        if (isCancellation(cause)) {
+            return new ExternalHttpException(ExternalHttpException.Reason.CANCELLED, "出站请求已被调用方取消", cause);
+        }
         if (cause instanceof HttpTimeoutException) {
             return new ExternalHttpException(ExternalHttpException.Reason.TIMEOUT, "出站请求超时", cause);
         }
@@ -161,6 +183,28 @@ public class GuardedExternalHttpClient implements ExternalHttpClient, ExternalHt
         }
         // 未知失败也收敛为稳定错误
         return new ExternalHttpException(ExternalHttpException.Reason.CONNECT_FAILED, "出站请求失败", cause);
+    }
+
+    /** 因果链解包上限：只用来防止自引用异常导致死循环，不是"追到底"。 */
+    private static final int MAX_CAUSE_DEPTH = 8;
+
+    /**
+     * 是否为调用方取消。{@link CompletionException} / {@link ExecutionException} 只是包装，
+     * 逐层剥掉后再判定；<b>不沿其它类型的因果链搜索</b>——否则一个真正的 IO 失败
+     * 只要链上挂着取消就会被误判成取消，正是本卡要避免的另一种错误归因。
+     */
+    private static boolean isCancellation(Throwable cause) {
+        Throwable current = cause;
+        for (int depth = 0; current != null && depth < MAX_CAUSE_DEPTH; depth++) {
+            if (current instanceof CancellationException) {
+                return true;
+            }
+            if (!(current instanceof CompletionException) && !(current instanceof ExecutionException)) {
+                return false;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     private URI validateRequest(ExternalHttpRequest request) {

@@ -22,7 +22,11 @@
 - **取消与关闭**：`executeAsync` 返回的 future 取消即中止本次调用；`close()` 后拒绝新请求。取消不保证上游已停止，
   需要幂等的上游写入必须自带去重键。
 - **错误**：统一为 `ExternalHttpException` 的稳定原因（`TARGET_NOT_ALLOWED`、`PRIVATE_TARGET_DENIED`、
-  `INVALID_REQUEST`、`CONNECT_FAILED`、`TIMEOUT`、`RESPONSE_TOO_LARGE`），消息与日志不含目标凭据与响应正文。
+  `INVALID_REQUEST`、`CONNECT_FAILED`、`TIMEOUT`、`RESPONSE_TOO_LARGE`、`CANCELLED`），
+  消息与日志不含目标凭据与响应正文。
+- **取消必须与连接失败可区分（F12）**：`CANCELLED` 表示**调用方主动取消**，与网络和上游无关。
+  把它并入 `CONNECT_FAILED` 是错误的归因——会让排查方向指向根本没问题的东西。请求/响应入口与流式入口
+  共用同一套归因（`GuardedExternalHttpClient.await`），因此不存在"同步可区分、流式不可区分"。
 
 ## 受控异步结果 Webhook（X10）如何使用本边界
 

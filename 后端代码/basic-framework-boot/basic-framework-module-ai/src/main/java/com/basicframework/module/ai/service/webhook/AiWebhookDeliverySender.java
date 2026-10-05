@@ -151,7 +151,9 @@ public class AiWebhookDeliverySender {
         return switch (exception.getReason()) {
             case TIMEOUT ->
                 AiWebhookDeliveryOutcome.retryable(AiWebhookFailureCodes.TIMEOUT, null, timestamp, durationMs);
-            case CONNECT_FAILED ->
+            // F12：取消此前以 CONNECT_FAILED 到达这里（F12 之前守卫把它收敛进兜底分支）。
+            // 可重试性保持不变——"被取消是否应重投"是 X10 的决策，不在本卡改归因。
+            case CANCELLED, CONNECT_FAILED ->
                 AiWebhookDeliveryOutcome.retryable(AiWebhookFailureCodes.CONNECT_FAILED, null, timestamp, durationMs);
             case TARGET_NOT_ALLOWED ->
                 AiWebhookDeliveryOutcome.permanent(

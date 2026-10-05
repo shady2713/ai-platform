@@ -16,7 +16,14 @@ public class ExternalHttpException extends RuntimeException {
         /** 超时（连接或读取）。 */
         TIMEOUT,
         /** 响应体超出上限。 */
-        RESPONSE_TOO_LARGE
+        RESPONSE_TOO_LARGE,
+        /**
+         * 调用方主动取消（F12）。
+         *
+         * <p>取消是调用方自己的决定，与网络和上游无关，因此**不能**并入 {@link #CONNECT_FAILED}：
+         * 那样会让排查方向指向根本没问题的东西。这个取值让"被取消"与"连不上"在日志、指标与重试决策上可区分。
+         */
+        CANCELLED
     }
 
     private final Reason reason;
