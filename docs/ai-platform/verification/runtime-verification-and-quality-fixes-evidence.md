@@ -407,20 +407,10 @@ accept/reject 分支全测到了，直接把这个文件从 92.22% 顶到 100%�
 
 ### 8.1 本轮未修但已定位的缺陷
 
-两轮独立审查还报出以下项，本轮**未改**，因为它们要么需要动错误码台账
-（`AiErrorCodeConstants.java` 798 行、零余量，改动会牵连 `check-exceptions` 契约），
-要么需要先复现才能确认：
+两轮独立审查共报出九项。其中八项已在本轮修完，逐项处置见 §8.2；
+剩下一项（`AiWebhookDeliveryIT` 间歇失败）机制未证实，见 §8.5。
 
-| 位置 | 问题 |
-|---|---|
-| `AiCrossSourceQueryExecutor:171` | 调用方中断被归因为"来源超时"且**可重试**（F12 同类） |
-| `AiModelFailureCodes:37` | 上游限流报成"平台配额超限"，且与本类 javadoc 矛盾 |
-| `CrossSourceBudgetAccountant:74` | 并发准入拒绝报成"行数预算超限"，且因预置固定线程池该分支**永不可达**；注释说"不排队"但 `newFixedThreadPool` 是无界队列会排队 |
-| `AiRealtimeSessionServiceImpl:541` | `stableFailureCode` 回退到异常类名并落库 |
-| `AiRunExecutionServiceImpl:101` | 执行前预算超限**不落运行终态**，同文件另三处都落 |
-| `views/ai/evaluation` 3 处 | 列表加载无请求竞态防护（全域 `AbortController` 命中数为 0） |
-| `AiTicketAttemptThrottle:76` | `MAX_TRACKED_KEYS` 注释与实现不符，只淘汰已过期键时上界未强制 |
-| `AiQueryPlanValidator:75` | `CODE_PATTERN` 死代码；逻辑别名未经该 pattern 校验即拼进 SQL |
+审���还提到但**不在本轮九项内**、同样只报告未改的：
 
 ### 8.2 环境性未验证
 
@@ -431,7 +421,47 @@ accept/reject 分支全测到了，直接把这个文件从 92.22% 顶到 100%�
 - **Qdrant 取消路径的端到端验证**：新增的 `CANCELLED` 分支需要真实中断才能触发，
   单元测试未覆盖（该文件覆盖率基线 88.41%，非 100%，不受影响）。
 
-### 8.3 已处理：三个菜单入口指向不存在的页面
+### 8.3 独立审查报出的九项：本轮处置
+
+两轮独立审查（后端 `module-ai`、前端 `views/ai` + 共享包）报出九项缺陷。逐项确认后处置如下。
+
+| # | 位置 | 缺陷 | 处置 |
+|---|---|---|---|
+| 1 | `AiCrossSourceQueryExecutor:171` | 调用线程被中断时抛 `sourceTimeout()`，而 `retryable()` 对该码返回 **true** —— 调度器会去重试一个**调用方已放弃**的请求，且运维会去查根本没问题的来源耗时 | 新增 `AI_CROSS_SOURCE_CANCELLED_CONFLICT(1_003_017_013)`，`retryable()` 明确排除；消息"跨源取数已被调用方取消" |
+| 2 | `AiModelFailureCodes:37` | `RATE_LIMITED → AI_QUOTA_EXCEEDED`(429)。该码文案是"已超出当前配额或触发限流"，限流方是**调用方**；而上游限流的限流方是**上游模型**。且本类 javadoc 早已把"限流"列进统一归为 502 的名单，实现与文档不一致 | 改归 `AI_MODEL_CALL_FAILED`(502)；同步更新 `AiModelFailureCodesTest` 与 `AiServiceDebugServiceImplTest` 两处断言 |
+| 3 | `CrossSourceBudgetAccountant:74` | 并发准入被拒时报成"超过行数/内存预算"，把排查引向完全正常的行数证据；且注释称"超过并发上限即拒绝，不排队"，但执行器把线程池定成 `min(预算, 来源数)` 且 `newFixedThreadPool` 用**无界队列**——超出部分是被**排队**的，该拒绝在生产路径上不可达 | 新增 `AI_CROSS_SOURCE_CONCURRENCY_EXCEEDED_CONFLICT(1_003_017_014)`；把 `enter()` 注释改成事实（当前是**不变量守卫**，有单测直接覆盖，若执行器策略改为"先起满再按预算准入"，它就是真正的闸门） |
+| 4 | `AiRealtimeSessionServiceImpl:541` | `stableFailureCode` 兜底返回**异常类名**并落库。类名不是协议——一次重构就改名，历史行立刻变成查不出来的孤儿 | 改固定 token `unattributed`；异常类型只进日志，且**只记类型名不传异常对象**（`check-safe-exception-handling` 禁止把捕获变量直接喂给日志：其 message 可能带上游正文）。既有测试原本恰好把 `"IllegalStateException"` 钉住了——测试能锁住行为不代表行为是对的，已改为断言稳定 token |
+| 5 | `AiRunExecutionServiceImpl:101` | 执行**前**的步数/耗时预算预检直接抛、不落终态；而执行**后**的同名检查（144/148 行）都写了 `finishRun`。后果是运行留在非终态 → 恢复作业重新租约 → 再次撞同一预检 → 白烧一次 attempt → 最后以"重试预算耗尽"收场 | 两处补 `finishRun(..., "STEP_BUDGET_EXCEEDED"/"DURATION_BUDGET_EXCEEDED", 1, null)` |
+| 6 | `views/ai/evaluation` 3 处列表加载 | 无请求竞态防护：快速切运行时，先发的响应后到会覆盖当前运行的内容 | 两条可达路径加请求序号守卫。**`index.vue` 那条已删除**——`loadApplications` 只有 `onMounted` 一个调用点且被 await，不存在并发，加守卫只是不可达的死代码（与第 8 项同类） |
+| 7 | `AiTicketAttemptThrottle:76` | 注释承诺"键上限…超出时惰性淘汰最旧条目，避免内存无界"，实现只删**已过期**的：窗口全新鲜时一条不删，上界形同虚设；而客户端键是外部输入，持续用新键换票就能把 map 推着长 | 先删过期，仍超上界则按 `firstFailure()` 淘汰最旧直到低于上界；`remove` 返回 null 时直接退出避免空转 |
+| 8 | `AiQueryPlanValidator:75` | `CODE_PATTERN` 声明后从未被调用——看起来"有形状校验"，实际没有 | 删除并写清真正的门是**精确查表** `catalog.get(code)`：码必须逐字命中已登记的逻辑码，大小写变体与任意形状的串都进不来，比正则更严（正则挡不住目录里的坏码） |
+| 9 | `AiWebhookDeliveryIT.boundedEnqueue…` | 间歇失败：`enqueueTerminalRuns(1)` 返回 0 而非 1 | **未修**，见 §8.4 |
+
+### 8.4 建页面过程中额外挖出的一处真实 NPE
+
+`ValidatedQueryPlan.planHash()` 用 `List.of(...)` 拼时间窗口的规范化字段，而 **`List.of` 遇 null 直接抛 NPE**。粒度在数据集未声明时间语义时就是 null（`AiQueryPlanValidator:402` 按声明取值），于是一条完全合法的时间窗口会**仅仅因为算哈希**而崩成 `NullPointerException`，调用方拿不到稳定错误码。同一文件下方处理 `values` 时早已因同样原因改用 `Arrays.asList`。
+
+已改为 `java.util.Arrays.asList` 并补 3 例测试（含"有粒度与无粒度必须算出不同哈希"——允许 null 不等于允许丢失区分度，幂等键要靠它区分）。
+**验证：还原成 `List.of` 即 `Failures: 1, Errors: 1` 带 NPE，恢复后 3 例全绿。**
+
+### 8.5 第 9 项：观察到但机制未证实，不写"看起来绿"的补丁
+
+| 事实 | 依据 |
+|---|---|
+| 与本轮改动无关 | webhook 侧唯一改动在 `7b4fa3a`（只加 case 标签，行为不变），该提交通过过两次全量 integration（413 测试零失败）、backend 门禁与棘轮 |
+| 类单跑稳定 | `verify -Dit.test=AiWebhookDeliveryIT` 连跑 3 次，11 例全绿 |
+| 仅在全量里出现 | 全量 92 类跑 4 次，失败 1 次 |
+| 已排除：跨类删除 | 其它 IT 删 `ai_run` 均按 `application_id = ?` 限定，碰不到本类数据；`PersistenceLifecycleIT` 只对表名做只读断言（`containsExactly`），不改行 |
+| 已排除：并行执行 | failsafe/surefire 无 `parallel`/`threadCount`/`reuseForks` 配置，IT 顺序执行 |
+| 唯一可疑点 | `selectEnabled()` 返回**全局**所有启用 target（不按应用过滤、按 id 升序），而 `enqueueTerminalRuns(budget)` 对它们**共享一个预算**。全量套件里别的类留下的启用 target 会参与同一次扫描 |
+
+**没有推导出必然返回 0 的路径，因此不把这条当已证实的结论，也不提交那种"把断言改松所以变绿"的补丁。**
+建议单独立卡，从"全局 target + 共享预算"这一点继续查：下一步应是让 `enqueueTerminalRuns` 按应用过滤，
+或给评测/投递之外的单应用 worker 一条不与他人共享预算的领取路径。
+
+
+
+### 8.6 已处理：三个菜单入口指向不存在的页面
 
 `query` / `workflow` / `cross-source` 三个管理端页面曾在菜单里注册、组件从未创建
 （详见 §4.2），后端 API 齐备，而**没有任何卡授权创建它们**。
