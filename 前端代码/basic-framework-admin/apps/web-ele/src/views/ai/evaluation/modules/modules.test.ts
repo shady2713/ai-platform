@@ -1,3 +1,5 @@
+import type { VueWrapper } from '@vue/test-utils';
+
 import { flushPromises, mount } from '@vue/test-utils';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -146,10 +148,18 @@ function lastFeedback(wrapper: ReturnType<typeof mount>) {
 }
 
 /** 面板直接挂载：对话框在测试里内联渲染（生产仍走 teleport + 遮罩） */
+/**
+ * 挂载面板。
+ *
+ * <p>返回类型放宽成 {@link VueWrapper}<{@link Record}<string, unknown>>：本 helper 接受
+ * 任意面板与任意 props，wrapper 的 props 本来就是开放的。写死 `mount` 推断出的
+ * 根 vnode props 后，`setProps` 会拒绝组件自己的 props（TS2353），
+ * 于是"切走运行"这类真实交互在类型层面没法表达。
+ */
 function mountPanel(
   component: Parameters<typeof mount>[0],
   props: Record<string, unknown>,
-) {
+): VueWrapper<Record<string, unknown>> {
   return mount(component, {
     props,
     global: {
@@ -158,7 +168,7 @@ function mountPanel(
         teleport: true,
       },
     },
-  });
+  }) as VueWrapper<Record<string, unknown>>;
 }
 
 describe('评测控制面面板（Q05）', () => {
@@ -652,5 +662,122 @@ describe('评测控制面面板（Q05）', () => {
     await flushPromises();
 
     expect(lastFeedback(wrapper)?.message).toContain('ai:eval:query');
+  });
+
+  /**
+   * 快速切运行时，先发的响应可能后到。
+   *
+   * <p>没有请求序号守卫时：切到 run 2 之后 run 1 的响应才回来，会把 run 1 的结果
+   * **覆盖**到当前运行的界面上——界面上是加载成功，内容却是另一个运行的。
+   * 报告面板更糟：watch 先清空了 report.value，旧报告会凭空出现。
+   *
+   * <p>断言锚在真实渲染点上：失败分类看按级别聚合表，报告看 <pre> 原文。
+   */
+  it('失败分类：过期响应不得覆盖当前运行的结果', async () => {
+    // 第一次请求挂住不返回，第二次立刻返回
+    let releaseFirst: (value: unknown) => void = () => {};
+    api.listResults.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          releaseFirst = resolve;
+        }),
+    );
+    api.listResults.mockResolvedValueOnce([
+      resultRow({ id: 2, runId: 2, severity: 'MINOR' }),
+    ]);
+
+    const wrapper = mountPanel(FailurePanel, {
+      refreshKey: 0,
+      run: runRow({ id: 1 }),
+    });
+    await wrapper.setProps({ run: runRow({ id: 2 }) });
+    releaseFirst([resultRow({ id: 1, runId: 1, severity: 'BLOCKER' })]);
+    await flushPromises();
+
+    const table = wrapper
+      .get('[data-testid="ai-eval-failure-severity"]')
+      .text();
+    // 当前运行的聚合表里只应有 MINOR 那条，run 1 的 BLOCKER 不该出现
+    expect(table).toContain('MINOR');
+    expect(table).not.toContain('BLOCKER');
+  });
+
+  it('报告：切走运行后，先前那次读取的响应不得挂到新运行上', async () => {
+    // 真实竞态不需要"第二次点击"：读取期间切走运行即可。
+    // watch 会先把 report 清空，随后 run 1 的响应才回来——没有守卫时，
+    // 界面上标题已经是"运行 2"，内容却是 run 1 的报告。
+    let releaseFirst: (value: unknown) => void = () => {};
+    api.getReport.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          releaseFirst = resolve;
+        }),
+    );
+
+    const wrapper = mountPanel(ReportPanel, { run: runRow({ id: 1 }) });
+    await wrapper.get('[data-testid="ai-eval-report-load"]').trigger('click');
+    await wrapper.setProps({ run: runRow({ id: 2 }) });
+    releaseFirst(
+      '{"run":{"passedCount":0,"runId":1},"cases":[{"caseKey":"run1-case"}]}',
+    );
+    await flushPromises();
+
+    // 只有 run 1 这一次请求发出（按钮在 loading 态不会再触发第二次），
+    // 过期响应被丢弃 → 报告区保持为空，而不是显示另一个运行的内容
+    expect(api.getReport.mock.calls).toHaveLength(1);
+    expect(wrapper.find('[data-testid="ai-eval-report"]').exists()).toBe(false);
+  });
+
+  /**
+   * 过期请求**失败**时也不能报给用户。
+   *
+   * <p>守卫只挡成功响应是不够的：切走运行后，先前那次请求若随后失败，
+   * 不守卫的话用户会看到"读取失败"——而他看到的是新运行，压根没发过这次请求。
+   * 报错还带着上一次运行的权限口径，等于凭空造出一条误导信息。
+   */
+  it('失败分类：过期请求的失败不得报给用户', async () => {
+    let rejectFirst: (reason: unknown) => void = () => {};
+    api.listResults.mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectFirst = reject;
+        }),
+    );
+    api.listResults.mockResolvedValueOnce([
+      resultRow({ id: 2, runId: 2, severity: 'MINOR' }),
+    ]);
+
+    const wrapper = mountPanel(FailurePanel, {
+      refreshKey: 0,
+      run: runRow({ id: 1 }),
+    });
+    await wrapper.setProps({ run: runRow({ id: 2 }) });
+    rejectFirst(new Error('boom'));
+    await flushPromises();
+
+    expect(lastFeedback(wrapper)).toBeUndefined();
+  });
+
+  it('报告：切走运行后那次读取的失败不得报给用户', async () => {
+    // 报告点一次才发一次请求，且按钮在 loading 态不会发第二次——
+    // 所以"切走运行"时在途的只有那一次，它失败时必须被守卫吞掉：
+    // 用户看到的是新运行，压根没发过这次请求，报错等于凭空造一条误导信息
+    let rejectFirst: (reason: unknown) => void = () => {};
+    api.getReport.mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectFirst = reject;
+        }),
+    );
+
+    const wrapper = mountPanel(ReportPanel, { run: runRow({ id: 1 }) });
+    await wrapper.get('[data-testid="ai-eval-report-load"]').trigger('click');
+    await wrapper.setProps({ run: runRow({ id: 2 }) });
+    rejectFirst(new Error('boom'));
+    await flushPromises();
+
+    // 没有报出任何失败：用户看到的是新运行，压根没发过这次请求
+    expect(lastFeedback(wrapper)).toBeUndefined();
+    expect(wrapper.find('[data-testid="ai-eval-report"]').exists()).toBe(false);
   });
 });

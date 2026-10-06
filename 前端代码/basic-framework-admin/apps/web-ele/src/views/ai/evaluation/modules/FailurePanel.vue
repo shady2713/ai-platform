@@ -53,16 +53,29 @@ const panelTitle = computed(() => {
     : '失败分类：请先选择运行';
 });
 
+// 请求序号：连续切运行时，先发的响应可能后到。
+// 只有一个序号是"当前这次"才允许写状态，否则快速切换会把上一个运行的结果
+// 覆盖到当前运行上——界面上看着是加载成功，内容却是另一个运行的。
+let requestSeq = 0;
+
 async function loadResults(): Promise<void> {
   const runId = props.run?.id;
+  const seq = ++requestSeq;
   if (runId === undefined) {
     allResults.value = [];
     return;
   }
   try {
     // 分类必须覆盖整个运行：用 list（按冻结顺序返回全部结果），不用分页
-    allResults.value = await listResults(runId);
+    const results = await listResults(runId);
+    if (seq !== requestSeq) {
+      return; // 已有更新的请求发出，丢弃这次过期响应
+    }
+    allResults.value = results;
   } catch {
+    if (seq !== requestSeq) {
+      return; // 过期请求的失败也不该报给用户
+    }
     emit('feedback', {
       kind: 'error',
       message: `读取评测结果失败：请确认当前账号有 ${AI_EVAL_PERMISSIONS.query} 权限`,

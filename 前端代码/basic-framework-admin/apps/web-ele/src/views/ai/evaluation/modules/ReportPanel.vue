@@ -36,16 +36,27 @@ const panelTitle = computed(() => {
   return run ? `可复现报告：运行 ${run.id}` : '可复现报告：请先选择运行';
 });
 
-// 换运行就清掉上一个运行的报告，避免把旧报告当新运行的结果读
+// 换运行就清掉上一个运行的报告，避免把旧报告当新运行的结果读。
+// **同时必须作废在途请求**：这里不经过 loadReport，不会推进 requestSeq，
+// 于是"切走运行"这件事本身不会让先前那次读取的响应过期——它照样会落回来，
+// 把 run 1 的报告挂到"运行 2"的标题下。清空只是清掉**已经写好的**，
+// 挡不住**还没回来的**。
 watch(
   () => props.run?.id,
   () => {
+    requestSeq++;
     report.value = undefined;
   },
 );
 
+// 请求序号：连续点不同运行时，先发出的响应可能后到。
+// 只有"当前这次"才允许写报告，否则会把上一个运行的报告挂到当前运行上——
+// 而且 watch 已经先清空了 report.value，于是旧报告会**凭空出现**。
+let requestSeq = 0;
+
 async function loadReport(): Promise<void> {
   const run = props.run;
+  const seq = ++requestSeq;
   if (run === undefined) {
     emit('feedback', {
       kind: 'error',
@@ -56,14 +67,25 @@ async function loadReport(): Promise<void> {
   reportLoading.value = true;
   emit('clearFeedback');
   try {
-    report.value = reportDisplay(await getReport(run.id));
+    const display = reportDisplay(await getReport(run.id));
+    if (seq !== requestSeq) {
+      return; // 已有更新的请求发出，丢弃这次过期响应
+    }
+    report.value = display;
   } catch {
+    if (seq !== requestSeq) {
+      return; // 过期请求的失败也不该报给用户
+    }
     emit('feedback', {
       kind: 'error',
       message: `读取评测报告失败：请确认当前账号有 ${AI_EVAL_PERMISSIONS.query} 权限`,
     });
   } finally {
-    reportLoading.value = false;
+    // 只有当前这次才允许收 loading：过期请求提前置 false 会让新请求还在飞时
+    // 界面就显示"加载完成"
+    if (seq === requestSeq) {
+      reportLoading.value = false;
+    }
   }
 }
 </script>
