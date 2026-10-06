@@ -2,8 +2,10 @@ package com.basicframework.module.ai.service.query.crosssource;
 
 import static com.basicframework.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static com.basicframework.module.ai.enums.AiErrorCodeConstants.AI_CROSS_SOURCE_ALREADY_COUNTED_CONFLICT;
+import static com.basicframework.module.ai.enums.AiErrorCodeConstants.AI_CROSS_SOURCE_CANCELLED_CONFLICT;
 import static com.basicframework.module.ai.enums.AiErrorCodeConstants.AI_CROSS_SOURCE_CAPACITY_EXCEEDED;
 import static com.basicframework.module.ai.enums.AiErrorCodeConstants.AI_CROSS_SOURCE_CAPACITY_REGISTRATION_CONFLICT;
+import static com.basicframework.module.ai.enums.AiErrorCodeConstants.AI_CROSS_SOURCE_CONCURRENCY_EXCEEDED_CONFLICT;
 import static com.basicframework.module.ai.enums.AiErrorCodeConstants.AI_CROSS_SOURCE_CONSISTENCY_SKEW_CONFLICT;
 import static com.basicframework.module.ai.enums.AiErrorCodeConstants.AI_CROSS_SOURCE_ENTITY_KEY_MISSING_CONFLICT;
 import static com.basicframework.module.ai.enums.AiErrorCodeConstants.AI_CROSS_SOURCE_ENTITY_KEY_REVISION_CONFLICT;
@@ -58,6 +60,26 @@ public final class AiCrossSourceExecutionErrors {
         return exception(AI_CROSS_SOURCE_SOURCE_FAILED_CONFLICT);
     }
 
+    /**
+     * 调用方取消（409，**不可重试**）。
+     *
+     * <p>与 {@link #sourceTimeout()} 分开：超时是"来源没在预算内完成"，值得重试；
+     * 取消是"调用方自己不要了"，重试等于替它白干一遍。
+     */
+    public static RuntimeException sourceCancelled() {
+        return exception(AI_CROSS_SOURCE_CANCELLED_CONFLICT);
+    }
+
+    /**
+     * 并发来源数超限（409）。
+     *
+     * <p>刻意不报成"行数或内存预算超限"：并发超限要查来源扇出与调度，
+     * 规模超限要查单次取数形状，证据指向完全不同的东西。
+     */
+    public static RuntimeException concurrencyExceeded() {
+        return exception(AI_CROSS_SOURCE_CONCURRENCY_EXCEEDED_CONFLICT);
+    }
+
     /** 行数或内存预算超限（422）：受控结束，不截断。 */
     public static RuntimeException resultTooLarge() {
         return exception(AI_CROSS_SOURCE_RESULT_TOO_LARGE);
@@ -98,7 +120,12 @@ public final class AiCrossSourceExecutionErrors {
         return exception(AI_CROSS_SOURCE_ENTITY_KEY_REVISION_CONFLICT);
     }
 
-    /** 按错误码取可重试结论：仅来源超时与来源失败可重试，其余一律不可重试。 */
+    /**
+     * 按错误码取可重试结论：仅来源超时与来源失败可重试，其余一律不可重试。
+     *
+     * <p>取消（{@code AI_CROSS_SOURCE_CANCELLED_CONFLICT}）刻意不在其中：调用方已经不要了，
+     * 重试是替它白干。
+     */
     public static boolean retryable(ErrorCode code) {
         return AI_CROSS_SOURCE_SOURCE_TIMEOUT_CONFLICT.equals(code)
                 || AI_CROSS_SOURCE_SOURCE_FAILED_CONFLICT.equals(code);

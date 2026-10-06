@@ -162,7 +162,12 @@ public final class ValidatedQueryPlan {
                                         "endExclusive",
                                         "timezone",
                                         "granularity"),
-                                List.of(
+                                // 必须用 Arrays.asList 而不是 List.of：粒度在数据集未声明
+                                // 时间语义时就是 null（AiQueryPlanValidator 按声明取值），
+                                // 而 List.of 遇 null 直接抛 NPE——一条完全合法的时间窗口
+                                // 会因为算哈希而崩成 NullPointerException，拿不到稳定错误码。
+                                // 同一文件下方的 values 也因此用 Arrays.asList。
+                                java.util.Arrays.asList(
                                         timeWindow.code(),
                                         timeWindow.sourceColumn(),
                                         timeWindow.startInclusive(),

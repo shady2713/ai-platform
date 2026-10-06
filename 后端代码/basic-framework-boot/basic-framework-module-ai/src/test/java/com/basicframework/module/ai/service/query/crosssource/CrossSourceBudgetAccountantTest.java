@@ -83,8 +83,9 @@ class CrossSourceBudgetAccountantTest {
         accountant.enter();
         assertThat(accountant.concurrentPeak()).isEqualTo(2);
 
-        // 第三个并发来源越界：拒绝而不是排队（排队会让上游以为自己在跑）
-        assertTooLarge(accountant::enter);
+        // 第三个并发来源越界：报**并发超限**，不是"行数/内存预算超限"——
+        // 并发要去查来源扇出与调度，规模要去查单次取数形状，证据指向完全不同的东西
+        assertConcurrencyExceeded(accountant::enter);
         assertThat(accountant.concurrentPeak()).isEqualTo(2);
 
         accountant.exit();
@@ -141,6 +142,12 @@ class CrossSourceBudgetAccountantTest {
 
     private static CrossSourceBudget budget(int rows, long sourceBytes, long totalBytes, int concurrency) {
         return new CrossSourceBudget(rows, sourceBytes, concurrency, 1_000, totalBytes, 60);
+    }
+
+    private static void assertConcurrencyExceeded(Runnable operation) {
+        assertThatThrownBy(operation::run)
+                .isInstanceOfSatisfying(ServiceException.class, failure -> assertThat(failure.getCode())
+                        .isEqualTo(AiErrorCodeConstants.AI_CROSS_SOURCE_CONCURRENCY_EXCEEDED_CONFLICT.getCode()));
     }
 
     private static void assertTooLarge(Runnable operation) {

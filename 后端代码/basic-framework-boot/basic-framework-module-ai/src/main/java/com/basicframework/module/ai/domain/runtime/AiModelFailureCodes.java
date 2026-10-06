@@ -34,7 +34,12 @@ public final class AiModelFailureCodes {
             case ENDPOINT_DISABLED -> AiErrorCodeConstants.AI_MODEL_ENDPOINT_DISABLED;
             case CAPABILITY_UNSUPPORTED -> AiErrorCodeConstants.AI_MODEL_CAPABILITY_UNSUPPORTED;
             case TARGET_NOT_ALLOWED -> AiErrorCodeConstants.AI_MODEL_OUTBOUND_BLOCKED;
-            case RATE_LIMITED -> AiErrorCodeConstants.AI_QUOTA_EXCEEDED;
+            // 限流**不**映射成 AI_QUOTA_EXCEEDED（429「已超出当前配额或触发限流」）：
+            // 那是"调用方把本平台的配额用超了"，限流方是调用方；这里的限流方是**上游模型**。
+            // 报 429 会让调用方以为是自己被限流而退避，也让运维去调平台配额——而真正该看的
+            // 是上游账号的额度与退避策略。本类 javadoc 早已把"限流"列进统一归为
+            // AI_MODEL_CALL_FAILED（502，调用方据 5xx 判可重试）的名单，这里此前与文档不一致。
+            case RATE_LIMITED -> AiErrorCodeConstants.AI_MODEL_CALL_FAILED;
             default -> AiErrorCodeConstants.AI_MODEL_CALL_FAILED;
         };
     }

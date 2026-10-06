@@ -362,7 +362,13 @@ class AiRealtimeSessionServiceImplTest {
         doThrow(new IllegalStateException("transport reset")).when(channel).pushAudio(any());
 
         assertCode(() -> service.pushAudio(SESSION_ID, frame(0L, 0L)), AI_MODEL_CALL_FAILED);
-        verify(lifecycle).close(eq(session), eq(RealtimeCloseReason.ADAPTER_FAILED), eq("IllegalStateException"));
+        // 落库的必须是**稳定 token**，不是异常类名：类名会随重构变化，
+        // 一旦写进会话行，历史行就变成查不出来的孤儿。
+        verify(lifecycle)
+                .close(
+                        eq(session),
+                        eq(RealtimeCloseReason.ADAPTER_FAILED),
+                        eq(AiRealtimeSessionServiceImpl.UNATTRIBUTED_FAILURE_CODE));
 
         AiRealtimeSessionDO ended = prepareOwnedOpenSession();
         when(channels.find(SESSION_ID)).thenReturn(Optional.of(channel));

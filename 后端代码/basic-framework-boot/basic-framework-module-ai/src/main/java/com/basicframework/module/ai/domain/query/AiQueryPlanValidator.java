@@ -72,8 +72,16 @@ public final class AiQueryPlanValidator {
     /** 窗口起点允许的最大过去偏移（天）。 */
     public static final int MAX_PAST_DAYS = 3_650;
 
-    private static final Pattern CODE_PATTERN = Pattern.compile("^[a-z][a-z0-9_]{0,63}$");
-
+    /**
+     * 指标/维度码的形状由**精确成员校验**保证，不靠正则。
+     *
+     * <p>原先这里声明过一个 {@code CODE_PATTERN = "^[a-z][a-z0-9_]{0,63}$"} 却从未被调用——
+     * 一看像是"有形状校验"，实际没有，容易让人以为存在一道并不存在的防线。
+     *
+     * <p>真正的门是 {@code catalog.get(code)}：码必须**逐字**命中数据集已登记的逻辑码，
+     * 否则按"命中别名则追问、否则非法字段"拒绝。因此大小写变体与任意形状的串都进不来，
+     * 码的可信度等同于目录自身的可信度——这比正则更严（正则挡不住目录里的坏码）也更简单。
+     */
     private static final Pattern DATASET_ID_PATTERN = Pattern.compile("^dset_[A-Za-z0-9_-]{3,35}$");
 
     private static final Pattern TIMEZONE_PATTERN = Pattern.compile("^[A-Za-z_]+(?:/[A-Za-z0-9_+.-]+)*$");

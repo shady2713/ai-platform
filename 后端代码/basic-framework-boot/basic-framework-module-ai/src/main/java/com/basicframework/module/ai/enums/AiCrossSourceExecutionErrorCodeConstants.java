@@ -51,6 +51,27 @@ public interface AiCrossSourceExecutionErrorCodeConstants {
     ErrorCode AI_CROSS_SOURCE_SOURCE_FAILED_CONFLICT = new ErrorCode(1_003_017_004, "跨源必需来源执行失败");
 
     /**
+     * 调用方取消（409）：等待来源结果期间<b>调用线程</b>被中断。
+     *
+     * <p>与 {@link #AI_CROSS_SOURCE_SOURCE_TIMEOUT_CONFLICT} 是两件事：超时是"来源没在预算内完成"，
+     * 可以重试；取消是"调用方自己不要了"，重试等于替它白干一遍。
+     * 归因错位会让调度器重试一个已被放弃的请求，并把排查引向根本没问题的来源。
+     *
+     * <p>与 F12 的 {@code ExternalHttpException.Reason.CANCELLED} 同源：
+     * 中断发生在调用方线程，语义是"被取消/容器关闭"，与对端无关。
+     */
+    ErrorCode AI_CROSS_SOURCE_CANCELLED_CONFLICT = new ErrorCode(1_003_017_013, "跨源取数已被调用方取消");
+
+    /**
+     * 并发来源数超过预算（409）：进入的来源数超出口径声明的并发上限。
+     *
+     * <p>与 {@link #AI_CROSS_SOURCE_RESULT_TOO_LARGE} 分开：后者是行数/内存预算超限。
+     * 两者都是"这次为什么没跑完"，但证据指向完全不同的东西——并发超限要去查来源扇出与
+     * 调度，规模超限要去查单次取数形状。报错成后者会让运维对着完全正常的行数证据找原因。
+     */
+    ErrorCode AI_CROSS_SOURCE_CONCURRENCY_EXCEEDED_CONFLICT = new ErrorCode(1_003_017_014, "跨源并发来源数超过口径声明的并发上限");
+
+    /**
      * 超过行数/内存预算（422）：**受控结束**，不静默截断也不允许把内存吃光。
      *
      * <p>跨源聚合的中间结果按来源预聚合后拉取，行数与字节数都是可以在拉取过程中计量的；

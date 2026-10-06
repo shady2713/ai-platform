@@ -41,6 +41,7 @@ import com.basicframework.module.ai.service.realtime.dto.AiRealtimeSessionViewDT
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
@@ -61,7 +62,15 @@ import org.springframework.stereotype.Service;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AiRealtimeSessionServiceImpl implements AiRealtimeSessionService {
+
+    /**
+     * 落库的"无法归因"固定码。
+     *
+     * <p>是稳定协议值，不随实现变化——原先落库的是异常类名，一次重构就改名。
+     */
+    static final String UNATTRIBUTED_FAILURE_CODE = "unattributed";
 
     private final AiConversationSubjectResolver subjectResolver;
 
@@ -538,10 +547,26 @@ public class AiRealtimeSessionServiceImpl implements AiRealtimeSessionService {
         return left.isBefore(right) ? left : right;
     }
 
+    /**
+     * 落库的失败码：只允许**稳定协议值**。
+     *
+     * <p>原先兜底返回 {@code failure.getClass().getSimpleName()}，那有两个问题：
+     * 类名不是协议——一次重构就改名，历史行立刻变成查不出来的孤儿；
+     * 而且它把实现细节（甚至异常类型）写进了会话行。
+     *
+     * <p>非模型原因一律记为 {@link #UNATTRIBUTED_FAILURE_CODE}：具体异常进日志，
+     * 落库的码保持稳定。关闭原因（ADAPTER_FAILED / OPEN_FAILED）已经说明了"发生了什么"，
+     * 这个码只负责回答"能不能归因到某个模型原因"。
+     */
     private static String stableFailureCode(RuntimeException failure) {
         if (failure instanceof ModelException modelFailure) {
             return modelFailure.getReason().name();
         }
-        return failure.getClass().getSimpleName();
+        // 只记类型名，不记异常本身：异常 message 可能带上游正文，
+        // 与"运行链路对外只暴露平台错误码、不带上游报文"同一条纪律
+        // （scripts/check-safe-exception-handling.mjs 也禁止把捕获变量直接喂给日志）。
+        // 落库的码保持稳定，具体异常类型留在日志里供排查。
+        log.warn("实时会话失败无法归因到模型原因：exceptionType={}", failure.getClass().getName());
+        return UNATTRIBUTED_FAILURE_CODE;
     }
 }

@@ -6,10 +6,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.basicframework.framework.common.exception.ErrorCode;
 import com.basicframework.framework.common.exception.ServiceException;
+import com.basicframework.module.ai.domain.semantic.AiDatasetDefinition;
 import com.basicframework.module.ai.enums.AiErrorCodeConstants;
 import com.basicframework.module.ai.testfixture.AiQueryPlanFixture;
 import java.time.Clock;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -229,5 +231,137 @@ class AiQueryPlanValidatorTest {
         assertThat(base).isNotEqualTo(changed).isNotEqualTo(otherTime);
         assertThat(AiQueryPlanValidator.normalizeCode("  NET_AMOUNT ")).isEqualTo("net_amount");
         assertThat(AiQueryPlanValidator.normalizeCode(null)).isNull();
+    }
+
+    @Test
+    void rejectsEmptyInputAndMissingBaselineTime() {
+        for (String blank : List.of("", "   ")) {
+            assertThatThrownBy(() -> validate(blank))
+                    .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_QUERY_PLAN_INVALID));
+        }
+        assertThatThrownBy(() -> validator.validate(null, dataset(), CLOCK.instant()))
+                .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_QUERY_PLAN_INVALID));
+        assertThatThrownBy(() -> validator.validate(VALID_PLAN, null, CLOCK.instant()))
+                .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_QUERY_PLAN_INVALID));
+        // 没有基准时刻就没有确定的时间边界判定：必须拒绝，而不是读系统时钟换一个结论
+        assertThatThrownBy(() -> validator.validate(VALID_PLAN, dataset(), null))
+                .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_QUERY_PLAN_INVALID));
+    }
+
+    @Test
+    void rejectsUnknownTopLevelKeysAndDatasetIdsOutsideThePlanContract() {
+        // 顶层多出来的键说明模型在自造契约字段：契约外字段一律拒绝，不能"忽略掉再看下去"
+        assertThatThrownBy(
+                        () -> validate(VALID_PLAN.replace("\"limit\": 10", "\"limit\": 10, \"granularity\": \"DAY\"")))
+                .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_QUERY_PLAN_INVALID));
+
+        // 数据集标识不符合 dset_ 形状：这是配置问题而不是模型问题，同样按计划非法拒绝，
+        // 不能让一个进不了计划契约的标识去比授权。
+        ResolvedDatasetVersion malformedId = new ResolvedDatasetVersion(
+                AiQueryPlanFixture.DATASET_ID,
+                "it query/orders",
+                AiQueryPlanFixture.DATASET_VERSION_ID,
+                1,
+                "a".repeat(64),
+                "it_query.orders",
+                AiDatasetDefinition.parse(AiQueryPlanFixture.DEFINITION),
+                List.of());
+        assertThatThrownBy(() -> validator.validate(VALID_PLAN, malformedId, CLOCK.instant()))
+                .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_QUERY_PLAN_INVALID));
+    }
+
+    @Test
+    void acceptsPlanWithoutOptionalSections() {
+        ValidatedQueryPlan plan = validate(
+                """
+                {"schemaVersion": "1.0",
+                 "datasetId": "dset_it-query-orders",
+                 "datasetVersion": 1,
+                 "metrics": ["net_amount"],
+                 "dimensions": [],
+                 "limit": 10}
+                """);
+
+        // 缺省段不等于非法，但也不能凭空补出时间窗口：没有窗口就没有"最近一个月"的边界
+        assertThat(plan.timeWindow()).isNull();
+        assertThat(plan.filters()).isEmpty();
+        assertThat(plan.dimensions()).isEmpty();
+        assertThat(plan.orderBy()).isEmpty();
+        assertThat(plan.limit()).isEqualTo(10);
+    }
+
+    @Test
+    void checksSortDirectionAndOnlyAllowsSortingBySelectedFields() {
+        // 非法的排序方向
+        assertThatThrownBy(() -> validate(VALID_PLAN.replace("\"direction\": \"DESC\"", "\"direction\": \"UP\"")))
+                .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_QUERY_PLAN_INVALID));
+        // 排序字段命中别名 → 与指标/过滤一致按"措辞歧义"追问，而不是猜一个字段
+        assertThatThrownBy(() -> validate(VALID_PLAN.replace(
+                        "\"field\": \"net_amount\", \"direction\"", "\"field\": \"区域\", \"direction\"")))
+                .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_QUERY_CLARIFICATION_REQUIRED));
+        // 按维度排序：维度是本次结果里的字段，与指标一样允许
+        assertThat(validate(VALID_PLAN.replace(
+                                "\"field\": \"net_amount\", \"direction\"",
+                                "\"field\": \"customer_name\", \"direction\""))
+                        .orderBy())
+                .containsExactly(new ValidatedQueryPlan.Order("customer_name", "DIMENSION", "DESC"));
+    }
+
+    @Test
+    void rejectsDuplicateAndValuelessFilters() {
+        // 同一个字段的同一个算子出现两次：两条条件只能有一条被采纳，另一条会被静默忽略
+        assertThatThrownBy(() -> validate(VALID_PLAN.replace(
+                        "\"filters\": [{\"field\": \"region\", \"operator\": \"EQ\", \"value\": \"EAST\"}]",
+                        "\"filters\": [{\"field\": \"region\", \"operator\": \"EQ\", \"value\": \"EAST\"},"
+                                + "{\"field\": \"region\", \"operator\": \"EQ\", \"value\": \"WEST\"}]")))
+                .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_QUERY_PLAN_INVALID));
+        // 比较算子缺 value 或 value 为 null：值缺失不能被当成"匹配全部"
+        for (String invalid : List.of(
+                "{\"field\": \"region\", \"operator\": \"EQ\"}",
+                "{\"field\": \"region\", \"operator\": \"EQ\", \"value\": null}")) {
+            assertThatThrownBy(() -> validate(VALID_PLAN.replace(
+                            "{\"field\": \"region\", \"operator\": \"EQ\", \"value\": \"EAST\"}", invalid)))
+                    .as("比较算子必须有值：%s", invalid)
+                    .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_QUERY_PLAN_INVALID));
+        }
+    }
+
+    @Test
+    void dimensionWhoseFieldIsOutOfScopeIsNotAvailable() {
+        // 维度 customer_name 已声明，但它引用的字段 customer 不在本次授权范围内 → 维度不可用
+        ResolvedDatasetVersion restricted =
+                dataset(List.of("net_amount", "amount", "created_at", "customer_name", "region"));
+
+        assertThatThrownBy(() -> validator.validate(VALID_PLAN, restricted, CLOCK.instant()))
+                .satisfies(throwable -> assertCode(throwable, AiErrorCodeConstants.AI_QUERY_DATASET_NOT_ALLOWED));
+    }
+
+    @Test
+    void timeGranularityComesFromTheDatasetAndIsAbsentWhenTheDatasetDeclaresNoTimeSemantics() {
+        ValidatedQueryPlan declared = validate(VALID_PLAN);
+        ValidatedQueryPlan undeclared = validator.validate(VALID_PLAN, datasetWithoutTimeSemantics(), CLOCK.instant());
+
+        assertThat(declared.timeWindow().granularity()).isEqualTo("DAY");
+        // 数据集没声明时间口径就没有可比对的粒度：留空，而不是从计划里取一个
+        assertThat(undeclared.timeWindow().code()).isEqualTo("created_at");
+        assertThat(undeclared.timeWindow().timezone()).isEqualTo("Asia/Shanghai");
+        assertThat(undeclared.timeWindow().granularity()).isNull();
+    }
+
+    /** 没有声明时间口径的数据集版本：时间窗口仍然可校验，但没有粒度可继承。 */
+    private static ResolvedDatasetVersion datasetWithoutTimeSemantics() {
+        String definition = AiQueryPlanFixture.DEFINITION
+                .lines()
+                .filter(line -> !line.contains("\"time\""))
+                .collect(Collectors.joining("\n"));
+        return new ResolvedDatasetVersion(
+                AiQueryPlanFixture.DATASET_ID,
+                "it-query-orders",
+                AiQueryPlanFixture.DATASET_VERSION_ID,
+                1,
+                "a".repeat(64),
+                "it_query.orders",
+                AiDatasetDefinition.parse(definition),
+                List.of());
     }
 }

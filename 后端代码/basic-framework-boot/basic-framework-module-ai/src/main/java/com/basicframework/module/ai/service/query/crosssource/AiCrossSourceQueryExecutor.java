@@ -169,8 +169,11 @@ public class AiCrossSourceQueryExecutor {
                 }
                 throw AiCrossSourceExecutionErrors.sourceFailed();
             } catch (InterruptedException interrupted) {
+                // 中断发生在**调用线程**，语义是"调用方已放弃/容器关闭"，与来源无关。
+                // 报 sourceTimeout() 有两个后果：retryable() 对它返回 true，调度器会去重试
+                // 一个已被放弃的请求；且运维会去查来源耗时，而真正的原因是调用方走了。
                 Thread.currentThread().interrupt();
-                throw AiCrossSourceExecutionErrors.sourceTimeout();
+                throw AiCrossSourceExecutionErrors.sourceCancelled();
             }
         }
     }

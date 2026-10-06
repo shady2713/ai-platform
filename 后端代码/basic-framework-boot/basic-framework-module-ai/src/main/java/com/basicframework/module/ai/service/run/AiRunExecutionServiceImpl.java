@@ -98,10 +98,16 @@ public class AiRunExecutionServiceImpl implements AiRunExecutionService {
                 .setSystemPrompt(release.getPromptTemplate())
                 .setHistory(history(run))
                 .setUserMessage(userMessage));
+        // 执行**前**的预算预检同样要落终态：预检失败与执行后超预算是同一个原因，
+        // 只后者写了 FAILED。原先这里直接抛，运行就留在非终态——
+        // 恢复作业会重新租约、再次撞上同一条预检、白烧一次 attempt，
+        // 最后以"重试预算耗尽"收场，把排查引向根本不是原因的执行器。
         if (!effective.hasStepLeft(0)) {
+            finishRun(lease, run, AiRunDO.STATUS_FAILED, "STEP_BUDGET_EXCEEDED", 1, null);
             throw exception(AI_RUN_BUDGET_EXCEEDED, "步数");
         }
         if (effective.durationExceeded(elapsed(startedAt))) {
+            finishRun(lease, run, AiRunDO.STATUS_FAILED, "DURATION_BUDGET_EXCEEDED", 1, null);
             throw exception(AI_RUN_BUDGET_EXCEEDED, "耗时");
         }
 

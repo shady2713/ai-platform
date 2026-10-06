@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -274,5 +275,64 @@ class AiRunExecutionServiceImplTest {
         assertThatThrownBy(() -> service.execute(lease(), AiRunBudget.defaults()))
                 .satisfies(exception -> assertCode(exception, AiErrorCodeConstants.AI_AUTHORIZATION_DENIED));
         verify(invocationService, never()).generate(any(), any(), any());
+    }
+
+    @Test
+    void stepBudgetPreCheckFailureIsWrittenAsTerminalState() {
+        // 上限 0 步：预检在真正执行前就判定没有可用步数。预算工厂拒绝这种非法预算，
+        // 所以这里用 mock 表达"预算已用尽"这一状态，而不是等执行后才发现。
+        AiRunBudget exhausted = mock(AiRunBudget.class);
+        when(exhausted.hasStepLeft(0)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.execute(lease(), exhausted))
+                .satisfies(exception -> assertCode(exception, AiErrorCodeConstants.AI_RUN_BUDGET_EXCEEDED));
+
+        // 预检失败与执行后超预算是同一个原因，就必须落同一个终态：
+        // 不落终态的话运行留在非终态，恢复作业会重新租约再撞一次同一条预检、白烧一次 attempt，
+        // 最后以"重试预算耗尽"收场，把排查引向根本不是原因的执行器。
+        verify(terminalWriter)
+                .finish(eq(lease()), any(), eq(AiRunDO.STATUS_FAILED), eq("STEP_BUDGET_EXCEEDED"), eq(1), eq(null));
+        verify(invocationService, never()).generate(any(), any(), any());
+    }
+
+    @Test
+    void durationBudgetPreCheckFailureIsWrittenAsTerminalState() {
+        // 身份重建与上下文拼装已把耗时预算用尽（mock 直接表达"已超耗时"，
+        // 比在 stub 里 sleep 去赌时钟更稳定，结论完全相同）。
+        AiRunBudget exhausted = mock(AiRunBudget.class);
+        when(exhausted.hasStepLeft(0)).thenReturn(true);
+        when(exhausted.durationExceeded(anyLong())).thenReturn(true);
+
+        assertThatThrownBy(() -> service.execute(lease(), exhausted))
+                .satisfies(exception -> assertCode(exception, AiErrorCodeConstants.AI_RUN_BUDGET_EXCEEDED));
+
+        verify(terminalWriter)
+                .finish(eq(lease()), any(), eq(AiRunDO.STATUS_FAILED), eq("DURATION_BUDGET_EXCEEDED"), eq(1), eq(null));
+        verify(invocationService, never()).generate(any(), any(), any());
+    }
+
+    @Test
+    void deniedIdentityStopsTheRunBeforeAnyModelCall() {
+        // 组织范围与资源范围**都**为空才是 DENY（撤销后重建的直接结果）：
+        // 不能把"范围为空"当成"不过滤"继续跑
+        when(taskService.rebuildIdentity(RUN_ID))
+                .thenReturn(new AiExecutionContext(5L, "USER", "u-1001", Set.of(), Set.of(), "it", 1L));
+
+        assertThatThrownBy(() -> service.execute(lease(), AiRunBudget.defaults()))
+                .satisfies(exception -> assertCode(exception, AiErrorCodeConstants.AI_RUN_NOT_EXECUTABLE));
+        verify(invocationService, never()).generate(any(), any(), any());
+    }
+
+    @Test
+    void missingLeaseIsNotExecutableAndMissingBudgetFallsBackToPlatformDefaults() {
+        // 没有租约就没有幂等键与终态栅栏，不能默认成"可执行"
+        assertThatThrownBy(() -> service.execute(null, AiRunBudget.defaults()))
+                .satisfies(exception -> assertCode(exception, AiErrorCodeConstants.AI_RUN_NOT_FOUND));
+        verify(invocationService, never()).generate(any(), any(), any());
+
+        // 预算缺省走平台默认：不能把 null 当成 0 预算，也不能直接崩给调用方
+        stubModel(response(List.of(), "text"));
+        assertThat(service.execute(lease(), null).getStatus()).isEqualTo(AiRunDO.STATUS_SUCCEEDED);
+        verify(terminalWriter).finish(eq(lease()), any(), eq(AiRunDO.STATUS_SUCCEEDED), eq(null), eq(1), eq("text"));
     }
 }

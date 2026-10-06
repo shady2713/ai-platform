@@ -77,7 +77,26 @@ public class AiTicketAttemptThrottle {
         if (windows.size() < MAX_TRACKED_KEYS || operations.incrementAndGet() % 64 != 0) {
             return;
         }
+        // 第一步删已过期的：这些窗口本来就该走，删掉不丢信息。
         windows.entrySet().removeIf(entry -> entry.getValue().isExpired(window));
+        // 第二步把上界真正兜住。原先只有第一步，窗口全都新鲜时一条都不删——
+        // 字段注释承诺的"上限 / 避免内存无界"从未成立：客户端键是外部输入，
+        // 持续用新键换票就能把 map 推着长，而限流器自己正是为了挡这件事。
+        while (windows.size() >= MAX_TRACKED_KEYS) {
+            String oldestKey = null;
+            Instant oldestAt = null;
+            for (Map.Entry<String, Window> entry : windows.entrySet()) {
+                Instant at = entry.getValue().firstFailure();
+                if (oldestAt == null || at.isBefore(oldestAt)) {
+                    oldestAt = at;
+                    oldestKey = entry.getKey();
+                }
+            }
+            if (oldestKey == null || windows.remove(oldestKey) == null) {
+                // 并发下已被别人删空/抢先删走：本轮到此为止，避免空转
+                return;
+            }
+        }
     }
 
     /** 单客户端失败窗口。 */
@@ -85,7 +104,7 @@ public class AiTicketAttemptThrottle {
 
         private int failures;
 
-        private Instant firstFailure = Instant.now();
+        private final Instant firstFailure = Instant.now();
 
         private synchronized void increment() {
             failures++;
@@ -93,6 +112,11 @@ public class AiTicketAttemptThrottle {
 
         private synchronized int failures() {
             return failures;
+        }
+
+        /** 窗口起点：用于超上界时挑出最旧的那一个（构造后不再变，只读）。 */
+        private Instant firstFailure() {
+            return firstFailure;
         }
 
         private synchronized boolean isExpired(Duration window) {

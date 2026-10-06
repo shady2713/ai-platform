@@ -287,10 +287,11 @@ class AiServiceDebugServiceImplTest {
                 .as("超时按模型调用失败收敛，不返回假成功")
                 .satisfies(exception -> assertCode(exception, AiErrorCodeConstants.AI_MODEL_CALL_FAILED));
 
+        // 上游限流收敛为通用模型失败：报 429「已超出当前配额」会把限流方说成调用方
         when(invocationService.generate(eq(ENDPOINT_ID), any(), any()))
                 .thenThrow(new ModelException(ModelException.Reason.RATE_LIMITED, "上游限流"));
         assertThatThrownBy(() -> service.debugRun(runRequest()))
-                .satisfies(exception -> assertCode(exception, AiErrorCodeConstants.AI_QUOTA_EXCEEDED));
+                .satisfies(exception -> assertCode(exception, AiErrorCodeConstants.AI_MODEL_CALL_FAILED));
 
         when(invocationService.generate(eq(ENDPOINT_ID), any(), any()))
                 .thenThrow(new ModelException(ModelException.Reason.ENDPOINT_DISABLED, "端点停用"));

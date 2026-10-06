@@ -3,6 +3,7 @@ package com.basicframework.module.ai.domain.runtime;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.basicframework.framework.ai.core.model.ModelException;
+import com.basicframework.framework.common.exception.ErrorCode;
 import com.basicframework.framework.common.exception.ServiceException;
 import com.basicframework.module.ai.enums.AiErrorCodeConstants;
 import org.junit.jupiter.api.Test;
@@ -24,8 +25,24 @@ class AiModelFailureCodesTest {
         assertThat(AiModelFailureCodes.of(ModelException.Reason.TARGET_NOT_ALLOWED)
                         .getCode())
                 .isEqualTo(AiErrorCodeConstants.AI_MODEL_OUTBOUND_BLOCKED.getCode());
-        assertThat(AiModelFailureCodes.of(ModelException.Reason.RATE_LIMITED).getCode())
-                .isEqualTo(AiErrorCodeConstants.AI_QUOTA_EXCEEDED.getCode());
+    }
+
+    /**
+     * 上游限流归为通用模型失败（502），**不**归为本平台配额超限（429）。
+     *
+     * <p>{@code AI_QUOTA_EXCEEDED} 的文案是"已超出当前配额或触发限流"，限流方是**调用方**；
+     * 而 {@code RATE_LIMITED} 的限流方是**上游模型**。报 429 会让调用方以为是自己被限流
+     * 而退避，也让运维去调平台配额——真正该看的是上游账号额度与退避策略。
+     * 本类 javadoc 早已把"限流"列进统一归为 502 的名单，实现此前与文档不一致。
+     */
+    @Test
+    void upstreamRateLimitIsNotReportedAsPlatformQuota() {
+        ErrorCode mapped = AiModelFailureCodes.of(ModelException.Reason.RATE_LIMITED);
+
+        assertThat(mapped.getCode()).isEqualTo(AiErrorCodeConstants.AI_MODEL_CALL_FAILED.getCode());
+        assertThat(mapped.getCode())
+                .as("上游限流不得报成调用方的配额超限")
+                .isNotEqualTo(AiErrorCodeConstants.AI_QUOTA_EXCEEDED.getCode());
     }
 
     @Test

@@ -415,6 +415,8 @@ HTTP 列按 ADR 0003 的**语义**映射；框架按常量名派生实际状态�
 | `AI_CROSS_SOURCE_ALREADY_COUNTED_CONFLICT` | 1_003_017_010 | 该来源已计入本次执行，拒绝重复汇总（重试幂等在持久层的落点） | 409 |
 | `AI_CROSS_SOURCE_ENTITY_KEY_MISSING_CONFLICT` | 1_003_017_011 | 版本化实体键缺失或形状不合法，无法参与跨源关联 | 409 |
 | `AI_CROSS_SOURCE_ENTITY_KEY_REVISION_CONFLICT` | 1_003_017_012 | 参与关联的来源钉在不同实体键映射版本上，拒绝跨版本关联 | 409 |
+| `AI_CROSS_SOURCE_CANCELLED_CONFLICT` | 1_003_017_013 | 等待来源结果期间**调用线程**被中断（调用方已放弃/容器关闭），与来源无关（**不可重试**：重试等于替调用方白干一遍） | 409 |
+| `AI_CROSS_SOURCE_CONCURRENCY_EXCEEDED_CONFLICT` | 1_003_017_014 | 并发来源数超出口径声明的并发上限（与 `RESULT_TOO_LARGE` 分开：并发查来源扇出与调度，规模查单次取数形状） | 409 |
 
 语义边界见 `docs/ai-platform/verification/y04-bounded-cross-source-execution-evidence.md` 与
 `docs/adr/0054-bounded-cross-source-execution-and-unified-result.md`：先源内聚合再按版本化实体键
