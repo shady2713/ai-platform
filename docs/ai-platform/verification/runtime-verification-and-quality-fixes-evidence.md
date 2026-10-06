@@ -131,6 +131,66 @@ id  name             name_hex
 不是产品缺陷，不"修"。
 
 
+## 4.4 三个菜单入口指向不存在的页面 → 已建页面（用户选定方案）
+
+§4.2 记录的落差经用户决策后按「建这三个页面」处理，让已就绪的后端能力真正可用。
+
+**授权范围核对**：Y03 的「允许修改范围」只列了后端 `domain/semantic` 与 `service/semantic`，
+不含前端 `views/ai`。因此这三个页面是**新增功能**而非补漏，卡号与范围由用户确认后才动手。
+
+| 页面 | 后端形态 | 页面为何是这种形态 |
+|---|---|---|
+| AI 查询计划 (`/ai/query`) | 仅 `POST /ai/query/plan` + `GET /ai/query/summary`，**无列表接口** | 「填条件 → 提交 → 看结果」操作页。结果只有两种正常形态：已校验计划（带 `planHash`/`planJson`）或澄清追问（带 `candidates`）。明确标注"后端不接受 SQL"，**不提供任何 SQL 编辑框** |
+| 流程编排 (`/ai/workflow`) | 三个控制器：定义 CRUD / 版本草稿生命周期 / 运行与节点留痕 | 四个面板：定义表单、版本管理、运行记录，外加错误路径专项 |
+| 跨源合并结果 (`/ai/cross-source`) | 仅两个按执行键查询的端点，**无列表接口** | 「先问口径再取数」两步：`/integrity` 返回 `state` 为 `COMPLETE` 才去取数 |
+
+### 4.4.1 fail-closed 是跨源页的命门，已在真实后端上验证
+
+`WITHHELD` 时 `totalAmount`、`sourceCount`、`sources`、`consistencyAsOf`、`maxSkewMillis`
+全部为 null/空——服务端**从未序列化过**数字。因此页面有两道独立闸门：
+
+1. **请求闸门** `canFetchAmounts`：口径不放行就不发结果请求；
+2. **渲染闸门** `shouldRenderAmounts`：结果自身口径不放行就不渲染任何数字。
+
+第 2 道不能省——万一某次响应在 `WITHHELD` 下带回了数字，页面也不跟着显示。
+
+**真实后端取证**（`xs-does-not-exist-001` + `applicationId=1` + 角色 ANALYST）：
+
+```
+先查口径 → 后端返回「跨源执行记录不存在」
+页面显示：读取授权完整性口径失败：请确认执行键存在，且当前账号有 ai:cross-source:integrity 权限
+门禁状态：integrity-state 不存在 | amounts 不存在 | withheld 不存在 | 「再取数字」disabled = true
+```
+
+即**失败的探测不会留下一个假的"可取数"状态**——那正是要堵的缺口。
+
+### 4.4.2 顺手实测掉一个未验证风险
+
+查询页的 `allowedFieldCodes` 是数组参数，靠 `qs` 的 `repeat` 序列化。
+在真实后端上实测三种形式：
+
+```
+?datasetId=1&allowedFieldCodes=amount                 → 1003006018 数据集不存在
+?datasetId=1&allowedFieldCodes=amount&…=order_id      → 1003006018 数据集不存在
+?datasetId=1                                          → 1003006018 数据集不存在
+```
+
+三者都**进入业务层**并返回同一个业务错误。若绑定失败会是 400「请求参数缺失:executionKey」，
+所以绑定成立——原先"未在真实后端验证过"的标注可以撤掉。
+
+### 4.4.3 建页面过程中修掉的四处
+
+| 位置 | 问题 | 修法 |
+|---|---|---|
+| `cross-source/index.vue` | 2 个 TS2345：表单 `applicationId` 运行时是 `number \| undefined`，被 `{ ...form }` 塞进要求 `number` 的 `MergeQuery` | 加 `toMergeQuery()` **收窄函数**而不是 `as` 强转——把"这里必须已校验过"这条不变量保在类型里，且可被直接测（补 5 例） |
+| `workflow/modules/versions.vue` | `handleEdit`/`handleView` 直接 `await` 无 `catch`：失败变成**没有用户可见消息的未捕获拒绝**，而同面板其它 4 个操作都用 `extractErrorMessage` 如实显示原因码 | 补 `catch` + 清空旧状态 |
+| `workflow/modules/runs.vue` | `handleNodes` 同样无 `catch`，且失败后会把上一个运行的留痕留在页面上**冒充本次的** | 补 `catch` + `nodes.value = []` |
+| `api/ai/workflow/index.ts` | `publishedAt?: Date` —— 请求层**不做日期归一化**，运行时是字符串，而这是版本列表里唯一被**原样渲染**的时间 | 改成 `string` 并说明为何不沿用 `createTime?: Date` 惯例（那些声明从没被渲染过，所以一直没人发现） |
+
+`setup.ts` 头注释里我一度写了"`setup` 会被覆盖率排除"——**这是错的**：
+`vitest.config.ts` 的 `coverage.exclude` 里没有该模式，实测该文件被计入（95.08%）。
+最终注释只写已验证的事实。
+
 ## 5. 修掉的真缺陷
 
 ### 5.1 偏好存储 namespace 退化为 `undefined-undefined-dev`（前端，影响所有用户）
@@ -371,20 +431,16 @@ accept/reject 分支全测到了，直接把这个文件从 92.22% 顶到 100%�
 - **Qdrant 取消路径的端到端验证**：新增的 `CANCELLED` 分支需要真实中断才能触发，
   单元测试未覆盖（该文件覆盖率基线 88.41%，非 100%，不受影响）。
 
-### 8.3 待你定夺：三个菜单入口指向不存在的页面
+### 8.3 已处理：三个菜单入口指向不存在的页面
 
-`query` / `workflow` / `cross-source` 三个管理端页面在菜单里注册了，
-但组件从未创建（详见 §4.2），后端 API 齐备，且**没有任何卡授权创建它们**。
-本轮不擅自处置，因为两条路差别很大：
+`query` / `workflow` / `cross-source` 三个管理端页面曾在菜单里注册、组件从未创建
+（详见 §4.2），后端 API 齐备，而**没有任何卡授权创建它们**。
 
-| 方案 | 代价 | 后果 |
-|---|---|---|
-| A. 建这 3 个页面 | 约 1200 行（每页 index.vue + data.ts + api.ts + 测试），需先定列、动作与权限码 | 用户能管理已有后端能力；但属新增功能，无卡授权其范围 |
-| B. 隐藏这 3 个菜单项 | 一条 migration 或改菜单 `visible` | 用户不再撞 404；但看不到已就绪的后端能力 |
-| C. 建卡承接 | 先补卡再实施 | 符合"建卡前验编号"的既有纪律；工期最长 |
+因为处置方案差别很大（建页面 / 隐藏菜单 / 建卡承接），本轮没有擅自决定，
+把三个选项与代价摆出来请用户定夺。用户选定 **A. 建这三个页面**，实施与验证见 §4.4。
 
-**本轮默认按 B 之外的现状如实登记**：菜单与页面的落差写在 §4.2，
-不在无授权情况下新增页面，也不在未确认前改动菜单可见性。
+三个页面共 13 个源文件 + 8 个测试文件，**全部低于 800 行上限**（最大 378 行）；
+覆盖率全部满足棘轮新文件 80% 门槛（92.56%–100%）。
 
 
 ## 9. 范围声明
