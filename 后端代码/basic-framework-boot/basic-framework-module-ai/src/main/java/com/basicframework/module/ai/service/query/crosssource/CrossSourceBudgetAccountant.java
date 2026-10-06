@@ -70,14 +70,26 @@ public final class CrossSourceBudgetAccountant {
         }
     }
 
-    /** 进入一个来源（记录并发峰值；超过并发上限即拒绝，不排队）。 */
+    /**
+     * 进入一个来源：记录并发峰值，超出预算即拒绝。
+     *
+     * <p><b>这条拒绝在当前执行器下不会触发</b>：{@code AiCrossSourceQueryExecutor} 把线程池
+     * 定成 {@code min(并发预算, 来源数)}，同时在跑的 {@code enter()} 天然不会超限。
+     * 超出部分由那个无界队列排队等位——所以"拒绝"并不等于"不排队"，排队发生在池子里。
+     *
+     * <p>因此本方法当前是**不变量守卫**（有单测直接调用覆盖），而不是生产路径上的准入闸门。
+     * 留着它是为了：执行器策略一旦改成"先起满线程再按预算准入"，这里就是真正的闸门，
+     * 不必再去别处找并发上限从哪生效。
+     */
     public void enter() {
         int current = inFlight.incrementAndGet();
         if (current > budget.maxConcurrentSources()) {
             inFlight.decrementAndGet();
             // 峰值只在**放行**时更新：把被拒的进入也算进峰值会让并发证据虚高，
             // 事后对账时"峰值 3、上限 2"看起来像计量坏了
-            throw AiCrossSourceExecutionErrors.resultTooLarge();
+            // 报并发超限而不是"行数/内存预算超限"：并发要去查来源扇出与调度，
+            // 规模要去查单次取数形状，证据指向完全不同的东西
+            throw AiCrossSourceExecutionErrors.concurrencyExceeded();
         }
         concurrentPeak.accumulateAndGet(current, Math::max);
     }
